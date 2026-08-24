@@ -1,5 +1,6 @@
 import { useMemo, useRef, useState, type ReactNode } from "react";
 import { cx, timeAgo, addDays, dayKey, today, fmtShort } from "../lib/format";
+import { fxInfo } from "../lib/fx";
 import { Ic, type IconName } from "./icons";
 import { Avatar, Badge, Btn, IconBtn, Kbd, Modal, Ring, Toggle } from "./ui";
 import { useApp, useOverdue, useSyncAlerts, useUnreadTotal, nightsInRange, arrivalsOn } from "../store";
@@ -48,13 +49,14 @@ const NAV: { group: string; items: { path: string; icon: IconName; label: string
 ];
 
 function Sidebar() {
-  const { route, navigate, t, chatOpen, setChatOpen } = useApp();
+  const { route, navigate, t, chatOpen, setChatOpen, featureOn, logout, session, tenants } = useApp();
   const unread = useUnreadTotal();
   const syncAlerts = useSyncAlerts();
   const overdue = useOverdue();
   const active = route.path[0] ?? "dashboard";
   const reviews = useApp((s) => s.reviews);
   const needsReply = reviews.filter((r) => !r.reply && r.replyDeadline && r.replyDeadline > Date.now()).length;
+  const tenant = session?.kind === "tenant" ? tenants.find((x) => x.id === session.tenantId) : null;
 
   const badge = (path: string) =>
     path === "inbox" ? unread : path === "sync" ? syncAlerts : path === "ops" ? overdue : path === "reviews" ? needsReply : 0;
@@ -72,46 +74,53 @@ function Sidebar() {
       </button>
 
       <div className="flex-1 overflow-y-auto px-2.5 pb-3">
-        {NAV.map((g) => (
-          <div key={g.group} className="mt-3">
-            <p className="px-2 pb-1 text-[9.5px] font-bold uppercase tracking-[0.16em] text-pine-200/50">{t(g.group)}</p>
-            {g.items.map((it) => {
-              const isActive = active === it.path;
-              const b = badge(it.path);
-              return (
-                <button
-                  key={it.path}
-                  onClick={() => navigate(`/${it.path}`)}
-                  aria-current={isActive ? "page" : undefined}
-                  className={cx(
-                    "group mb-0.5 flex w-full items-center gap-2.5 rounded-md px-2 py-[7px] text-left text-[12.5px] font-semibold transition-all duration-150",
-                    isActive ? "bg-brand/20 text-white shadow-[inset_2px_0_0_#35B592]" : "text-pine-100/75 hover:bg-white/5 hover:text-white",
-                  )}
-                >
-                  <Ic name={it.icon} size={15} className={isActive ? "text-[#5BCBA9]" : "text-pine-200/60 group-hover:text-pine-100"} />
-                  <span className="flex-1">{t(it.label)}</span>
-                  {b > 0 && (
-                    <span className={cx("rounded-full px-1.5 py-px font-mono text-[10px] font-bold", it.path === "sync" ? "bg-danger text-white" : "bg-brand text-white")}>{b}</span>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        ))}
+        {NAV.map((g) => {
+          const items = g.items.filter((it) => featureOn(it.path));
+          if (!items.length) return null;
+          return (
+            <div key={g.group} className="mt-3">
+              <p className="px-2 pb-1 text-[9.5px] font-bold uppercase tracking-[0.16em] text-pine-200/50">{t(g.group)}</p>
+              {items.map((it) => {
+                const isActive = active === it.path;
+                const b = badge(it.path);
+                return (
+                  <button
+                    key={it.path}
+                    onClick={() => navigate(`/${it.path}`)}
+                    aria-current={isActive ? "page" : undefined}
+                    className={cx(
+                      "group mb-0.5 flex w-full items-center gap-2.5 rounded-md px-2 py-[7px] text-left text-[12.5px] font-semibold transition-all duration-150",
+                      isActive ? "bg-brand/25 text-white shadow-[inset_2px_0_0_#D92B2B]" : "text-pine-100/75 hover:bg-white/5 hover:text-white",
+                    )}
+                  >
+                    <Ic name={it.icon} size={15} className={isActive ? "text-brand-bright" : "text-pine-200/60 group-hover:text-pine-100"} />
+                    <span className="flex-1">{t(it.label)}</span>
+                    {b > 0 && (
+                      <span className={cx("rounded-full px-1.5 py-px font-mono text-[10px] font-bold", it.path === "sync" ? "bg-danger text-white" : "bg-brand text-white")}>{b}</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          );
+        })}
       </div>
 
       <div className="border-t border-pine-800 p-3">
         <button onClick={() => setChatOpen(!chatOpen)} className="mb-2 flex w-full items-center gap-2 rounded-md bg-pine-800 px-2.5 py-2 text-left text-[12px] font-semibold text-pine-100 transition-colors hover:bg-pine-700">
-          <Ic name="chat" size={14} className="text-[#5BCBA9]" />
+          <Ic name="chat" size={14} className="text-brand-bright" />
           Team chat
           <span className="ml-auto rounded-full bg-brand px-1.5 font-mono text-[10px] font-bold text-white">3</span>
         </button>
         <div className="flex items-center gap-2.5 rounded-md px-1.5 py-1">
-          <Avatar name="Sarah Whitfield" color="#0E7A5F" size={30} />
-          <div className="min-w-0">
-            <p className="truncate text-[12px] font-bold text-white">Sarah Whitfield</p>
-            <p className="text-[10px] text-pine-200/60">Account owner · {WORKSPACE.name}</p>
+          <Avatar name={tenant ? tenant.name : "Operator"} size={30} />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-[12px] font-bold text-white">{tenant ? tenant.name : WORKSPACE.name}</p>
+            <p className="text-[10px] text-pine-200/60">{tenant ? `${tenant.plan} plan · ${tenant.currency}` : "workspace"}{session?.kind === "tenant" && session.impersonated && " · impersonated"}</p>
           </div>
+          <button onClick={logout} aria-label="Sign out" title="Sign out" className="rounded-md p-1.5 text-pine-200/60 transition-colors hover:bg-white/10 hover:text-white">
+            <Ic name="logOut" size={14} />
+          </button>
         </div>
       </div>
     </nav>
@@ -119,12 +128,24 @@ function Sidebar() {
 }
 
 function Topbar({ title, sub }: { title: string; sub?: string }) {
-  const { route, navigate, t, chatOpen, setChatOpen, copilotOpen, setCopilotOpen } = useApp();
+  const { route, navigate, t, chatOpen, setChatOpen, copilotOpen, setCopilotOpen, displayCurrency, setWorkspaceCurrency, refreshRates, fxTick, session, tenants, logout, toast } = useApp();
   const syncAlerts = useSyncAlerts();
   const creditsUsed = useApp((s) => s.creditsUsed);
   const locale = route.locale;
+  void fxTick;
+  const fx = fxInfo();
+  const impersonated = session?.kind === "tenant" && session.impersonated;
+  const tenantName = session?.kind === "tenant" ? tenants.find((x) => x.id === session.tenantId)?.name : null;
 
   return (
+    <>
+    {impersonated && (
+      <div className="flex shrink-0 items-center gap-3 border-b border-brand/40 bg-brand-soft px-4 py-1.5">
+        <Ic name="eye" size={13} className="text-brand-deep" />
+        <p className="text-[11.5px] font-bold text-brand-deep">Impersonating {tenantName} — every action is logged to the audit trail as a developer session.</p>
+        <button onClick={() => { logout(); }} className="ml-auto rounded-md bg-brand px-2.5 py-1 text-[11px] font-bold text-white hover:bg-brand-deep">Return to console</button>
+      </div>
+    )}
     <header className="flex h-[52px] shrink-0 items-center gap-3 border-b border-line bg-card/80 px-4 backdrop-blur">
       <div className="min-w-0">
         <h1 className="truncate font-display text-[15.5px] font-bold leading-tight text-ink">{title}</h1>
@@ -147,6 +168,28 @@ function Topbar({ title, sub }: { title: string; sub?: string }) {
           <span className="font-mono text-[10px] text-faint">{WORKSPACE.credits.limit - creditsUsed} cr</span>
         </button>
         <div className="mx-1 h-5 w-px bg-line" />
+        {/* Reporting currency — IDR/USD primary, live rates */}
+        <div className="flex items-center gap-1 rounded-md border border-line bg-card p-0.5" role="group" aria-label="Reporting currency">
+          {(["IDR", "USD", "EUR"] as const).map((c) => (
+            <button
+              key={c}
+              onClick={() => { setWorkspaceCurrency(c); toast("ok", `Reporting currency → ${c}`, `1 USD = ${fx.rate.IDR.toLocaleString()} IDR · 1 USD = €${fx.rate.EUR} (${fx.source === "live" ? "live" : "snapshot"} rates)`); }}
+              className={cx("rounded px-1.5 py-0.5 font-mono text-[10.5px] font-bold", displayCurrency === c ? "bg-brand text-white" : "text-mute hover:text-ink")}
+            >
+              {c}
+            </button>
+          ))}
+          <button
+            onClick={async () => { const ok = await refreshRates(); toast(ok ? "ok" : "warn", ok ? "Live FX rates loaded" : "Using dated snapshot", ok ? "open.er-api.com · just now" : "Offline — amounts still convert at the snapshot rate."); }}
+            aria-label="Refresh exchange rates"
+            title={`Rates: ${fx.source === "live" ? "live · " + fx.asOf : "snapshot · " + fx.asOf}`}
+            className="rounded p-1 text-mute transition-colors hover:bg-paper hover:text-brand"
+          >
+            <Ic name="refresh" size={11} />
+          </button>
+          <span className={cx("mr-0.5 h-1.5 w-1.5 rounded-full", fx.source === "live" ? "bg-brand" : "bg-faint")} aria-label={fx.source === "live" ? "Live rates" : "Snapshot rates"} />
+        </div>
+        <div className="mx-1 h-5 w-px bg-line" />
         <div className="flex items-center rounded-md border border-line bg-card p-0.5" role="group" aria-label="Language">
           {(["en", "id"] as const).map((l) => (
             <button
@@ -161,6 +204,7 @@ function Topbar({ title, sub }: { title: string; sub?: string }) {
         <IconBtn label="Toggle team chat" name="chat" onClick={() => setChatOpen(!chatOpen)} className={chatOpen ? "bg-brand-soft text-brand-deep" : ""} />
       </div>
     </header>
+    </>
   );
 }
 

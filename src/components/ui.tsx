@@ -218,7 +218,7 @@ export function Kbd({ children }: { children: ReactNode }) {
 }
 
 // ── Charts (hand-set SVG) ──────────────────────────────────────────────────
-export function Spark({ points, color = "#0E7A5F", h = 36, w = 120, fill = true }: { points: number[]; color?: string; h?: number; w?: number; fill?: boolean }) {
+export function Spark({ points, color = "#B22222", h = 36, w = 120, fill = true }: { points: number[]; color?: string; h?: number; w?: number; fill?: boolean }) {
   const max = Math.max(...points, 1);
   const min = Math.min(...points, 0);
   const span = max - min || 1;
@@ -231,7 +231,7 @@ export function Spark({ points, color = "#0E7A5F", h = 36, w = 120, fill = true 
   );
 }
 
-export function Hist({ data, labels, color = "#0E7A5F", h = 120 }: { data: number[]; labels: string[]; color?: string; h?: number }) {
+export function Hist({ data, labels, color = "#B22222", h = 120 }: { data: number[]; labels: string[]; color?: string; h?: number }) {
   const max = Math.max(...data, 1);
   return (
     <div className="flex items-end gap-1.5" style={{ height: h }} role="img" aria-label={`Histogram: ${data.map((d, i) => `${labels[i]} ${d}`).join(", ")}`}>

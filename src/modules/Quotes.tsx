@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { cx, money, fmtDate, timeAgo, hoursLeft, relDay } from "../lib/format";
+import { cx, money, moneyRaw, fmtDate, timeAgo, hoursLeft, relDay } from "../lib/format";
 import { Ic } from "../components/icons";
 import { Badge, Btn, Dot, Empty, Field, Input, Modal, Select, Textarea } from "../components/ui";
 import { useApp } from "../store";
@@ -133,10 +133,10 @@ export default function Quotes() {
                 {q.items.map((it, i) => (
                   <tr key={i} className="border-b border-line/50">
                     <td className="py-1 text-[11px]">{it.label}</td>
-                    <td className="py-1 text-right font-mono text-[11px]">{money(it.amount, q.currency, { sign: true })}</td>
+                    <td className="py-1 text-right font-mono text-[11px]">{moneyRaw(it.amount, q.currency, { sign: true })}</td>
                   </tr>
                 ))}
-                <tr><td className="py-1.5 text-[12.5px] font-bold">Total</td><td className="py-1.5 text-right font-mono text-[13.5px] font-bold">{money(q.total, q.currency)}</td></tr>
+                <tr><td className="py-1.5 text-[12.5px] font-bold">Total</td><td className="py-1.5 text-right font-mono text-[13.5px] font-bold">{moneyRaw(q.total, q.currency)}</td></tr>
               </tbody>
             </table>
             <p className="mt-3 text-[10.5px] leading-relaxed text-mute"><b>Deposit:</b> {q.depositTerms}</p>

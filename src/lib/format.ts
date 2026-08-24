@@ -1,12 +1,13 @@
 // ── Trellis formatting + date/money utilities ─────────────────────────────
 // Money is ALWAYS integer minor units + explicit currency code. Never floats.
+import { convertMinor, getDisplayCurrency } from "./fx";
 
 export function cx(...parts: Array<string | false | null | undefined>): string {
   return parts.filter(Boolean).join(" ");
 }
 
 export const CURRENCIES: Record<string, { symbol: string; exp: number }> = {
-  IDR: { symbol: "Rp", exp: 0 },
+  IDR: { symbol: "Rp", exp: 0 }, // rupiah stored as whole units (IDR has no circulating subunit) — integer math only
   EUR: { symbol: "€", exp: 2 },
   USD: { symbol: "$", exp: 2 },
   AUD: { symbol: "A$", exp: 2 },
@@ -16,8 +17,7 @@ export const CURRENCIES: Record<string, { symbol: string; exp: number }> = {
 const nf = (exp: number) =>
   new Intl.NumberFormat("en-US", { minimumFractionDigits: exp, maximumFractionDigits: exp });
 
-/** minor units → display string, e.g. 4200000 IDR → "Rp 4,200,000" */
-export function money(minor: number, code = "IDR", opts?: { compact?: boolean; sign?: boolean }): string {
+function fmtMoney(minor: number, code: string, opts?: { compact?: boolean; sign?: boolean }): string {
   const c = CURRENCIES[code] ?? CURRENCIES.USD;
   const major = minor / 10 ** c.exp;
   if (opts?.compact) {
@@ -30,6 +30,22 @@ export function money(minor: number, code = "IDR", opts?: { compact?: boolean; s
     return `${opts.sign && minor > 0 ? "+" : ""}${c.symbol} ${v}`;
   }
   return `${opts?.sign && minor > 0 ? "+" : ""}${c.symbol} ${nf(c.exp).format(major)}`;
+}
+
+/** Raw render in the amount's own currency — for source-of-truth figures (reservation line items, calendar nightly rates, quote documents). */
+export function moneyRaw(minor: number, code = "IDR", opts?: { compact?: boolean; sign?: boolean }): string {
+  return fmtMoney(minor, code, opts);
+}
+
+/** Reporting render — converts to the workspace display currency at the current FX snapshot, then formats. */
+export function money(minor: number, code = "IDR", opts?: { compact?: boolean; sign?: boolean }): string {
+  const display = getDisplayCurrency();
+  return fmtMoney(convertMinor(minor, code, display), display, opts);
+}
+
+/** Code of the currency currently shown across reporting surfaces. */
+export function displayCode(): string {
+  return getDisplayCurrency();
 }
 
 export function fromMajor(amount: number, code = "IDR"): number {

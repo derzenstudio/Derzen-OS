@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { cx, money, timeAgo, fmtDateTime, download, toCSV } from "../lib/format";
+import { fxInfo } from "../lib/fx";
 import { Ic } from "../components/icons";
 import { Avatar, Badge, Btn, Dot, Field, Input, Modal, Select, Tabs, Toggle } from "../components/ui";
 import { useApp } from "../store";
@@ -174,7 +175,9 @@ function General() {
         <div className="grid grid-cols-2 gap-3">
           <Field label="Workspace name"><Input defaultValue={WORKSPACE.name} /></Field>
           <Field label="Country"><Select defaultValue="Indonesia"><option>Indonesia</option><option>Netherlands</option><option>Australia</option></Select></Field>
-          <Field label="Reporting currency" hint="Dashboards roll up here. Listing & channel currencies stay separate."><Select defaultValue="EUR"><option>EUR — Euro</option><option>USD</option><option>IDR</option></Select></Field>
+          <Field label="Reporting currency" hint="Dashboards roll up here at timestamped FX rates. Listing & channel currencies stay separate.">
+            <ReportingCurrencyControl />
+          </Field>
           <Field label="Workspace timezone"><Select defaultValue="Europe/Amsterdam"><option>Europe/Amsterdam</option><option>Asia/Makassar</option></Select></Field>
           <Field label="Date format"><Select defaultValue="D MMM YYYY"><option>D MMM YYYY</option><option>DD/MM/YYYY</option><option>MM/DD/YYYY</option></Select></Field>
           <Field label="Time format"><Select defaultValue="24h"><option>24h</option><option>12h</option></Select></Field>
@@ -393,6 +396,32 @@ function Reminders() {
           <Toggle checked={state[key]} onChange={(v) => { setState({ ...state, [key]: v }); toast("ok", `Reminder ${v ? "enabled" : "disabled"}`, label); }} label={`Reminder ${label}`} />
         </label>
       ))}
+    </div>
+  );
+}
+
+function ReportingCurrencyControl() {
+  const { displayCurrency, setWorkspaceCurrency, refreshRates, fxTick, toast } = useApp();
+  void fxTick;
+  const [busy, setBusy] = useState(false);
+  const fx = fxInfo();
+  return (
+    <div className="flex items-center gap-2">
+      <Select value={displayCurrency} onChange={(e) => { setWorkspaceCurrency(e.target.value as never); toast("ok", `Reporting currency → ${e.target.value}`, "Every report, dashboard and statement re-renders at the stored FX rate."); }} aria-label="Reporting currency">
+        <option value="IDR">IDR — Indonesian Rupiah</option>
+        <option value="USD">USD — US Dollar</option>
+        <option value="EUR">EUR — Euro</option>
+      </Select>
+      <button
+        onClick={async () => { setBusy(true); const ok = await refreshRates(); setBusy(false); toast(ok ? "ok" : "warn", ok ? "Live rates loaded" : "Snapshot in use", ok ? `1 USD = ${fxInfo().rate.IDR.toLocaleString()} IDR` : "open.er-api.com unreachable — dated snapshot applies."); }}
+        className="flex items-center gap-1.5 rounded-md border border-line bg-card px-2.5 py-2 font-mono text-[10.5px] font-bold text-mute transition-colors hover:border-brand hover:text-brand-deep"
+      >
+        <span className={cx(busy && "anim-spin")}><Ic name="refresh" size={12} /></span>
+        {busy ? "fetching…" : "refresh rates"}
+      </button>
+      <span className={cx("rounded-full px-2 py-1 font-mono text-[9.5px] font-bold", fx.source === "live" ? "bg-brand-soft text-brand-deep" : "bg-paper text-faint")}>
+        {fx.source === "live" ? "live" : "snapshot"} · {fx.asOf}
+      </span>
     </div>
   );
 }

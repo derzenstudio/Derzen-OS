@@ -11,6 +11,31 @@ import {
   MSG_QUEUE, ONBOARD_STEPS, PROPERTIES, QUOTES, RESERVATIONS, REVIEWS, SYNC, TASKS,
   WEBHOOKS, WEBSITE, WORKSPACE, channelDef, propertyById, FX_TO_EUR,
 } from "./lib/data";
+import { setDisplayCurrency, refreshFx, type CurrencyCode } from "./lib/fx";
+import {
+  AI_DEFAULTS, DEVELOPER, PLATFORM_INTEGRATIONS, TENANTS, hydrateTenantData,
+  type PlatformIntegration, type TenantMeta,
+} from "./lib/tenants";
+
+// ── sessions & tenant-scoped boot ──────────────────────────────────────────
+export type Session =
+  | { kind: "tenant"; tenantId: string; impersonated?: boolean }
+  | { kind: "developer" };
+
+function loadSession(): Session | null {
+  try { return JSON.parse(localStorage.getItem("trellis.session") ?? "null") as Session | null; } catch { return null; }
+}
+function saveSession(s: Session | null) {
+  try { s ? localStorage.setItem("trellis.session", JSON.stringify(s)) : localStorage.removeItem("trellis.session"); } catch { /* private mode */ }
+}
+const bootSession = loadSession();
+if (bootSession?.kind === "tenant" && bootSession.tenantId) {
+  const meta = TENANTS.find((t) => t.id === bootSession.tenantId);
+  hydrateTenantData(bootSession.tenantId);
+  if (meta) setDisplayCurrency(meta.currency);
+}
+export const flagsFor = (s: Session | null): Record<string, boolean> | null =>
+  s?.kind === "tenant" ? { ...TENANTS.find((t) => t.id === s.tenantId)?.features } : null;
 
 // ── hash router ────────────────────────────────────────────────────────────
 export interface Route { locale: Locale; path: string[]; query: URLSearchParams; }
@@ -35,6 +60,29 @@ interface App {
   route: Route;
   navigate: (to: string) => void;
   t: (key: string, vars?: Record<string, string | number>) => string;
+
+  // ── auth, tenancy & platform state ──
+  session: Session | null;
+  tenants: TenantMeta[];
+  features: Record<string, boolean> | null;
+  loginTenant: (email: string, pw: string) => { ok: boolean; error?: string };
+  loginDeveloper: (email: string, pw: string) => { ok: boolean; error?: string };
+  logout: () => void;
+  impersonate: (tenantId: string) => void;
+  featureOn: (key: string) => boolean;
+  setTenantFeature: (tenantId: string, key: string, on: boolean) => void;
+  setTenantPlan: (tenantId: string, plan: TenantMeta["plan"]) => void;
+  setTenantSuspended: (tenantId: string, v: boolean) => void;
+  displayCurrency: CurrencyCode;
+  fxTick: number;
+  setWorkspaceCurrency: (c: CurrencyCode) => void;
+  refreshRates: () => Promise<boolean>;
+  devIntegrations: PlatformIntegration[];
+  checking: string[];
+  setIntegration: (id: string, patch: Partial<PlatformIntegration>) => void;
+  checkIntegration: (id: string) => void;
+  aiConfig: typeof AI_DEFAULTS & { enabled: boolean };
+  setAiConfig: (patch: Partial<App["aiConfig"]>) => void;
 
   scope: string;
   setScope: (s: string) => void;
@@ -184,6 +232,96 @@ export const useApp = create<App>((set, get) => ({
     window.location.hash = `/${locale}${to.startsWith("/") ? to : "/" + to}`;
   },
   t: (key, vars) => tr(get().route.locale, key, vars),
+
+  // ── auth, tenancy & platform state ──
+  session: bootSession,
+  tenants: TENANTS,
+  features: flagsFor(bootSession),
+  loginTenant: (email, pw) => {
+    const t = TENANTS.find((x) => x.email.toLowerCase() === email.trim().toLowerCase());
+    if (!t) return { ok: false, error: "No workspace is registered under that email." };
+    if (pw !== t.password) return { ok: false, error: "Incorrect password for this workspace." };
+    if (t.suspended) return { ok: false, error: "This workspace is suspended — contact platform support." };
+    hydrateTenantData(t.id);
+    setDisplayCurrency(t.currency);
+    const session: Session = { kind: "tenant", tenantId: t.id };
+    saveSession(session);
+    set({ session, features: { ...t.features }, displayCurrency: t.currency, fxTick: get().fxTick + 1 });
+    return { ok: true };
+  },
+  loginDeveloper: (email, pw) => {
+    if (email.trim().toLowerCase() !== DEVELOPER.email || pw !== DEVELOPER.password)
+      return { ok: false, error: "Developer credentials not recognised." };
+    const session: Session = { kind: "developer" };
+    saveSession(session);
+    set({ session, features: null });
+    return { ok: true };
+  },
+  logout: () => {
+    saveSession(null);
+    set({ session: null, features: null });
+    window.location.hash = "/en";
+  },
+  impersonate: (tenantId) => {
+    const t = TENANTS.find((x) => x.id === tenantId);
+    if (!t || t.suspended) return;
+    hydrateTenantData(t.id);
+    setDisplayCurrency(t.currency);
+    const session: Session = { kind: "tenant", tenantId, impersonated: true };
+    saveSession(session);
+    set({ session, features: { ...t.features }, displayCurrency: t.currency, fxTick: get().fxTick + 1 });
+    window.location.hash = `/${get().route.locale}/dashboard`;
+  },
+  featureOn: (key) => {
+    const f = get().features;
+    return !f || f[key] !== false;
+  },
+  setTenantFeature: (tenantId, key, on) => {
+    const t = TENANTS.find((x) => x.id === tenantId);
+    if (t) t.features = { ...t.features, [key]: on };
+    const s = get().session;
+    if (s?.kind === "tenant" && s.tenantId === tenantId) set({ features: { ...t!.features } });
+  },
+  setTenantPlan: (tenantId, plan) => {
+    const t = TENANTS.find((x) => x.id === tenantId);
+    if (t) t.plan = plan;
+    set({ tenants: [...TENANTS] });
+  },
+  setTenantSuspended: (tenantId, v) => {
+    const t = TENANTS.find((x) => x.id === tenantId);
+    if (t) t.suspended = v;
+    set({ tenants: [...TENANTS] });
+  },
+  displayCurrency: (bootSession?.kind === "tenant" ? TENANTS.find((t) => t.id === bootSession.tenantId)?.currency : null) ?? "IDR",
+  fxTick: 0,
+  setWorkspaceCurrency: (c) => {
+    setDisplayCurrency(c);
+    WORKSPACE.currency = c;
+    set({ displayCurrency: c, fxTick: get().fxTick + 1 });
+  },
+  refreshRates: async () => {
+    const ok = await refreshFx();
+    set({ fxTick: get().fxTick + 1 });
+    return ok;
+  },
+  devIntegrations: PLATFORM_INTEGRATIONS,
+  checking: [],
+  setIntegration: (id, patch) => set((st) => ({ devIntegrations: st.devIntegrations.map((x) => (x.id === id ? { ...x, ...patch } : x)) })),
+  checkIntegration: (id) => {
+    set((st) => ({ checking: [...st.checking, id] }));
+    const target = get().devIntegrations.find((x) => x.id === id);
+    later(() => {
+      const ok = !!target && target.status !== "missing";
+      set((st) => ({
+        checking: st.checking.filter((x) => x !== id),
+        devIntegrations: st.devIntegrations.map((x) => (x.id === id ? { ...x, lastCheck: { ts: Date.now(), ms: ok ? 38 + Math.round(Math.random() * 140) : 0, ok } } : x)),
+      }));
+      if (ok) get().toast("ok", `${target?.name ?? id} health check passed`, "Signed request round-trip OK");
+      else get().toast("err", `${target?.name ?? id} unreachable`, "Credentials missing — see the playbook step for this provider.");
+    }, 950);
+  },
+  aiConfig: { ...AI_DEFAULTS, enabled: true },
+  setAiConfig: (patch) => set((st) => ({ aiConfig: { ...st.aiConfig, ...patch } })),
 
   scope: "all",
   setScope: (s) => set({ scope: s }),

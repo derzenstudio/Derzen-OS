@@ -241,7 +241,7 @@ function ResTab() {
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <div className="rounded-xl border border-line bg-card p-3.5"><p className="text-[10px] font-bold uppercase text-mute">Reservations</p><p className="font-display text-[20px] font-bold">{reservations.length}</p></div>
-        <div className="rounded-xl border border-line bg-card p-3.5"><p className="text-[10px] font-bold uppercase text-mute">Total revenue (EUR)</p><p className="font-display text-[20px] font-bold">{money(Math.round(reservations.reduce((s, r) => s + r.total * r.fxRate, 0)), "EUR", { compact: true })}</p></div>
+        <div className="rounded-xl border border-line bg-card p-3.5"><p className="text-[10px] font-bold uppercase text-mute">Total revenue (reporting currency)</p><p className="font-display text-[20px] font-bold">{money(Math.round(reservations.reduce((s, r) => s + r.total * r.fxRate, 0)), "EUR", { compact: true })}</p></div>
         <div className="rounded-xl border border-line bg-card p-3.5"><p className="text-[10px] font-bold uppercase text-mute">Pending / confirmed</p><p className="font-display text-[20px] font-bold">{reservations.filter((r) => r.status === "pending").length} / {reservations.filter((r) => r.status === "confirmed").length}</p></div>
         <div className="rounded-xl border border-line bg-card p-3.5"><p className="text-[10px] font-bold uppercase text-mute">Upcoming check-ins</p><p className="font-display text-[20px] font-bold">{upcoming}</p></div>
       </div>

@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import { cx, addDays, dayKey, parseKey, fmtDate, fmtShort, money, isWeekend, isToday, toCSV, download, range } from "../lib/format";
+import { cx, addDays, dayKey, parseKey, fmtDate, fmtShort, money, moneyRaw, isWeekend, isToday, toCSV, download, range } from "../lib/format";
 import { Ic } from "../components/icons";
 import { Badge, Btn, Dot, IconBtn, Input, Kbd, LiveRegion, Modal, Select, Toggle, Field } from "../components/ui";
 import { useApp, nightsInRange } from "../store";
@@ -102,7 +102,7 @@ export default function CalendarModule() {
     if (!p) return;
     const d = days[c];
     const st = cellState(p, keys[c], d);
-    setAnnounce(`${p.name}, ${fmtDate(d)}, ${st.closed ? "closed" : "available"}, ${money(st.rate, p.currency)}`);
+    setAnnounce(`${p.name}, ${fmtDate(d)}, ${st.closed ? "closed" : "available"}, ${moneyRaw(st.rate, p.currency)}`);
   };
 
   const onKeyDown = (e: React.KeyboardEvent) => {
@@ -337,7 +337,7 @@ export default function CalendarModule() {
                           return (
                             <div
                               key={c} role="gridcell"
-                              aria-label={st ? `${p.name}, ${fmtDate(d)}, ${st.closed ? "closed" : "available"}, ${money(st.rate, p.currency)}${st.minStay > 1 ? `, min ${st.minStay} nights` : ""}` : `${p.name} group row`}
+                              aria-label={st ? `${p.name}, ${fmtDate(d)}, ${st.closed ? "closed" : "available"}, ${moneyRaw(st.rate, p.currency)}${st.minStay > 1 ? `, min ${st.minStay} nights` : ""}` : `${p.name} group row`}
                               onMouseDown={() => { if (bulkMode && !p.isParent) { onMouseDownCell(c); setFocus({ r, c }); announceCell(r, c); } }}
                               onMouseEnter={() => bulkMode && onMouseEnterCell(c)}
                               onClick={() => { if (!bulkMode && !p.isParent) { setFocus({ r, c }); setEditor({ keys: [keys[c]], label: `${p.name} · ${fmtDate(d)}` }); } }}

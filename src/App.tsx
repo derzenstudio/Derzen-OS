@@ -1,60 +1,106 @@
-import { useEffect } from "react";
-import { parseHash, useApp } from "./store";
+import { useEffect, type ComponentType } from "react";
 import { Shell } from "./components/Shell";
-import { ToastHost } from "./components/ui";
+import { useApp } from "./store";
+import { refreshFx } from "./lib/fx";
+import { PublicSite, LoginPage } from "./modules/Public";
+import DevConsole from "./modules/DevConsole";
 import Dashboard from "./modules/Dashboard";
-import CalendarModule from "./modules/Calendar";
+import Calendar from "./modules/Calendar";
 import Inbox from "./modules/Inbox";
 import Reservations from "./modules/Reservations";
 import Operations from "./modules/Operations";
-import Channels from "./modules/Channels";
-import Listings from "./modules/Listings";
-import Websites from "./modules/Websites";
-import Quotes from "./modules/Quotes";
-import Guidebooks from "./modules/Guidebooks";
 import Concierge from "./modules/Concierge";
 import Reviews from "./modules/Reviews";
 import Customers from "./modules/Customers";
+import Guidebooks from "./modules/Guidebooks";
+import Listings from "./modules/Listings";
+import Channels from "./modules/Channels";
+import Quotes from "./modules/Quotes";
+import Websites from "./modules/Websites";
 import Reports from "./modules/Reports";
-import Integrations from "./modules/Integrations";
 import SettingsModule from "./modules/Settings";
+import Integrations from "./modules/Integrations";
+import { Btn } from "./components/ui";
+import { Ic } from "./components/icons";
+
+const MODULES: Record<string, { title: string; sub?: string; el: ComponentType }> = {
+  dashboard: { title: "nav.dashboard", sub: "What needs attention today", el: Dashboard },
+  calendar: { title: "nav.calendar", sub: "Rates, restrictions & stays across every listing", el: Calendar },
+  inbox: { title: "nav.inbox", sub: "Every channel, one thread per guest", el: Inbox },
+  reservations: { title: "nav.reservations", sub: "Bookings, payments & the immutable timeline", el: Reservations },
+  ops: { title: "nav.ops", sub: "Tasks, providers, automations & expenses", el: Operations },
+  sync: { title: "nav.sync", sub: "Channel connections — nothing fails silently", el: Channels },
+  concierge: { title: "nav.concierge", sub: "Knowledge, autopilot & scheduled messages", el: Concierge },
+  reviews: { title: "nav.reviews", sub: "Aggregate ratings & reply workflows", el: Reviews },
+  customers: { title: "nav.customers", sub: "Guests deduplicated across channels", el: Customers },
+  quotes: { title: "nav.quotes", sub: "Build, send, convert", el: Quotes },
+  listings: { title: "nav.listings", sub: "Properties, pricing & services", el: Listings },
+  channels: { title: "nav.channels", sub: "Distribution, mapping & the connect wizard", el: Channels },
+  websites: { title: "nav.websites", sub: "Builder, widgets & site analytics", el: Websites },
+  guidebooks: { title: "nav.guidebooks", sub: "Guest guides with an in-guide store", el: Guidebooks },
+  reports: { title: "nav.reports", sub: "Revenue, costs & reconciliation", el: Reports },
+  integrations: { title: "nav.integrations", sub: "Webhooks, API & connected apps", el: Integrations },
+  settings: { title: "nav.settings", sub: "Workspace, team & billing", el: SettingsModule },
+};
+
+function ModuleGated({ name }: { name: string }) {
+  const { t } = useApp();
+  const label = MODULES[name] ? t(MODULES[name].title) : name;
+  return (
+    <div className="flex h-full items-center justify-center p-8">
+      <div className="max-w-[440px] rounded-xl border border-line bg-card p-8 text-center anim-pop">
+        <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-brand-soft text-brand"><Ic name="lock" size={22} /></span>
+        <h2 className="mt-4 font-display text-[20px] font-extrabold text-ink">{label} isn't on your plan</h2>
+        <p className="mt-2 text-[13px] leading-relaxed text-mute">
+          Your platform operator switched this module off for your workspace — or your tier doesn't include it.
+          Nothing was deleted; it reappears the moment it's enabled.
+        </p>
+        <p className="mt-3 rounded-md bg-paper px-3 py-2 font-mono text-[10.5px] text-faint">HTTP 402 · PLAN_LIMIT · module="{name}"</p>
+        <Btn className="mt-4" variant="solid" icon="trendUp" onClick={() => useApp.getState().navigate("/settings")}>Review plan in Settings</Btn>
+      </div>
+    </div>
+  );
+}
 
 export default function App() {
   const route = useApp((s) => s.route);
+  const session = useApp((s) => s.session);
+  const navigate = useApp((s) => s.navigate);
+  const featureOn = useApp((s) => s.featureOn);
 
   useEffect(() => {
-    const onHash = () => useApp.setState({ route: parseHash() });
-    if (!window.location.hash) window.location.hash = "/en/dashboard";
+    const onHash = () => useApp.setState({ route: parseHashSafe() });
     window.addEventListener("hashchange", onHash);
+    if (!window.location.hash) window.location.hash = "/en";
+    void refreshFx(); // best-effort live rates; falls back to the dated snapshot
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
 
-  const page = route.path[0] ?? "dashboard";
-  let view: React.ReactNode;
-  switch (page) {
-    case "calendar": view = <CalendarModule />; break;
-    case "inbox": view = <Inbox />; break;
-    case "reservations": view = <Reservations />; break;
-    case "ops": view = <Operations />; break;
-    case "sync": view = <Channels tab="sync" />; break;
-    case "listings": view = <Listings />; break;
-    case "channels": view = <Channels />; break;
-    case "websites": view = <Websites />; break;
-    case "quotes": view = <Quotes />; break;
-    case "guidebooks": view = <Guidebooks />; break;
-    case "concierge": view = <Concierge />; break;
-    case "reviews": view = <Reviews />; break;
-    case "customers": view = <Customers />; break;
-    case "reports": view = <Reports />; break;
-    case "integrations": view = <Integrations />; break;
-    case "settings": view = <SettingsModule />; break;
-    default: view = <Dashboard />;
+  // ── public surface ──
+  if (!session) {
+    return route.path[0] === "login" ? <LoginPage /> : <PublicSite />;
   }
 
-  return (
-    <>
-      <Shell>{view}</Shell>
-      <ToastHost />
-    </>
-  );
+  // ── developer console ──
+  if (session.kind === "developer") {
+    return <DevConsole />;
+  }
+
+  // ── tenant app ──
+  const page = route.path[0] || "dashboard";
+  const def = MODULES[page];
+  if (!def) {
+    return (
+      <Shell>
+        <div className="p-10 text-center">
+          <p className="font-display text-[24px] font-extrabold text-ink">404 — that route doesn't exist</p>
+          <Btn className="mt-4" onClick={() => navigate("/dashboard")}>Back to dashboard</Btn>
+        </div>
+      </Shell>
+    );
+  }
+  const enabled = featureOn(page);
+  return <Shell>{enabled ? <def.el key={page} /> : <ModuleGated name={page} />}</Shell>;
 }
+
+import { parseHash as parseHashSafe } from "./store";

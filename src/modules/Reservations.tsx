@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { cx, money, fmtDate, relDay, timeAgo, download, toCSV, copyText } from "../lib/format";
+import { cx, money, moneyRaw, displayCode, fmtDate, relDay, timeAgo, download, toCSV, copyText } from "../lib/format";
 import { Ic } from "../components/icons";
 import { Badge, Btn, Dot, Empty, Field, Input, Modal, SearchBox, Select, StatusChip, Toggle, Avatar, Textarea } from "../components/ui";
 import { useApp } from "../store";
@@ -177,7 +177,7 @@ function Detail({ r }: { r: Reservation }) {
           </div>
           <div className="flex flex-col items-end gap-1.5">
             <p className="font-mono text-[20px] font-bold text-ink">{money(r.total, r.currency)}</p>
-            {r.currency !== "EUR" && <p className="font-mono text-[10.5px] text-faint">≈ {money(Math.round(r.total * r.fxRate), "EUR")} @ {r.fxRate.toFixed(r.currency === "IDR" ? 6 : 3)} {r.currency}/EUR · {timeAgo(r.fxTs)}</p>}
+            {r.currency !== displayCode() && <p className="font-mono text-[10.5px] text-faint">booked in {moneyRaw(r.total, r.currency)} · FX {r.fxRate.toFixed(r.currency === "IDR" ? 6 : 3)} {r.currency}/EUR stored {timeAgo(r.fxTs)}</p>}
             <div className="flex gap-2">
               <Btn size="sm" variant="solid" icon="chat" onClick={() => navigate(conv ? `/inbox?conv=${conv.id}` : "/inbox")}>Message guest</Btn>
               <Btn size="sm" icon="link" onClick={() => { copyText(`https://stay.sanggraha.co/guide/${r.guidebookCode}`); toast("ok", "Guidebook link copied", r.guidebookCode); }}>Guidebook link</Btn>
@@ -202,12 +202,12 @@ function Detail({ r }: { r: Reservation }) {
                     <span className="mr-2 inline-block w-[86px] rounded bg-paper px-1.5 py-0.5 text-center text-[9px] font-bold uppercase tracking-wide text-mute">{it.kind.replace("_", " ")}</span>
                     {it.label}
                   </td>
-                  <td className={cx("px-4 py-1.5 text-right font-mono text-[12px] font-semibold", it.amount < 0 ? "text-brand-deep" : "text-ink")}>{money(it.amount, r.currency, { sign: true })}</td>
+                  <td className={cx("px-4 py-1.5 text-right font-mono text-[12px] font-semibold", it.amount < 0 ? "text-brand-deep" : "text-ink")}>{moneyRaw(it.amount, r.currency, { sign: true })}</td>
                 </tr>
               ))}
               <tr className="bg-paper/70">
-                <td className="px-4 py-2 text-[12.5px] font-bold text-ink">Total</td>
-                <td className="px-4 py-2 text-right font-mono text-[14px] font-bold text-ink">{money(r.items.reduce((s, i) => s + i.amount, 0), r.currency)}</td>
+                <td className="px-4 py-2 text-[12.5px] font-bold text-ink">Total · always = Σ line items</td>
+                <td className="px-4 py-2 text-right font-mono text-[14px] font-bold text-ink">{moneyRaw(r.items.reduce((s, i) => s + i.amount, 0), r.currency)}</td>
               </tr>
             </tbody>
           </table>
@@ -222,9 +222,9 @@ function Detail({ r }: { r: Reservation }) {
               </div>
             </div>
             <div className="grid grid-cols-3 gap-2">
-              <div className="rounded-lg bg-brand-soft/70 px-3 py-2"><p className="text-[10px] font-bold uppercase text-brand-deep">Paid</p><p className="font-mono text-[15px] font-bold text-ink">{money(paid, r.currency)}</p></div>
-              <div className={cx("rounded-lg px-3 py-2", outstanding > 0 ? "bg-gold-soft" : "bg-paper")}><p className="text-[10px] font-bold uppercase text-[#8a5c07]">Outstanding</p><p className="font-mono text-[15px] font-bold text-ink">{money(Math.max(0, outstanding), r.currency)}</p></div>
-              <div className="rounded-lg bg-sea-soft px-3 py-2"><p className="text-[10px] font-bold uppercase text-sea">Security deposit</p><p className="font-mono text-[15px] font-bold text-ink">{r.depositHeld ? `${money(r.depositHeld * 10000, r.currency)} held` : "none"}</p></div>
+              <div className="rounded-lg bg-brand-soft/70 px-3 py-2"><p className="text-[10px] font-bold uppercase text-brand-deep">Paid</p><p className="font-mono text-[15px] font-bold text-ink">{moneyRaw(paid, r.currency)}</p></div>
+              <div className={cx("rounded-lg px-3 py-2", outstanding > 0 ? "bg-gold-soft" : "bg-paper")}><p className="text-[10px] font-bold uppercase text-[#8a5c07]">Outstanding</p><p className="font-mono text-[15px] font-bold text-ink">{moneyRaw(Math.max(0, outstanding), r.currency)}</p></div>
+              <div className="rounded-lg bg-sea-soft px-3 py-2"><p className="text-[10px] font-bold uppercase text-sea">Security deposit</p><p className="font-mono text-[15px] font-bold text-ink">{r.depositHeld ? `${moneyRaw(r.depositHeld * 10000, r.currency)} held` : "none"}</p></div>
             </div>
             <ul className="mt-2.5 divide-y divide-line/60">
               {r.payments.length === 0 && <li className="py-2 text-[11.5px] text-faint">No payments recorded yet.</li>}
@@ -233,7 +233,7 @@ function Detail({ r }: { r: Reservation }) {
                   <Ic name={pay.kind === "refund" ? "undo" : "card"} size={13} className={pay.kind === "refund" ? "text-danger" : "text-brand"} />
                   <span className="font-semibold text-ink">{pay.method}</span>
                   <span className="text-faint">· {timeAgo(pay.ts)}</span>
-                  <span className={cx("ml-auto font-mono font-bold", pay.kind === "refund" ? "text-danger" : "text-brand-deep")}>{pay.kind === "refund" ? "−" : "+"}{money(Math.abs(pay.amount), r.currency)}</span>
+                  <span className={cx("ml-auto font-mono font-bold", pay.kind === "refund" ? "text-danger" : "text-brand-deep")}>{pay.kind === "refund" ? "−" : "+"}{moneyRaw(Math.abs(pay.amount), r.currency)}</span>
                 </li>
               ))}
             </ul>

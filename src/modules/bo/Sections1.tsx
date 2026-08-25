@@ -210,7 +210,7 @@ function TenantDetail({ t, onBack, onAction }: { t: BoTenant; onBack: () => void
             <h2 className="font-display text-[20px] font-bold text-white">{t.name}</h2>
             <StateChip s={t.state} />
           </div>
-          <p className="mt-0.5 font-mono text-[11px] text-white/40">{t.legal} · {t.subdomain}.trellis.site · since {t.created} · {t.region}</p>
+          <p className="mt-0.5 font-mono text-[11px] text-white/40">{t.legal} · {t.subdomain}.derzen.site · since {t.created} · {t.region}</p>
         </div>
         <div className="flex gap-2">
           {t.state === "trialing" && <Btn icon="clock" onClick={() => onAction("extended trial 14d")}>Extend trial</Btn>}

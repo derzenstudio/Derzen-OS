@@ -4,6 +4,7 @@ import { Ic } from "../components/icons";
 import { Badge, Btn, Dot, Empty, Field, Input, Modal, Select, Tabs } from "../components/ui";
 import { useApp } from "../store";
 import { CHANNEL_DEFS, channelDef, propertyById } from "../lib/data";
+import { ChannelMark } from "../components/ota";
 import type { ChannelDef } from "../lib/types";
 
 const OTA_LAUNCH = ["airbnb", "booking", "vrbo", "expedia", "agoda", "trip", "mmt", "traveloka"] as const;
@@ -64,7 +65,7 @@ function Dash({ goSync }: { goSync: () => void }) {
           <h3 className="mb-2 font-display text-[13.5px] font-bold text-ink">Per-channel last sync</h3>
           {sync.slice(0, 8).map((s) => (
             <div key={s.key} className="mb-1.5 flex items-center gap-2 text-[12px]">
-              <span className="flex h-5 w-8 items-center justify-center rounded text-[8.5px] font-bold text-white" style={{ background: channelDef(s.channel).color }}>{channelDef(s.channel).short}</span>
+              <span className="flex h-5 w-5 items-center justify-center"><ChannelMark id={s.channel} size={16} /></span>
               <span className="w-[120px] truncate font-bold text-ink">{propertyById(s.propertyId).name}</span>
               <span className="flex-1 text-mute">{timeAgo(s.lastSuccessTs)}</span>
               {s.state === "live" ? <Dot tone="ok" label="ok" /> : s.state === "error" ? <Dot tone="danger" label="error" pulse /> : <Dot tone="warn" label={s.state} />}
@@ -118,7 +119,7 @@ function Connections() {
               const worst = rows.some((r) => r.state === "error") ? "error" : rows.some((r) => r.state === "mapping") ? "mapping" : rows.length ? "live" : "unmapped";
               return (
                 <tr key={cid} className="border-b border-line/60 transition-colors hover:bg-paper/70">
-                  <td className="px-4 py-2.5"><span className="flex items-center gap-2.5 text-[12.5px] font-bold text-ink"><span className="flex h-7 w-7 items-center justify-center rounded-md text-[9.5px] font-bold text-white" style={{ background: def.color }}>{def.short}</span>{def.name}</span></td>
+                  <td className="px-4 py-2.5"><span className="flex items-center gap-2.5 text-[12.5px] font-bold text-ink"><ChannelMark id={def.id} size={20} />{def.name}</span></td>
                   <td className="px-3 py-2.5"><Badge tone={def.structure === "hotel" ? "info" : "plum"}>{def.structure}</Badge></td>
                   <td className="px-3 py-2.5 text-[12px] font-semibold">{rows.length ? `${rows.length} listings · ${props.map((p) => propertyById(p).code).join(", ")}` : "—"}</td>
                   <td className="px-3 py-2.5">
@@ -175,7 +176,7 @@ function ConnectWizard({ open, onClose }: { open: boolean; onClose: () => void }
             const c = channelDef(cid);
             return (
               <button key={cid} onClick={() => setPicked(c)} className={cx("flex flex-col items-center gap-1.5 rounded-xl border p-3 transition-all", picked?.id === cid ? "border-brand bg-brand-soft shadow-sm" : "border-line hover:border-line2")}>
-                <span className="flex h-9 w-9 items-center justify-center rounded-lg text-[10px] font-bold text-white" style={{ background: c.color }}>{c.short}</span>
+                <span className="flex h-9 w-9 items-center justify-center rounded-sm border border-line bg-surface"><ChannelMark id={c.id} size={24} /></span>
                 <span className="text-[11px] font-bold text-ink">{c.name}</span>
                 <span className="text-[8.5px] font-bold uppercase text-faint">{c.structure}</span>
               </button>
@@ -186,7 +187,7 @@ function ConnectWizard({ open, onClose }: { open: boolean; onClose: () => void }
       )}
       {step === 1 && picked && (
         <div className="space-y-3">
-          <p className="flex items-center gap-2 text-[13px] font-bold text-ink"><span className="flex h-7 w-7 items-center justify-center rounded text-[9.5px] font-bold text-white" style={{ background: picked.color }}>{picked.short}</span> Authenticate — {authLabel(picked)}</p>
+          <p className="flex items-center gap-2 text-[13px] font-bold text-ink"><ChannelMark id={picked.id} size={22} /> Authenticate — {authLabel(picked)}</p>
           {picked.auth === "oauth" && <Btn variant="solid" icon="external" className="w-full" size="md" onClick={() => setStep(2)}>Sign in with {picked.name} (OAuth)</Btn>}
           {picked.auth === "extranet" && (
             <div className="grid grid-cols-2 gap-3">
@@ -325,7 +326,7 @@ function Conflicts() {
       {conflicts.length === 0 && <Empty icon="checkCircle" title="Conflict queue is clear" body="Inbound reservations that can't map land here with a suggestion — never dropped, never force-assigned." />}
       {conflicts.map((c) => (
         <div key={c.id} className="flex flex-wrap items-center gap-3 rounded-xl border border-gold/50 bg-card p-4">
-          <span className="flex h-9 w-9 items-center justify-center rounded-lg text-[10px] font-bold text-white" style={{ background: channelDef(c.channel).color }}>{channelDef(c.channel).short}</span>
+          <span className="flex h-9 w-9 items-center justify-center rounded-sm border border-line bg-surface"><ChannelMark id={c.channel} size={24} /></span>
           <div className="min-w-0 flex-1">
             <p className="text-[13px] font-bold text-ink">Inbound {channelDef(c.channel).name} reservation {c.externalRef} — room type “{c.rawRoomType}” is unmapped</p>
             <p className="text-[11.5px] text-mute">{c.nights} nights · {money(c.total, "USD")} · held safely, guest not affected · {timeAgo(c.ts)}</p>

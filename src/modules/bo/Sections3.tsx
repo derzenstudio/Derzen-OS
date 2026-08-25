@@ -288,7 +288,7 @@ export function SupportView() {
         </>}>
         <div className="space-y-3">
           <label className="flex items-start gap-2.5 rounded-lg border border-white/12 bg-white/[0.04] px-3 py-2.5">
-            <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-0.5 accent-[#B22222]" />
+            <input type="checkbox" checked={consent} onChange={(e) => setConsent(e.target.checked)} className="mt-0.5 accent-[#2E9E77]" />
             <span className="text-[12.5px] leading-snug text-white/75">The tenant has granted <b className="text-white">support-access consent</b> (their Settings toggle is on). Without it this session is impossible.</span>
           </label>
           <div className="flex gap-2">
@@ -298,7 +298,7 @@ export function SupportView() {
               </button>
             ))}
           </div>
-          <p className="rounded-md bg-white/[0.04] px-3 py-2 font-mono text-[10.5px] text-white/40">30m window · persistent banner · payment & credential screens excluded · every action attributed to dev@trellis in the audit stream · tenant can pull a full session report.</p>
+          <p className="rounded-md bg-white/[0.04] px-3 py-2 font-mono text-[10.5px] text-white/40">30m window · persistent banner · payment & credential screens excluded · every action attributed to dev@derzen in the audit stream · tenant can pull a full session report.</p>
         </div>
       </Modal>
     </div>

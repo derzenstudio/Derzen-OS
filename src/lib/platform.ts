@@ -19,7 +19,7 @@ export const STUCK_JOBS: OpsItem[] = [
 ];
 
 export const FAILED_WEBHOOKS: OpsItem[] = [
-  { id: "fw-1", tenant: "Sanggraha Villas", label: "hooks.sanggraha.co/trellis", detail: "500 from customer endpoint on reservation.created ×6", since: now - 40 * 60_000, severity: "p2", meta: "next retry in 12m · DLQ at attempt 9" },
+  { id: "fw-1", tenant: "Sanggraha Villas", label: "hooks.sanggraha.co/derzen", detail: "500 from customer endpoint on reservation.created ×6", since: now - 40 * 60_000, severity: "p2", meta: "next retry in 12m · DLQ at attempt 9" },
 ];
 
 export const AI_ESCALATIONS: OpsItem[] = [
@@ -281,7 +281,7 @@ export const TRANSPORTS = [
 export const DELIVERABILITY = [
   { domain: "mail.sanggraha.co", spf: "pass", dkim: "pass", dmarc: "p=quarantine", rep: "99.2% inbox" },
   { domain: "mail.ambara.co", spf: "pass", dkim: "pending DNS", dmarc: "—", rep: "guided verify sent" },
-  { domain: "mail.trellis.site (shared)", spf: "pass", dkim: "pass", dmarc: "p=reject", rep: "99.6% inbox" },
+  { domain: "mail.derzen.site (shared)", spf: "pass", dkim: "pass", dmarc: "p=reject", rep: "99.6% inbox" },
 ];
 
 export const TEMPLATE_GOVERNANCE = [

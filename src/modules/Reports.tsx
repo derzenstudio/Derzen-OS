@@ -34,9 +34,9 @@ export default function Reports() {
   };
 
   const exportTab = () => {
-    if (tab === "overview") download("trellis-overview.csv", toCSV([["Month", "Revenue EUR", "Expenses EUR", "Net EUR", "Bookings", "ADR EUR"], ...series.map((m) => [m.label, m.revenue / 100, m.expenses / 100, (m.revenue - m.expenses) / 100, m.bookings, m.adr])]));
-    else if (tab === "revenue") download("trellis-revenue.csv", toCSV([["Channel", "Share", "Amount EUR"], ...CHANNEL_SPLIT.map((c) => [c.channel, c.share, c.amount])]));
-    else download("trellis-report.csv", toCSV([["Month", "Value EUR"], ...series.map((m) => [m.label, m.revenue / 100])]));
+    if (tab === "overview") download("derzen-overview.csv", toCSV([["Month", "Revenue EUR", "Expenses EUR", "Net EUR", "Bookings", "ADR EUR"], ...series.map((m) => [m.label, m.revenue / 100, m.expenses / 100, (m.revenue - m.expenses) / 100, m.bookings, m.adr])]));
+    else if (tab === "revenue") download("derzen-revenue.csv", toCSV([["Channel", "Share", "Amount EUR"], ...CHANNEL_SPLIT.map((c) => [c.channel, c.share, c.amount])]));
+    else download("derzen-report.csv", toCSV([["Month", "Value EUR"], ...series.map((m) => [m.label, m.revenue / 100])]));
     toast("ok", "CSV exported", "Server-side rollup · timezone & currency correct");
   };
 
@@ -250,7 +250,7 @@ function ResTab() {
       </div>
       <div className="flex gap-2">
         <Btn icon="calendar" onClick={() => navigate("/calendar")}>Jump to calendar</Btn>
-        <Btn icon="download" onClick={() => { download("trellis-reservations-report.csv", toCSV([["Ref", "Guest", "Property", "Check-in", "Nights", "Total EUR"], ...reservations.map((r) => [r.ref, guestById(r.guestId).name, propertyById(r.propertyId).name, r.checkIn, Math.round((+new Date(r.checkOut) - +new Date(r.checkIn)) / 86_400_000), Math.round(r.total * r.fxRate / 100)])])); toast("ok", "Exported"); }}>Export</Btn>
+        <Btn icon="download" onClick={() => { download("derzen-reservations-report.csv", toCSV([["Ref", "Guest", "Property", "Check-in", "Nights", "Total EUR"], ...reservations.map((r) => [r.ref, guestById(r.guestId).name, propertyById(r.propertyId).name, r.checkIn, Math.round((+new Date(r.checkOut) - +new Date(r.checkIn)) / 86_400_000), Math.round(r.total * r.fxRate / 100)])])); toast("ok", "Exported"); }}>Export</Btn>
       </div>
       <div className="overflow-x-auto rounded-xl border border-line bg-card">
         <table className="w-full min-w-[760px] text-left">

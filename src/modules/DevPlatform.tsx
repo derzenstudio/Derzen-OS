@@ -99,8 +99,8 @@ export function Inspector() {
         </Select>
         <code className="rounded-md border border-white/15 bg-[#171714] px-3 py-2 font-mono text-[11.5px] font-bold text-white">{e.ref}</code>
         <Badge tone="mute">tenant {e.tenant}</Badge>
-        <span className="font-mono text-[10px] text-white/35">deep link: admin.trellis.site/inspect/{kind}/{e.ref.toLowerCase()}</span>
-        <Btn size="xs" className="ml-auto" icon="copy" onClick={() => { navigator.clipboard?.writeText(`admin.trellis.site/inspect/${kind}/${e.ref.toLowerCase()}`).catch(() => undefined); toast("ok", "Deep link copied", "Paste into a support ticket — opens this exact view."); }}>Copy deep link</Btn>
+        <span className="font-mono text-[10px] text-white/35">deep link: admin.derzen.site/inspect/{kind}/{e.ref.toLowerCase()}</span>
+        <Btn size="xs" className="ml-auto" icon="copy" onClick={() => { navigator.clipboard?.writeText(`admin.derzen.site/inspect/${kind}/${e.ref.toLowerCase()}`).catch(() => undefined); toast("ok", "Deep link copied", "Paste into a support ticket — opens this exact view."); }}>Copy deep link</Btn>
       </div>
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1.4fr_1fr]">
         <Panel title="Normalised record — every field carries its source" note="read-only · the single feature that cuts support resolution time most">
@@ -165,7 +165,7 @@ export function TenantDetail({ tenantId, onBack }: { tenantId: string; onBack: (
           <span className="flex h-11 w-11 items-center justify-center rounded-lg bg-white font-display text-[16px] font-extrabold text-ink">{t.name.slice(0, 1)}</span>
           <div>
             <h2 className="font-display text-[20px] font-extrabold text-white">{t.name}</h2>
-            <p className="font-mono text-[10.5px] text-white/40">{t.id} · {t.subdomain}.trellis.site · region ap-southeast-1 · health {t.suspended ? "suspended" : "good"}</p>
+            <p className="font-mono text-[10.5px] text-white/40">{t.id} · {t.subdomain}.derzen.site · region ap-southeast-1 · health {t.suspended ? "suspended" : "good"}</p>
           </div>
           <div className="ml-auto grid grid-cols-4 gap-px overflow-hidden rounded-lg border border-white/10 bg-white/10 text-center">
             {[["MRR", `$${t.mrr}`], ["Plan", t.plan], ["Units", "9 / 15"], ["Error 30d", "3.2%"]].map(([k, v]) => (
@@ -386,7 +386,7 @@ export function LifecyclePanel() {
             </div>
             {running && <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full bg-brand-bright transition-all" style={{ width: `${prog}%` }} /></div>}
             <Btn className="mt-3" variant="solid" icon="sparkle" disabled={running} onClick={generate}>{running ? `seeding ${prog}%…` : "Generate sandbox tenant"}</Btn>
-            <p className="mt-2 font-mono text-[9.5px] text-white/30">$ trellis seed --properties {gen.properties} --months {gen.months} --fake-channels --seasonality</p>
+            <p className="mt-2 font-mono text-[9.5px] text-white/30">$ derzen seed --properties {gen.properties} --months {gen.months} --fake-channels --seasonality</p>
           </Panel>
           <Panel title="Merge / split / rename" note="scripted, dry-runnable migrations — never manual SQL">
             {MERGE_SPLIT_JOBS.map((j) => (

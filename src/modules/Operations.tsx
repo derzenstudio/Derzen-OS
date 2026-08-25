@@ -475,7 +475,7 @@ function Expenses() {
       <div className="flex flex-wrap items-center gap-2">
         <SearchBox value={q} onChange={setQ} placeholder="Search expenses" className="w-[220px]" />
         <Btn icon="upload" onClick={() => toast("ok", "CSV import started", "Dry-run first — per-row error report before commit.")}>Import CSV</Btn>
-        <Btn icon="download" onClick={() => { download("trellis-expenses.csv", toCSV([["Date", "Category", "Note", "Vendor", "Amount", "Currency", "Approval"], ...list.map((e) => [e.date, e.category, e.note, e.vendor, e.amount, e.currency, e.approval])])); toast("ok", "Exported"); }}>Export</Btn>
+        <Btn icon="download" onClick={() => { download("derzen-expenses.csv", toCSV([["Date", "Category", "Note", "Vendor", "Amount", "Currency", "Approval"], ...list.map((e) => [e.date, e.category, e.note, e.vendor, e.amount, e.currency, e.approval])])); toast("ok", "Exported"); }}>Export</Btn>
         <Btn className="ml-auto" variant="solid" icon="plus" onClick={() => setAddOpen(true)}>Add expense</Btn>
       </div>
       <div className="overflow-x-auto rounded-xl border border-line bg-card">

@@ -44,11 +44,11 @@ export default function Websites() {
             {website.published ? <Dot tone="ok" label="published" /> : <Dot tone="mute" label="unpublished" />}
           </p>
           <p className="text-[11px] text-mute">
-            Custom domain: <code className="font-mono">{website.customDomain}</code> · {website.domainStatus === "verified" ? <Dot tone="ok" label="DNS verified · TLS auto" /> : <Dot tone="warn" label="DNS pending — add CNAME to trellis.site" />}
+            Custom domain: <code className="font-mono">{website.customDomain}</code> · {website.domainStatus === "verified" ? <Dot tone="ok" label="DNS verified · TLS auto" /> : <Dot tone="warn" label="DNS pending — add CNAME to derzen.site" />}
           </p>
         </div>
         <label className="flex items-center gap-2 text-[12px] font-bold text-ink">Publish <Toggle checked={website.published} onChange={(v) => toast(v ? "ok" : "warn", v ? "Site published" : "Site unpublished", v ? "TLS issued automatically." : "Embeds and links show a maintenance notice.")} label="Publish site" /></label>
-        <Btn size="sm" icon="copy" onClick={() => toast("ok", "Site duplicated", "sanggraha-copy.trellis.site")}>Duplicate</Btn>
+        <Btn size="sm" icon="copy" onClick={() => toast("ok", "Site duplicated", "sanggraha-copy.derzen.site")}>Duplicate</Btn>
         <Btn size="sm" variant="ghost" icon="trash" onClick={() => toast("warn", "Delete requires typing the site name", "Protection against accidental loss.")}>Delete</Btn>
       </div>
 
@@ -208,7 +208,7 @@ export default function Websites() {
             <Field label="Domain">
               <div className="flex gap-2">
                 <Input defaultValue={website.customDomain ?? ""} className="font-mono !text-[12px]" />
-                <Btn size="sm" onClick={() => toast("info", "DNS check queued", "Looking for CNAME → sites.trellis.site …")}>Verify DNS</Btn>
+                <Btn size="sm" onClick={() => toast("info", "DNS check queued", "Looking for CNAME → sites.derzen.site …")}>Verify DNS</Btn>
               </div>
             </Field>
             <p className="rounded-md bg-paper px-3 py-2 text-[11px] text-mute">TLS certificates issue automatically once DNS verifies — usually under 10 minutes.</p>

@@ -51,7 +51,7 @@ export const STUCK_JOBS = [
 ];
 
 export const FAILING_WEBHOOKS = [
-  { id: "fw1", tenant: "Kite & Palm Co.", endpoint: "https://hooks.kitepalm.co/trellis", status: 500, failingSince: now - 6 * H, consecutive: 18 },
+  { id: "fw1", tenant: "Kite & Palm Co.", endpoint: "https://hooks.kitepalm.co/derzen", status: 500, failingSince: now - 6 * H, consecutive: 18 },
   { id: "fw2", tenant: "Azure Coast Rentals", endpoint: "https://api.azurecoast.fr/in", status: 0, failingSince: now - 90 * 60_000, consecutive: 4 },
 ];
 
@@ -269,8 +269,8 @@ export const SEARCH_INDEXES = [
 
 // ── Section I · Support & success ────────────────────────────────────────
 export const IMPERSONATION_LOG = [
-  { staff: "mira@trellis", tenant: "Kite & Palm Co.", consent: true, mode: "read-only", started: now - 3 * H, duration: "22m", actions: 14 },
-  { staff: "jon@trellis", tenant: "Azure Coast Rentals", consent: true, mode: "elevated (justified)", started: now - 1 * D, duration: "8m", actions: 3 },
+  { staff: "mira@derzen", tenant: "Kite & Palm Co.", consent: true, mode: "read-only", started: now - 3 * H, duration: "22m", actions: 14 },
+  { staff: "jon@derzen", tenant: "Azure Coast Rentals", consent: true, mode: "elevated (justified)", started: now - 1 * D, duration: "8m", actions: 3 },
 ];
 
 export const TICKETS = [
@@ -420,8 +420,8 @@ export const GUARDRAILS = [
   { rule: "No self-audit-disable", detail: "Audit suspension is not an available mutation for any role, including admin.", enforced: true, probe: "AUDIT-OFF" },
 ];
 export const BULK_ACCESS_GRANTS = [
-  { id: "BA-19", requester: "finance@trellis", scope: "Payout ledger rows · Q1 · 2 tenants", approver: "admin (2-person)", windowMin: 60, status: "approved", remainingMin: 34 },
-  { id: "BA-20", requester: "mira@trellis", scope: "Conversation bodies · fraud case F-21", approver: "pending second approver", windowMin: 30, status: "pending", remainingMin: 0 },
+  { id: "BA-19", requester: "finance@derzen", scope: "Payout ledger rows · Q1 · 2 tenants", approver: "admin (2-person)", windowMin: 60, status: "approved", remainingMin: 34 },
+  { id: "BA-20", requester: "mira@derzen", scope: "Conversation bodies · fraud case F-21", approver: "pending second approver", windowMin: 30, status: "pending", remainingMin: 0 },
 ];
 
 // ── Section O · OTA commercial & legal prerequisites ──────────────────────
@@ -647,10 +647,10 @@ export const DEFENSIBLE = ["Calendar & availability engine", "Operations automat
 
 // ── Technical reference · Service & repo topology ─────────────────────────
 export const APPS = [
-  { path: "apps/web-tenant", role: "Tenant application (authenticated SPA/SSR)", origin: "app.trellis.site", profile: "auth-heavy · tenant-scoped" },
-  { path: "apps/web-guest", role: "Guest surfaces: sites, guidebooks, checkout, embeds", origin: "stay.trellis.site", profile: "edge-cached · zero tenant code" },
-  { path: "apps/web-admin", role: "Internal operator console", origin: "admin.trellis.internal", profile: "SSO + device trust · separate audit" },
-  { path: "apps/api", role: "Public + internal REST/RPC", origin: "api.trellis.site", profile: "RLS on every route" },
+  { path: "apps/web-tenant", role: "Tenant application (authenticated SPA/SSR)", origin: "app.derzen.site", profile: "auth-heavy · tenant-scoped" },
+  { path: "apps/web-guest", role: "Guest surfaces: sites, guidebooks, checkout, embeds", origin: "stay.derzen.site", profile: "edge-cached · zero tenant code" },
+  { path: "apps/web-admin", role: "Internal operator console", origin: "admin.derzen.internal", profile: "SSO + device trust · separate audit" },
+  { path: "apps/api", role: "Public + internal REST/RPC", origin: "api.derzen.site", profile: "RLS on every route" },
   { path: "apps/workers", role: "Job consumers — sync, messaging, reports, imports, AI", origin: "cluster", profile: "per-tenant fair-share queues" },
   { path: "apps/scheduler", role: "Cron / temporal-style orchestration", origin: "cluster", profile: "idempotent by default" },
 ];
@@ -836,10 +836,10 @@ export const CONCURRENCY_RULES = [
 
 export interface AuditEvent { id: string; ts: number; actor: string; action: string; target: string; severity: "info" | "sensitive" | "destructive"; }
 export const AUDIT_STREAM: AuditEvent[] = [
-  { id: "a1", ts: now - 4 * 60_000, actor: "mira@trellis", action: "read tenant snapshot", target: "Kite & Palm Co.", severity: "info" },
+  { id: "a1", ts: now - 4 * 60_000, actor: "mira@derzen", action: "read tenant snapshot", target: "Kite & Palm Co.", severity: "info" },
   { id: "a2", ts: now - 18 * 60_000, actor: "finance-bot", action: "invoice retry scheduled", target: "INV-2481", severity: "info" },
-  { id: "a3", ts: now - 52 * 60_000, actor: "dev@trellis", action: "flag autopilot_v2 rollout 100%", target: "flags", severity: "sensitive" },
-  { id: "a4", ts: now - 3 * H, actor: "jon@trellis", action: "impersonation (elevated, justified)", target: "Azure Coast Rentals", severity: "sensitive" },
+  { id: "a3", ts: now - 52 * 60_000, actor: "dev@derzen", action: "flag autopilot_v2 rollout 100%", target: "flags", severity: "sensitive" },
+  { id: "a4", ts: now - 3 * H, actor: "jon@derzen", action: "impersonation (elevated, justified)", target: "Azure Coast Rentals", severity: "sensitive" },
   { id: "a5", ts: now - 7 * H, actor: "integrations-ci", action: "requeue dead-letter pushes (41)", target: "Nordlys/booking", severity: "info" },
-  { id: "a6", ts: now - 26 * H, actor: "dev@trellis", action: "rotate channel vault credential", target: "vrbo · Sanggraha", severity: "destructive" },
+  { id: "a6", ts: now - 26 * H, actor: "dev@derzen", action: "rotate channel vault credential", target: "vrbo · Sanggraha", severity: "destructive" },
 ];

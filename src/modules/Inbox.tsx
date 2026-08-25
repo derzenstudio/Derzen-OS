@@ -4,6 +4,7 @@ import { Ic } from "../components/icons";
 import { Avatar, Badge, Btn, Dot, Empty, SearchBox, Select, StatusChip, Textarea } from "../components/ui";
 import { useApp } from "../store";
 import { channelDef, guestById, propertyById, RESERVATIONS } from "../lib/data";
+import { ChannelMark } from "../components/ota";
 import type { Conversation } from "../lib/types";
 
 export default function Inbox() {
@@ -97,7 +98,7 @@ export default function Inbox() {
             const def = channelDef(c.channel as never);
             return (
               <button key={c.id} onClick={() => setActiveId(c.id)} className={cx("flex w-full items-start gap-2.5 border-b border-line/60 px-3 py-2.5 text-left transition-colors", activeId === c.id ? "bg-brand-soft/60" : "hover:bg-paper")} aria-current={activeId === c.id}>
-                <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-[9px] font-bold text-white" style={{ background: def.color }} aria-label={`Channel: ${def.name}`}>{def.short}</span>
+                <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-sm border border-line bg-surface" aria-label={`Channel: ${def.name}`}><ChannelMark id={String(c.channel)} size={18} /></span>
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-1.5">
                     <span className={cx("truncate text-[12.5px]", c.unread > 0 ? "font-bold text-ink" : "font-semibold text-mute")}>{g.name}</span>

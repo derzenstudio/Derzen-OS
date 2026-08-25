@@ -48,7 +48,7 @@ const NAV: { group: string; items: { path: string; icon: IconName; label: string
   },
 ];
 
-function Sidebar() {
+function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { route, navigate, t, chatOpen, setChatOpen, featureOn, logout, session, tenants } = useApp();
   const unread = useUnreadTotal();
   const syncAlerts = useSyncAlerts();
@@ -62,14 +62,23 @@ function Sidebar() {
     path === "inbox" ? unread : path === "sync" ? syncAlerts : path === "ops" ? overdue : path === "reviews" ? needsReply : 0;
 
   return (
-    <nav className="flex h-full w-[212px] shrink-0 flex-col border-r border-pine-800 bg-pine-900 text-pine-100" aria-label="Primary">
-      <button onClick={() => navigate("/dashboard")} className="flex items-center gap-2.5 px-4 pb-4 pt-5 text-left">
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand shadow-[0_0_0_3px_rgba(14,122,95,0.25)]">
-          <Ic name="home" size={16} className="text-white" sw={2.2} />
+    <nav
+      className={cx(
+        "fixed inset-y-0 left-0 z-[72] flex h-full w-[240px] shrink-0 flex-col border-r border-pine-800 bg-pine-900 text-pine-100 shadow-2xl transition-transform duration-300 lg:static lg:z-auto lg:w-[220px] lg:translate-x-0 lg:shadow-none",
+        open ? "translate-x-0" : "-translate-x-full",
+      )}
+      aria-label="Primary"
+    >
+      <button onClick={() => { onClose(); navigate("/dashboard"); }} className="flex items-center gap-2.5 px-4 pb-5 pt-6 text-left">
+        <span className="flex h-8 w-8 items-center justify-center rounded-sm bg-brand shadow-[0_0_0_3px_rgba(14,107,78,0.28)]">
+          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <path d="M4 6h16M4 12h11M4 18h7" stroke="#fff" strokeWidth="2.6" strokeLinecap="square" />
+            <path d="M18 15.5v6" stroke="#8FE3BF" strokeWidth="2.6" strokeLinecap="square" />
+          </svg>
         </span>
         <span>
-          <span className="block font-display text-[16px] font-bold leading-none text-white">Trellis</span>
-          <span className="block text-[9.5px] font-semibold uppercase tracking-[0.14em] text-pine-200/70">Hospitality OS</span>
+          <span className="block font-display text-[17px] font-bold uppercase leading-none tracking-[0.04em] text-white">Derzen</span>
+          <span className="block text-[9.5px] font-semibold uppercase tracking-[0.16em] text-pine-200/70">Hospitality OS</span>
         </span>
       </button>
 
@@ -86,7 +95,7 @@ function Sidebar() {
                 return (
                   <button
                     key={it.path}
-                    onClick={() => navigate(`/${it.path}`)}
+                    onClick={() => { onClose(); navigate(`/${it.path}`); }}
                     aria-current={isActive ? "page" : undefined}
                     className={cx(
                       "group mb-0.5 flex w-full items-center gap-2.5 rounded-md px-2 py-[7px] text-left text-[12.5px] font-semibold transition-all duration-150",
@@ -127,8 +136,8 @@ function Sidebar() {
   );
 }
 
-function Topbar({ title, sub }: { title: string; sub?: string }) {
-  const { route, navigate, t, chatOpen, setChatOpen, copilotOpen, setCopilotOpen, displayCurrency, setWorkspaceCurrency, refreshRates, fxTick, session, tenants, logout, toast } = useApp();
+function Topbar({ title, sub, onMenu }: { title: string; sub?: string; onMenu: () => void }) {
+  const { route, navigate, t, chatOpen, setChatOpen, copilotOpen, setCopilotOpen, displayCurrency, setWorkspaceCurrency, refreshRates, fxTick, session, tenants, logout, toast, theme, setTheme } = useApp();
   const syncAlerts = useSyncAlerts();
   const creditsUsed = useApp((s) => s.creditsUsed);
   const locale = route.locale;
@@ -146,7 +155,10 @@ function Topbar({ title, sub }: { title: string; sub?: string }) {
         <button onClick={() => { logout(); }} className="ml-auto rounded-md bg-brand px-2.5 py-1 text-[11px] font-bold text-white hover:bg-brand-deep">Return to console</button>
       </div>
     )}
-    <header className="flex h-[52px] shrink-0 items-center gap-3 border-b border-line bg-card/80 px-4 backdrop-blur">
+    <header className="relative flex h-[58px] shrink-0 items-center gap-3 border-b border-line/70 bg-card/85 px-4 backdrop-blur md:px-6">
+      <button onClick={onMenu} aria-label="Open navigation" className="flex h-8 w-8 items-center justify-center rounded-sm text-mute transition-colors hover:bg-paper hover:text-ink lg:hidden">
+        <Ic name="menu" size={17} />
+      </button>
       <div className="min-w-0">
         <h1 className="truncate font-display text-[15.5px] font-bold leading-tight text-ink">{title}</h1>
         {sub && <p className="truncate text-[10.5px] text-mute">{sub}</p>}
@@ -167,7 +179,15 @@ function Topbar({ title, sub }: { title: string; sub?: string }) {
           Copilot
           <span className="font-mono text-[10px] text-faint">{WORKSPACE.credits.limit - creditsUsed} cr</span>
         </button>
-        <div className="mx-1 h-5 w-px bg-line" />
+        <button
+          onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+          aria-label={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
+          title={theme === "light" ? "Dark mode" : "Light mode"}
+          className="flex h-8 w-8 items-center justify-center rounded-sm border border-line bg-card text-mute transition-colors hover:border-brand hover:text-brand"
+        >
+          <Ic name={theme === "light" ? "moon" : "sun"} size={14} />
+        </button>
+        <div className="mx-1 hidden h-5 w-px bg-line sm:block" />
         {/* Reporting currency — IDR/USD primary, live rates */}
         <div className="flex items-center gap-1 rounded-md border border-line bg-card p-0.5" role="group" aria-label="Reporting currency">
           {(["IDR", "USD", "EUR"] as const).map((c) => (
@@ -345,7 +365,7 @@ function CopilotPanel() {
       <header className="flex items-center gap-2 border-b border-line bg-pine-900 px-4 py-3">
         <span className="flex h-7 w-7 items-center justify-center rounded-md bg-brand"><Ic name="sparkle" size={14} className="text-white" /></span>
         <div className="flex-1">
-          <p className="font-display text-[13px] font-bold text-white">Trellis Copilot</p>
+          <p className="font-display text-[13px] font-bold uppercase tracking-[0.04em] text-white">Derzen Copilot</p>
           <p className="text-[10px] text-pine-200/70">Reads tenant data · writes need your confirm</p>
         </div>
         <IconBtn label="Close copilot" name="x" onClick={() => setCopilotOpen(false)} className="text-pine-100 hover:bg-white/10 hover:text-white" />
@@ -459,15 +479,17 @@ const TITLES: Record<string, [string, string]> = {
 
 export function Shell({ children }: { children: ReactNode }) {
   const route = useApp((s) => s.route);
+  const [mobileNav, setMobileNav] = useState(false);
   const page = route.path[0] ?? "dashboard";
-  const [title, sub] = TITLES[page] ?? ["Trellis", ""];
+  const [title, sub] = TITLES[page] ?? ["Derzen", ""];
   return (
     <div className="flex h-screen overflow-hidden">
-      <Sidebar />
+      {mobileNav && <div className="fixed inset-0 z-[71] bg-pine-950/55 backdrop-blur-[2px] lg:hidden" onClick={() => setMobileNav(false)} aria-hidden="true" />}
+      <Sidebar open={mobileNav} onClose={() => setMobileNav(false)} />
       <div className="flex min-w-0 flex-1 flex-col">
-        <Topbar title={title} sub={sub} />
+        <Topbar title={title} sub={sub} onMenu={() => setMobileNav(true)} />
         <main className="flex-1 overflow-y-auto">
-          <div key={route.path.join("/") + route.query.toString()} className="anim-rise mx-auto w-full max-w-[1240px] px-4 py-4 pb-16">
+          <div key={route.path.join("/") + route.query.toString()} className="anim-rise mx-auto w-full max-w-[1300px] px-4 py-6 pb-20 md:px-7 lg:px-9">
             {children}
           </div>
         </main>

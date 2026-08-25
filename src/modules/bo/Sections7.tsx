@@ -406,7 +406,7 @@ export function CalculationsView() {
           </div>
           <div className="mt-3">
             <p className="mb-1 flex justify-between font-mono text-[10px] text-white/50"><span>mid-cycle proration · day {prorationDay} of 30</span><span className="text-white/80">${prorated} of ${monthRate}</span></p>
-            <input type="range" min={1} max={30} value={prorationDay} onChange={(e) => setProrationDay(Number(e.target.value))} className="w-full accent-[#B22222]" aria-label="Proration day in period" />
+            <input type="range" min={1} max={30} value={prorationDay} onChange={(e) => setProrationDay(Number(e.target.value))} className="w-full accent-[#2E9E77]" aria-label="Proration day in period" />
             <p className="mt-1 text-[9.5px] text-white/35">usage.metered emitted per measurement with stored inputs — the tenant sees this exact breakdown</p>
           </div>
         </Card>

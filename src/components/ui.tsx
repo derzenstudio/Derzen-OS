@@ -12,7 +12,7 @@ type BtnProps = ButtonHTMLAttributes<HTMLButtonElement> & {
 };
 export function Btn({ variant = "outline", size = "sm", icon, className, children, ...rest }: BtnProps) {
   const v = {
-    solid: "bg-brand text-[#F2F7F3] hover:bg-brand-deep border border-brand shadow-sm",
+    solid: "btn-grad text-[#F2F7F3]",
     dark: "bg-pine-900 text-pine-100 hover:bg-pine-800 border border-pine-900 shadow-sm",
     outline: "bg-card text-ink border border-line2 hover:border-brand hover:text-brand-deep",
     ghost: "bg-transparent text-mute hover:bg-black/5 hover:text-ink border border-transparent",
@@ -118,7 +118,7 @@ export function Modal({ open, onClose, title, children, footer, w = 520 }: { ope
   if (!open) return null;
   return (
     <div className="fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto bg-pine-950/45 p-4 pt-[8vh] backdrop-blur-[2px]" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div role="dialog" aria-modal="true" className="anim-pop w-full rounded-xl border border-line bg-card shadow-2xl" style={{ maxWidth: w }}>
+      <div role="dialog" aria-modal="true" className="anim-pop frame frame-2 w-full rounded-lg bg-card shadow-2xl" style={{ maxWidth: w }}>
         <header className="flex items-center justify-between border-b border-line px-5 py-3.5">
           <h2 className="font-display text-[15px] font-bold text-ink">{title}</h2>
           <IconBtn label="Close dialog" name="x" onClick={onClose} />

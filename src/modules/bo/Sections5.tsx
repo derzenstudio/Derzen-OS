@@ -33,7 +33,7 @@ export function GuardrailsView() {
     setDenied((d) => [...d, "AUDIT-OFF-ATTEMPT"]);
   };
   const approveGrant = (id: string) => {
-    setGrants((gs) => gs.map((g) => (g.id === id ? { ...g, status: "approved", remainingMin: g.windowMin, approver: "dev@trellis (second approver)" } : g)));
+    setGrants((gs) => gs.map((g) => (g.id === id ? { ...g, status: "approved", remainingMin: g.windowMin, approver: "dev@derzen (second approver)" } : g)));
     record(`bulk-access grant ${id} approved (2-person)`, "time-boxed · expires automatically · every read logged", "sensitive");
   };
 

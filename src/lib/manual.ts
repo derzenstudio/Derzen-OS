@@ -20,7 +20,7 @@ export const QUEUES: QueueDef[] = [
     { id: "dl-1", title: "import.run batch B-201 stalled", tenant: "Nordlys Stays", ageMin: 6 * 60, slaMin: 360, raw: "{job:'import.run', batch:'B-201', attempt:8, err:'row_4412 schema'}", normalised: "resumable at row 4412 · 9k/12k rows done", fix: "Fix row 4412 date format, requeue from checkpoint" },
   ]},
   { id: "webhook-failures", name: "Webhook failures", icon: "webhook", desc: "Customer endpoints returning 5xx", items: [
-    { id: "wf-1", title: "hooks.sanggraha.co 500 ×6", tenant: "Sanggraha Villas", ageMin: 40, slaMin: 120, raw: "{endpoint:'…/trellis', status:500, consecutive:6}", normalised: "event=reservation.created · retry #7 in 12m", fix: "Notify tenant endpoint unhealthy before disabling (policy)" },
+    { id: "wf-1", title: "hooks.sanggraha.co 500 ×6", tenant: "Sanggraha Villas", ageMin: 40, slaMin: 120, raw: "{endpoint:'…/derzen', status:500, consecutive:6}", normalised: "event=reservation.created · retry #7 in 12m", fix: "Notify tenant endpoint unhealthy before disabling (policy)" },
   ]},
   { id: "stuck-kyc", name: "Stuck KYC", icon: "shield", desc: "Connected-account verification stalled", items: [
     { id: "sk-1", title: "Nordlys bank account mismatch", tenant: "Nordlys Stays", ageMin: 9 * 24 * 60, slaMin: 1440, raw: "{provider:'stripe', state:'requires_action', reason:'bank_mismatch'}", normalised: "restricted · payouts paused · nudged 0×", fix: "Nudge tenant to re-submit bank details; escalate to finance" },

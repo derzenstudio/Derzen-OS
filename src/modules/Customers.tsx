@@ -48,7 +48,7 @@ export default function Customers() {
         <div className="ml-auto flex gap-2">
           {sel.length >= 2 && <Btn icon="users" onClick={() => setMergeOpen(true)}>Merge {sel.length} selected</Btn>}
           {sel.length > 0 && <Btn icon="send" onClick={() => setBulkOpen(true)}>Message {sel.length}</Btn>}
-          <Btn icon="download" onClick={() => { download("trellis-customers.csv", toCSV([["Name", "Emails", "Country", "Lifetime spend (EUR)", "Status"], ...list.map((g) => [g.name, g.emails.join("; "), g.country, g.lifetimeSpend / 100, g.status])])); toast("ok", "Exported CSV", `${list.length} guests`); }}>Export</Btn>
+          <Btn icon="download" onClick={() => { download("derzen-customers.csv", toCSV([["Name", "Emails", "Country", "Lifetime spend (EUR)", "Status"], ...list.map((g) => [g.name, g.emails.join("; "), g.country, g.lifetimeSpend / 100, g.status])])); toast("ok", "Exported CSV", `${list.length} guests`); }}>Export</Btn>
           <Btn variant="solid" icon="plus" onClick={() => setCreateOpen(true)}>New guest</Btn>
         </div>
       </div>

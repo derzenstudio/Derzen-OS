@@ -336,7 +336,7 @@ export function ResolverView() {
           </label>
           <label className="block">
             <span className="mb-1 block text-[9.5px] font-bold uppercase tracking-wider text-white/40">nights · {los}</span>
-            <input type="range" min={1} max={14} value={los} onChange={(e) => setLos(Number(e.target.value))} className="mt-2.5 w-full accent-[#B22222]" aria-label="Length of stay" />
+            <input type="range" min={1} max={14} value={los} onChange={(e) => setLos(Number(e.target.value))} className="mt-2.5 w-full accent-[#2E9E77]" aria-label="Length of stay" />
           </label>
           <label className="block">
             <span className="mb-1 block text-[9.5px] font-bold uppercase tracking-wider text-white/40">adults</span>

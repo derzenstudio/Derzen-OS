@@ -87,7 +87,7 @@ export const TENANTS: TenantMeta[] = [
   },
 ];
 
-export const DEVELOPER = { email: "dev@trellis.site", password: "trellis-dev", name: "Platform Developer" };
+export const DEVELOPER = { email: "dev@derzen.site", password: "derzen-dev", name: "Platform Developer" };
 
 // ── pristine capture (before any hydration mutates the live arrays) ────────
 const snapshotAll = () =>
@@ -148,7 +148,7 @@ export function buildTenantData(tenantId: string): TenantData {
   base.quotes = base.quotes.map((q) => ({ ...q, items: scaleItems(q.items), total: Math.round(q.total * 0.62) }));
   base.expenses = base.expenses.map((e) => ({ ...e, amount: Math.round(e.amount * 0.6) }));
   base.website = { ...base.website, subdomain: "ambara", customDomain: "ambara.co" };
-  base.workspace = { ...base.workspace, name: "Ambara Island Co.", tenantId: "t-ambara", inboundEmail: "invoices@ambara.mail.trellis.site" };
+  base.workspace = { ...base.workspace, name: "Ambara Island Co.", tenantId: "t-ambara", inboundEmail: "invoices@ambara.mail.derzen.site" };
   base.sync = base.sync.filter((s, i) => i < 4).map((s) => ({ ...s, state: "live" as const, errorRate24h: 0, queueDepth: 0, lastSuccessTs: Date.now() - 10 * 60_000 }));
   base.conflicts = [];
   base.members = base.members.map((m, i) => (i === 0 ? { ...m, name: "Dewi Ambara", email: "owner@ambara.co" } : m));
@@ -189,26 +189,26 @@ export interface PlatformIntegration {
 }
 
 export const PLATFORM_INTEGRATIONS: PlatformIntegration[] = [
-  { id: "channex", name: "Channex (aggregator)", category: "channels", auth: "API key", envKeys: ["TRELLIS_CHANNEX_API_KEY"], status: "live", credentials: true, version: "v1.7.2", playbookAnchor: "1a-aggregator-first" },
-  { id: "airbnb", name: "Airbnb", category: "channels", auth: "OAuth (partner program)", envKeys: ["TRELLIS_AIRBNB_CLIENT_ID", "TRELLIS_AIRBNB_CLIENT_SECRET"], status: "sandbox", credentials: true, version: "v3", playbookAnchor: "airbnb" },
-  { id: "booking", name: "Booking.com", category: "channels", auth: "Extranet + property ID", envKeys: ["TRELLIS_BOOKING_CLIENT_ID", "TRELLIS_BOOKING_CLIENT_SECRET"], status: "live", credentials: true, version: "R&A 2.0", playbookAnchor: "bookingcom" },
-  { id: "eps", name: "Expedia Group / VRBO", category: "channels", auth: "EPS Rapid + OAuth", envKeys: ["TRELLIS_EPS_API_KEY", "TRELLIS_VRBO_CLIENT_ID"], status: "live", credentials: true, version: "Rapid 3.1", playbookAnchor: "expedia-group" },
-  { id: "agoda", name: "Agoda", category: "channels", auth: "YCS partner credentials", envKeys: ["TRELLIS_AGODA_USER", "TRELLIS_AGODA_KEY"], status: "sandbox", credentials: true, version: "v2", playbookAnchor: "agoda" },
-  { id: "trip", name: "Trip.com", category: "channels", auth: "App key + secret", envKeys: ["TRELLIS_TRIP_APP_KEY", "TRELLIS_TRIP_SECRET"], status: "live", credentials: true, version: "v1.4", playbookAnchor: "tripcom" },
-  { id: "mmt", name: "MakeMyTrip", category: "channels", auth: "API key", envKeys: ["TRELLIS_MMT_API_KEY"], status: "missing", credentials: false, version: "—", playbookAnchor: "makemytrip" },
-  { id: "traveloka", name: "Traveloka", category: "channels", auth: "OAuth client", envKeys: ["TRELLIS_TRAVELOKA_CLIENT_ID"], status: "live", credentials: true, version: "v1.1", playbookAnchor: "traveloka" },
+  { id: "channex", name: "Channex (aggregator)", category: "channels", auth: "API key", envKeys: ["DERZEN_CHANNEX_API_KEY"], status: "live", credentials: true, version: "v1.7.2", playbookAnchor: "1a-aggregator-first" },
+  { id: "airbnb", name: "Airbnb", category: "channels", auth: "OAuth (partner program)", envKeys: ["DERZEN_AIRBNB_CLIENT_ID", "DERZEN_AIRBNB_CLIENT_SECRET"], status: "sandbox", credentials: true, version: "v3", playbookAnchor: "airbnb" },
+  { id: "booking", name: "Booking.com", category: "channels", auth: "Extranet + property ID", envKeys: ["DERZEN_BOOKING_CLIENT_ID", "DERZEN_BOOKING_CLIENT_SECRET"], status: "live", credentials: true, version: "R&A 2.0", playbookAnchor: "bookingcom" },
+  { id: "eps", name: "Expedia Group / VRBO", category: "channels", auth: "EPS Rapid + OAuth", envKeys: ["DERZEN_EPS_API_KEY", "DERZEN_VRBO_CLIENT_ID"], status: "live", credentials: true, version: "Rapid 3.1", playbookAnchor: "expedia-group" },
+  { id: "agoda", name: "Agoda", category: "channels", auth: "YCS partner credentials", envKeys: ["DERZEN_AGODA_USER", "DERZEN_AGODA_KEY"], status: "sandbox", credentials: true, version: "v2", playbookAnchor: "agoda" },
+  { id: "trip", name: "Trip.com", category: "channels", auth: "App key + secret", envKeys: ["DERZEN_TRIP_APP_KEY", "DERZEN_TRIP_SECRET"], status: "live", credentials: true, version: "v1.4", playbookAnchor: "tripcom" },
+  { id: "mmt", name: "MakeMyTrip", category: "channels", auth: "API key", envKeys: ["DERZEN_MMT_API_KEY"], status: "missing", credentials: false, version: "—", playbookAnchor: "makemytrip" },
+  { id: "traveloka", name: "Traveloka", category: "channels", auth: "OAuth client", envKeys: ["DERZEN_TRAVELOKA_CLIENT_ID"], status: "live", credentials: true, version: "v1.1", playbookAnchor: "traveloka" },
   { id: "ical", name: "iCal in/out", category: "channels", auth: "Open standard", envKeys: [], status: "live", credentials: true, version: "RFC 5545", playbookAnchor: "ical" },
-  { id: "stripe", name: "Stripe", category: "payments", auth: "Secret key + webhooks", envKeys: ["TRELLIS_STRIPE_SECRET_KEY", "TRELLIS_STRIPE_WEBHOOK_SECRET"], status: "live", credentials: true, version: "2025-12-15", playbookAnchor: "stripe" },
-  { id: "razorpay", name: "Razorpay", category: "payments", auth: "Key + webhook secret", envKeys: ["TRELLIS_RAZORPAY_KEY_ID", "TRELLIS_RAZORPAY_SECRET"], status: "sandbox", credentials: true, version: "v2", playbookAnchor: "razorpay" },
-  { id: "whatsapp", name: "WhatsApp Cloud API", category: "messaging", auth: "Meta app + WABA token", envKeys: ["TRELLIS_META_APP_ID", "TRELLIS_WHATSAPP_TOKEN"], status: "live", credentials: true, version: "v21.0", playbookAnchor: "whatsapp-business-cloud-api" },
-  { id: "meta", name: "Instagram + Messenger", category: "messaging", auth: "Meta Graph OAuth", envKeys: ["TRELLIS_META_APP_ID", "TRELLIS_META_APP_SECRET"], status: "sandbox", credentials: true, version: "Graph v21", playbookAnchor: "instagram-direct--facebook-messenger" },
-  { id: "google", name: "Google OAuth + Places", category: "messaging", auth: "OAuth client + API key", envKeys: ["TRELLIS_GOOGLE_CLIENT_ID", "TRELLIS_GOOGLE_MAPS_KEY"], status: "live", credentials: true, version: "Places (New)", playbookAnchor: "google" },
-  { id: "idv", name: "ID verification", category: "identity", auth: "API key + webhook", envKeys: ["TRELLIS_IDV_API_KEY"], status: "live", credentials: true, version: "v3", playbookAnchor: "4-guest-identity--access" },
-  { id: "ttlock", name: "TTLock", category: "identity", auth: "App ID + API key", envKeys: ["TRELLIS_TTLOCK_APP_ID", "TRELLIS_TTLOCK_KEY"], status: "live", credentials: true, version: "v3.2", playbookAnchor: "smart-locks" },
-  { id: "nuki", name: "Nuki", category: "identity", auth: "Bearer token", envKeys: ["TRELLIS_NUKI_TOKEN"], status: "sandbox", credentials: true, version: "v1.13", playbookAnchor: "smart-locks" },
-  { id: "pricelabs", name: "PriceLabs (RatePilot)", category: "backoffice", auth: "Partner token", envKeys: ["TRELLIS_PRICING_API_TOKEN"], status: "live", credentials: true, version: "v1", playbookAnchor: "dynamic-pricing" },
-  { id: "xero", name: "Xero (LedgerSync)", category: "backoffice", auth: "OAuth 2.0 app", envKeys: ["TRELLIS_XERO_CLIENT_ID", "TRELLIS_XERO_CLIENT_SECRET"], status: "live", credentials: true, version: "2.0", playbookAnchor: "accounting-sync" },
-  { id: "qbo", name: "QuickBooks (LedgerSync)", category: "backoffice", auth: "OAuth 2.0 app", envKeys: ["TRELLIS_QBO_CLIENT_ID"], status: "missing", credentials: false, version: "—", playbookAnchor: "accounting-sync" },
+  { id: "stripe", name: "Stripe", category: "payments", auth: "Secret key + webhooks", envKeys: ["DERZEN_STRIPE_SECRET_KEY", "DERZEN_STRIPE_WEBHOOK_SECRET"], status: "live", credentials: true, version: "2025-12-15", playbookAnchor: "stripe" },
+  { id: "razorpay", name: "Razorpay", category: "payments", auth: "Key + webhook secret", envKeys: ["DERZEN_RAZORPAY_KEY_ID", "DERZEN_RAZORPAY_SECRET"], status: "sandbox", credentials: true, version: "v2", playbookAnchor: "razorpay" },
+  { id: "whatsapp", name: "WhatsApp Cloud API", category: "messaging", auth: "Meta app + WABA token", envKeys: ["DERZEN_META_APP_ID", "DERZEN_WHATSAPP_TOKEN"], status: "live", credentials: true, version: "v21.0", playbookAnchor: "whatsapp-business-cloud-api" },
+  { id: "meta", name: "Instagram + Messenger", category: "messaging", auth: "Meta Graph OAuth", envKeys: ["DERZEN_META_APP_ID", "DERZEN_META_APP_SECRET"], status: "sandbox", credentials: true, version: "Graph v21", playbookAnchor: "instagram-direct--facebook-messenger" },
+  { id: "google", name: "Google OAuth + Places", category: "messaging", auth: "OAuth client + API key", envKeys: ["DERZEN_GOOGLE_CLIENT_ID", "DERZEN_GOOGLE_MAPS_KEY"], status: "live", credentials: true, version: "Places (New)", playbookAnchor: "google" },
+  { id: "idv", name: "ID verification", category: "identity", auth: "API key + webhook", envKeys: ["DERZEN_IDV_API_KEY"], status: "live", credentials: true, version: "v3", playbookAnchor: "4-guest-identity--access" },
+  { id: "ttlock", name: "TTLock", category: "identity", auth: "App ID + API key", envKeys: ["DERZEN_TTLOCK_APP_ID", "DERZEN_TTLOCK_KEY"], status: "live", credentials: true, version: "v3.2", playbookAnchor: "smart-locks" },
+  { id: "nuki", name: "Nuki", category: "identity", auth: "Bearer token", envKeys: ["DERZEN_NUKI_TOKEN"], status: "sandbox", credentials: true, version: "v1.13", playbookAnchor: "smart-locks" },
+  { id: "pricelabs", name: "PriceLabs (RatePilot)", category: "backoffice", auth: "Partner token", envKeys: ["DERZEN_PRICING_API_TOKEN"], status: "live", credentials: true, version: "v1", playbookAnchor: "dynamic-pricing" },
+  { id: "xero", name: "Xero (LedgerSync)", category: "backoffice", auth: "OAuth 2.0 app", envKeys: ["DERZEN_XERO_CLIENT_ID", "DERZEN_XERO_CLIENT_SECRET"], status: "live", credentials: true, version: "2.0", playbookAnchor: "accounting-sync" },
+  { id: "qbo", name: "QuickBooks (LedgerSync)", category: "backoffice", auth: "OAuth 2.0 app", envKeys: ["DERZEN_QBO_CLIENT_ID"], status: "missing", credentials: false, version: "—", playbookAnchor: "accounting-sync" },
 ];
 
 export const AI_DEFAULTS = {
@@ -226,10 +226,10 @@ export const AI_DEFAULTS = {
 };
 
 export const PLATFORM_ENV = [
-  { key: "DATABASE_URL", value: "postgres://trellis:••••••••@db-1.internal:5432/trellis", masked: true, note: "RLS enforced · tenant_id on every table" },
+  { key: "DATABASE_URL", value: "postgres://derzen:••••••••@db-1.internal:5432/derzen", masked: true, note: "RLS enforced · tenant_id on every table" },
   { key: "REDIS_URL", value: "redis://cache-1.internal:6379", masked: true, note: "BullMQ queues + cache" },
-  { key: "S3_ENDPOINT", value: "https://objects.trellis.site", masked: false, note: "photos, receipts, documents" },
-  { key: "OTEL_EXPORTER", value: "https://otel.trellis.site:4318", masked: false, note: "traces across the sync path" },
+  { key: "S3_ENDPOINT", value: "https://objects.derzen.site", masked: false, note: "photos, receipts, documents" },
+  { key: "OTEL_EXPORTER", value: "https://otel.derzen.site:4318", masked: false, note: "traces across the sync path" },
   { key: "STRIPE_SECRET_KEY", value: "sk_live_••••••••••••4f2k", masked: true, note: "rotate quarterly" },
   { key: "META_APP_SECRET", value: "••••••••••••••••", masked: true, note: "WhatsApp + IG + Messenger" },
   { key: "JWT_SIGNING_KEY", value: "••••••••••••••••", masked: true, note: "session + API keys" },

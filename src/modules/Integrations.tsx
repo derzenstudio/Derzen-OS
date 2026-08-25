@@ -31,7 +31,7 @@ const APPS: { cat: string; icon: IconName; items: { name: string; status: "conne
   {
     cat: "Payments — shipped working, honestly", icon: "card",
     items: [
-      { name: "Stripe", status: "connected", note: "Hosted fields only — raw card data never touches Trellis (PCI-minimised)." },
+      { name: "Stripe", status: "connected", note: "Hosted fields only — raw card data never touches DERZEN (PCI-minimised)." },
       { name: "Razorpay", status: "available", note: "UPI + cards for INR direct bookings. Connect in two minutes." },
       { name: "Offline / bank transfer", status: "available", note: "Free-form instructions rendered verbatim on quotes & PDFs." },
       { name: "HitPay · Xendit · DOKU", status: "waitlist", note: "In development. We'd rather ship two gateways that work than five that don't." },
@@ -121,7 +121,7 @@ function Webhooks() {
       <Modal open={addOpen} onClose={() => setAddOpen(false)} title="Register webhook endpoint" w={480}
         footer={<><Btn variant="ghost" onClick={() => setAddOpen(false)}>Cancel</Btn><Btn variant="solid" icon="webhook" onClick={() => { setAddOpen(false); toast("ok", "Endpoint registered", "Signing secret generated — a test delivery is on its way."); }}>Register</Btn></>}>
         <div className="space-y-3">
-          <Field label="HTTPS URL"><Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://yourapp.com/hooks/trellis" /></Field>
+          <Field label="HTTPS URL"><Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://yourapp.com/hooks/derzen" /></Field>
           <Field label="Events — from the versioned catalogue" hint="subscription filtering · at-least-once delivery · HMAC-signed">
             <EventPicker />
           </Field>
@@ -193,7 +193,7 @@ function Api() {
       <div className="rounded-xl border border-line bg-card p-4">
         <h3 className="mb-2 font-display text-[13.5px] font-bold text-ink">Try it</h3>
         <pre className="overflow-x-auto rounded-lg bg-pine-950 p-3 font-mono text-[10.5px] leading-relaxed text-pine-100">
-{`curl https://api.trellis.site/v1/reservations?cursor=… \\
+{`curl https://api.derzen.site/v1/reservations?cursor=… \\
   -H "Authorization: Bearer tr_live_8f2k…" \\
   -H "Idempotency-Key: 01HXYZ…"
 
@@ -201,8 +201,8 @@ function Api() {
         "next_cursor": "c_9f2" }`}
         </pre>
         <div className="mt-2 flex gap-2">
-          <Btn size="sm" icon="external" onClick={() => toast("info", "Opening API reference", "api.trellis.site/docs — live against your sandbox tenant.")}>OpenAPI docs</Btn>
-          <Btn size="sm" variant="ghost" icon="copy" onClick={() => { copyText("https://api.trellis.site/v1"); toast("ok", "Base URL copied"); }}>Copy base URL</Btn>
+          <Btn size="sm" icon="external" onClick={() => toast("info", "Opening API reference", "api.derzen.site/docs — live against your sandbox tenant.")}>OpenAPI docs</Btn>
+          <Btn size="sm" variant="ghost" icon="copy" onClick={() => { copyText("https://api.derzen.site/v1"); toast("ok", "Base URL copied"); }}>Copy base URL</Btn>
         </div>
       </div>
     </div>

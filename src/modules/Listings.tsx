@@ -4,6 +4,7 @@ import { Ic, type IconName } from "../components/icons";
 import { Badge, Btn, Dot, Empty, Field, Input, SearchBox, Select, Toggle, Textarea } from "../components/ui";
 import { useApp } from "../store";
 import { CHANNEL_DEFS, SERVICES, channelDef, computeStay, planFor, propertyById } from "../lib/data";
+import { ChannelMark } from "../components/ota";
 import type { ChannelStatus, Property } from "../lib/types";
 
 const STATUS_META: Record<ChannelStatus, { label: string; tone: "ok" | "warn" | "danger" | "mute" }> = {
@@ -63,7 +64,7 @@ export default function Listings() {
                 {otaCols.map((c) => (
                   <th key={c.id} className="px-2 py-2.5 text-center">
                     <span className="inline-flex items-center gap-1" title={`${c.name} distribution status`}>
-                      <span className="h-2 w-2 rounded-sm" style={{ background: c.color }} aria-hidden="true" />{c.short}
+                      <ChannelMark id={c.id} size={13} />{c.short}
                     </span>
                   </th>
                 ))}
@@ -316,7 +317,7 @@ function PropertyDetail({ p, onOpenServices }: { p: Property; onOpenServices: ()
                   const st = p.channels[c.id];
                   return (
                     <tr key={c.id} className="border-b border-line/60">
-                      <td className="px-4 py-2.5"><span className="flex items-center gap-2 text-[12.5px] font-bold text-ink"><span className="flex h-6 w-6 items-center justify-center rounded text-[9px] font-bold text-white" style={{ background: c.color }}>{c.short}</span>{c.name}<Badge tone="mute">{c.structure}</Badge></span></td>
+                      <td className="px-4 py-2.5"><span className="flex items-center gap-2 text-[12.5px] font-bold text-ink"><ChannelMark id={c.id} size={18} />{c.name}<Badge tone="mute">{c.structure}</Badge></span></td>
                       <td className="px-3 py-2.5">{st ? <Dot tone={STATUS_META[st].tone} label={STATUS_META[st].label} /> : <Dot tone="mute" label="Not connected" />}</td>
                       <td className="px-3 py-2.5 font-mono text-[11px] text-mute">{st ? `${c.short}-${p.code}-${(p.order + 3) * 1117}` : "—"}</td>
                       <td className="px-3 py-2.5 text-right font-mono text-[12px] font-bold">{c.markupPct}%</td>
@@ -333,8 +334,8 @@ function PropertyDetail({ p, onOpenServices }: { p: Property; onOpenServices: ()
             <div className="rounded-xl border border-line bg-card p-4">
               <h4 className="mb-1.5 font-display text-[13px] font-bold text-ink">iCal export feed</h4>
               <div className="flex items-center gap-2">
-                <code className="flex-1 truncate rounded-md bg-paper px-2.5 py-2 font-mono text-[10.5px] text-mute">https://ical.trellis.site/{p.id}/export.ics</code>
-                <Btn size="xs" icon="copy" onClick={() => { copyText(`https://ical.trellis.site/${p.id}/export.ics`); toast("ok", "iCal URL copied"); }}>Copy</Btn>
+                <code className="flex-1 truncate rounded-md bg-paper px-2.5 py-2 font-mono text-[10.5px] text-mute">https://ical.derzen.site/{p.id}/export.ics</code>
+                <Btn size="xs" icon="copy" onClick={() => { copyText(`https://ical.derzen.site/${p.id}/export.ics`); toast("ok", "iCal URL copied"); }}>Copy</Btn>
               </div>
             </div>
             <div className="rounded-xl border border-line bg-card p-4">

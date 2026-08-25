@@ -30,7 +30,7 @@ export default function DevConsole() {
         <div className="flex items-center gap-2 border-b border-white/10 px-4 py-4">
           <svg width="22" height="22" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="6" fill="#fff" /><path d="M8 10h16M16 10v13" stroke="#141811" strokeWidth="3" /><rect x="8" y="21" width="6" height="3" fill="#0E6B4E" /></svg>
           <div>
-            <p className="font-display text-[14px] font-extrabold leading-none">trellis</p>
+            <p className="font-display text-[14px] font-extrabold uppercase leading-none tracking-[0.05em]">derzen</p>
             <p className="mt-0.5 font-mono text-[9px] font-bold uppercase tracking-widest text-brand-bright">dev console</p>
           </div>
         </div>
@@ -179,7 +179,7 @@ function Tenants() {
               <span className="flex h-9 w-9 items-center justify-center rounded-md bg-white font-display text-[13px] font-extrabold text-ink">{t.name.slice(0, 1)}</span>
               <div className="min-w-0">
                 <p className="flex items-center gap-2 text-[14px] font-bold text-white">{t.name} {t.suspended && <Badge tone="danger">suspended</Badge>}</p>
-                <p className="font-mono text-[10.5px] text-white/40">{t.id} · {t.subdomain}.trellis.site · {t.legal} · since {t.created}</p>
+                <p className="font-mono text-[10.5px] text-white/40">{t.id} · {t.subdomain}.derzen.site · {t.legal} · since {t.created}</p>
               </div>
               <div className="ml-auto flex items-center gap-2">
                 <select value={t.plan} onChange={(e) => { setTenantPlan(t.id, e.target.value as never); toast("ok", `${t.name} → ${e.target.value}`, "Metering updates on the next billing tick."); }} aria-label={`Plan for ${t.name}`} className="h-8 rounded-md border border-white/15 bg-[#171714] px-2 font-mono text-[11px] font-bold text-white">

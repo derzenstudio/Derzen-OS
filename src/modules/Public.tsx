@@ -4,11 +4,12 @@ import { Ic, type IconName } from "../components/icons";
 import { PROPERTIES, RESERVATIONS, channelDef } from "../lib/data";
 import { useApp } from "../store";
 import { TENANTS } from "../lib/tenants";
+import { ChannelMark } from "../components/ota";
 
 const CHANNEL_TICKER = ["airbnb", "booking", "vrbo", "expedia", "agoda", "trip", "mmt", "traveloka", "ical", "direct"] as const;
 
 export function PublicSite() {
-  const { navigate, loginTenant } = useApp();
+  const { navigate, loginTenant, theme, setTheme } = useApp();
   const [tick, setTick] = useState(0);
   useEffect(() => {
     const i = setInterval(() => setTick((t) => t + 1), 2600);
@@ -28,7 +29,7 @@ export function PublicSite() {
       {/* Nav */}
       <header className="sticky top-0 z-40 border-b border-line bg-surface/92 backdrop-blur">
         <div className="mx-auto flex h-14 max-w-[1160px] items-center gap-6 px-5">
-          <a className="flex items-center gap-2" href="#/en" aria-label="Trellis home">
+          <a className="flex items-center gap-2" href="#/en" aria-label="DERZEN home">
             <Wordmark />
           </a>
           <nav className="ml-4 hidden items-center gap-5 text-[13px] font-semibold text-mute md:flex">
@@ -38,8 +39,15 @@ export function PublicSite() {
             <button onClick={() => go("security")} className="hover:text-ink">Security</button>
           </nav>
           <div className="ml-auto flex items-center gap-2">
+            <button
+              onClick={() => setTheme(theme === "light" ? "dark" : "light")}
+              aria-label={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
+              className="flex h-8 w-8 items-center justify-center rounded-sm border border-line bg-card text-mute transition-colors hover:border-brand hover:text-brand"
+            >
+              <Ic name={theme === "light" ? "moon" : "sun"} size={14} />
+            </button>
             <button onClick={() => navigate("/login")} className="rounded-md px-3 py-1.5 text-[13px] font-bold text-ink transition-colors hover:bg-line/60">Sign in</button>
-            <button onClick={demo} className="rounded-md bg-ink px-3.5 py-1.5 text-[13px] font-bold text-white transition-transform hover:-translate-y-px hover:bg-brand">Launch live demo</button>
+            <button onClick={demo} className="rounded-sm btn-grad px-3.5 py-1.5 text-[13px] font-bold text-white transition-transform hover:-translate-y-px">Launch live demo</button>
           </div>
         </div>
       </header>
@@ -54,7 +62,7 @@ export function PublicSite() {
             Every villa.<br />Every channel.<br /><span className="relative inline-block">One ledger.<span className="absolute inset-x-0 bottom-1 -z-10 h-3 bg-brand-soft" aria-hidden="true" /></span>
           </h1>
           <p className="mt-5 max-w-[52ch] text-[15.5px] leading-relaxed text-mute">
-            Trellis is the hospitality OS for operators of 1–100 units: channel distribution,
+            DERZEN is the hospitality OS for operators of 1–100 units: channel distribution,
             a guest inbox with an AI concierge that <em className="font-semibold not-italic text-ink">escalates instead of inventing</em>,
             field operations, direct-booking commerce and financials that reconcile to the cent.
           </p>
@@ -75,7 +83,7 @@ export function PublicSite() {
           <div className="overflow-hidden rounded-xl border border-ink/80 bg-pine-950 text-white shadow-2xl">
             <div className="flex items-center gap-2 border-b border-white/10 px-4 py-2.5">
               <span className="h-2 w-2 rounded-full bg-brand blink" />
-              <span className="font-mono text-[10.5px] font-bold uppercase tracking-widest text-white/50">ops pulse · sanggraha.trellis.site</span>
+              <span className="font-mono text-[10.5px] font-bold uppercase tracking-widest text-white/50">ops pulse · sanggraha.derzen.site</span>
               <span className="ml-auto font-mono text-[10px] text-white/40">WITA {new Date().toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}</span>
             </div>
             <div className="grid grid-cols-3 divide-x divide-white/10 border-b border-white/10">
@@ -99,7 +107,7 @@ export function PublicSite() {
                 const phase = liveChannels[i];
                 return (
                   <div key={c} className="flex items-center gap-2.5">
-                    <span className="flex h-5 w-8 items-center justify-center rounded text-[7.5px] font-bold text-white" style={{ background: def.color }}>{def.short}</span>
+                    <span className="flex h-6 w-6 items-center justify-center rounded-sm bg-white/10"><ChannelMark id={c} size={15} /></span>
                     <span className="w-[86px] text-[11px] font-semibold text-white/80">{def.name}</span>
                     <div className="h-1 flex-1 overflow-hidden rounded-full bg-white/10">
                       <div key={`${c}-${tick}`} className="h-full rounded-full" style={{ width: "100%", background: phase === 4 ? "#B42318" : "#2E9E77", transformOrigin: "left", animation: "barGrowX 1.2s ease both" }} />
@@ -149,8 +157,8 @@ export function PublicSite() {
               {[...CHANNEL_TICKER, ...CHANNEL_TICKER].map((c, i) => {
                 const def = channelDef(c);
                 return (
-                  <span key={i} className="flex items-center gap-2.5 rounded-lg border border-line bg-card px-4 py-2.5">
-                    <span className="flex h-6 w-9 items-center justify-center rounded text-[9px] font-bold text-white" style={{ background: def.color }}>{def.short}</span>
+                  <span key={i} className="flex items-center gap-2.5 rounded-sm border border-line bg-card px-4 py-2.5">
+                    <ChannelMark id={def.id} size={20} />
                     <span className="text-[13px] font-bold text-ink">{def.name}</span>
                     <span className="font-mono text-[10px] text-mute">{def.structure === "hotel" ? "room-type mapping" : "unit mapping"}</span>
                   </span>
@@ -226,7 +234,7 @@ export function PublicSite() {
             <button onClick={demo} className="hover:text-white">Demo</button>
             <button onClick={() => go("product")} className="hover:text-white">Product</button>
           </div>
-          <p className="w-full font-mono text-[10.5px] text-white/35">© 2026 Trellis Systems · rates snapshot via open.er-api.com · PCI scope minimised — cards never touch our servers</p>
+          <p className="w-full font-mono text-[10.5px] text-white/35">© 2026 DERZEN Systems · rates snapshot via open.er-api.com · PCI scope minimised — cards never touch our servers</p>
         </div>
       </footer>
     </div>
@@ -237,7 +245,7 @@ function Wordmark({ light }: { light?: boolean }) {
   return (
     <span className="flex items-center gap-2">
       <svg width="24" height="24" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="6" fill={light ? "#ffffff" : "#141811"} /><path d="M8 10h16M16 10v13" stroke={light ? "#141811" : "#F4F5F0"} strokeWidth="3" /><rect x="8" y="21" width="6" height="3" fill="#0E6B4E" /></svg>
-      <span className={cx("font-display text-[17px] font-extrabold tracking-tight", light ? "text-white" : "text-ink")}>trellis</span>
+      <span className={cx("font-display text-[17px] font-extrabold uppercase tracking-[0.04em]", light ? "text-white" : "text-ink")}>derzen</span>
     </span>
   );
 }
@@ -317,7 +325,7 @@ export function LoginPage() {
         <div className="absolute inset-0 opacity-[0.13]" style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cpath d='M0 60h120M60 0v120' stroke='%23ffffff' stroke-width='0.6'/%3E%3C/svg%3E\")" }} aria-hidden="true" />
         <div className="relative flex items-center gap-2">
           <svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="6" fill="#fff" /><path d="M8 10h16M16 10v13" stroke="#141811" strokeWidth="3" /><rect x="8" y="21" width="6" height="3" fill="#0E6B4E" /></svg>
-          <span className="font-display text-[19px] font-extrabold">trellis</span>
+          <span className="font-display text-[19px] font-extrabold uppercase tracking-[0.04em]">derzen</span>
         </div>
         <div className="relative">
           <h1 className="font-display text-[40px] font-extrabold leading-[1.05] tracking-tight">The switchboard<br />for serious<br />villa operators.</h1>
@@ -339,7 +347,7 @@ export function LoginPage() {
       {/* Form */}
       <main className="flex items-center justify-center bg-surface px-5 py-10">
         <div className="w-full max-w-[420px] anim-rise">
-          <button onClick={() => navigate("/")} className="mb-6 flex items-center gap-1 text-[12.5px] font-bold text-mute hover:text-ink"><Ic name="chevL" size={13} /> Back to trellis.site</button>
+          <button onClick={() => navigate("/")} className="mb-6 flex items-center gap-1 text-[12.5px] font-bold text-mute hover:text-ink"><Ic name="chevL" size={13} /> Back to derzen.site</button>
           <div className="mb-5 flex items-center rounded-lg border border-line bg-paper p-0.5">
             <button onClick={() => { setMode("tenant"); setErr(null); }} className={cx("flex-1 rounded-md py-2 text-[12.5px] font-bold", mode === "tenant" ? "bg-ink text-white" : "text-mute")}>Operator workspace</button>
             <button onClick={() => { setMode("developer"); setErr(null); }} className={cx("flex-1 rounded-md py-2 text-[12.5px] font-bold", mode === "developer" ? "bg-brand text-white" : "text-mute")}>Developer</button>
@@ -350,7 +358,7 @@ export function LoginPage() {
           <form ref={formRef} onSubmit={submit} className="mt-6 space-y-3">
             <label className="block">
               <span className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-mute">Email</span>
-              <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" required placeholder={mode === "tenant" ? "you@youroperation.co" : "dev@trellis.site"} className="h-11 w-full rounded-md border border-line2 bg-card px-3 text-[14px] outline-none transition-colors focus:border-brand" />
+              <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" required placeholder={mode === "tenant" ? "you@youroperation.co" : "dev@derzen.site"} className="h-11 w-full rounded-md border border-line2 bg-card px-3 text-[14px] outline-none transition-colors focus:border-brand" />
             </label>
             <label className="block">
               <span className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-mute">Password</span>
@@ -382,7 +390,7 @@ export function LoginPage() {
                   <Ic name="arrowR" size={14} className="text-faint transition-transform group-hover:translate-x-0.5 group-hover:text-brand" />
                 </button>
               ))}
-              <button onClick={() => quick("dev@trellis.site", "trellis-dev", true)} className="group flex w-full items-center gap-3 rounded-lg border border-brand/40 bg-brand-soft/50 px-3 py-2.5 text-left transition-all hover:-translate-y-px hover:border-brand hover:shadow-md">
+              <button onClick={() => quick("dev@derzen.site", "derzen-dev", true)} className="group flex w-full items-center gap-3 rounded-lg border border-brand/40 bg-brand-soft/50 px-3 py-2.5 text-left transition-all hover:-translate-y-px hover:border-brand hover:shadow-md">
                 <span className="flex h-8 w-8 items-center justify-center rounded-md bg-brand font-display text-[11px] font-extrabold text-white">D</span>
                 <span className="flex-1">
                   <span className="block text-[13px] font-bold text-ink">Internal backoffice</span>
@@ -391,7 +399,7 @@ export function LoginPage() {
                 <Ic name="arrowR" size={14} className="text-brand transition-transform group-hover:translate-x-0.5" />
               </button>
             </div>
-            <p className="mt-4 text-center font-mono text-[10px] text-faint">passwords: demo123 (workspaces) · trellis-dev (developer)</p>
+            <p className="mt-4 text-center font-mono text-[10px] text-faint">passwords: demo123 (workspaces) · derzen-dev (developer)</p>
           </div>
         </div>
       </main>

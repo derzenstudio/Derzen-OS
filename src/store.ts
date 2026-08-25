@@ -77,6 +77,8 @@ interface App {
   fxTick: number;
   setWorkspaceCurrency: (c: CurrencyCode) => void;
   refreshRates: () => Promise<boolean>;
+  theme: "light" | "dark";
+  setTheme: (t: "light" | "dark") => void;
   devIntegrations: PlatformIntegration[];
   checking: string[];
   setIntegration: (id: string, patch: Partial<PlatformIntegration>) => void;
@@ -303,6 +305,14 @@ export const useApp = create<App>((set, get) => ({
     const ok = await refreshFx();
     set({ fxTick: get().fxTick + 1 });
     return ok;
+  },
+  theme: ((): "light" | "dark" => {
+    try { return localStorage.getItem("derzen.theme") === "dark" ? "dark" : "light"; } catch { return "light"; }
+  })(),
+  setTheme: (t) => {
+    try { localStorage.setItem("derzen.theme", t); } catch { /* private mode */ }
+    document.documentElement.dataset.theme = t;
+    set({ theme: t });
   },
   devIntegrations: PLATFORM_INTEGRATIONS,
   checking: [],

@@ -190,7 +190,7 @@ function General() {
             <Ic name="shield" size={18} className="mt-0.5 text-[#8a5c07]" />
             <div className="flex-1">
               <h3 className="font-display text-[13.5px] font-bold text-ink">Support access</h3>
-              <p className="text-[11.5px] text-mute">Lets the Trellis team troubleshoot your account. Every session is logged and visible.</p>
+              <p className="text-[11.5px] text-mute">Lets the DERZEN team troubleshoot your account. Every session is logged and visible.</p>
               <p className="mt-1.5 text-[11px] font-bold text-mute">Last accessed: {timeAgo(WORKSPACE.supportLastAccess)} · agent Mira K. · 12 min</p>
               <div className="mt-2 flex items-center gap-3">
                 <Toggle checked={support} onChange={(v) => { setSupport(v); toast(v ? "ok" : "warn", v ? "Support access granted" : "Support access revoked instantly"); }} label="Support access" />
@@ -317,7 +317,7 @@ function Transactions() {
         <Select value={status} onChange={(e) => setStatus(e.target.value)} className="!w-[160px]" aria-label="Status filter">
           <option value="all">All statuses</option><option value="succeeded">Succeeded</option><option value="refunded">Refunded</option><option value="failed">Failed</option><option value="payout">Payout processed</option>
         </Select>
-        <Btn className="ml-auto" icon="download" onClick={() => { download("trellis-transactions.csv", toCSV([["Time", "Ref", "Description", "Method", "Amount", "Currency", "Status"], ...list.map((r) => [fmtDateTime(r.ts), r.ref, r.desc, r.method, r.amount, r.currency, r.status])])); toast("ok", "Exported"); }}>Export</Btn>
+        <Btn className="ml-auto" icon="download" onClick={() => { download("derzen-transactions.csv", toCSV([["Time", "Ref", "Description", "Method", "Amount", "Currency", "Status"], ...list.map((r) => [fmtDateTime(r.ts), r.ref, r.desc, r.method, r.amount, r.currency, r.status])])); toast("ok", "Exported"); }}>Export</Btn>
       </div>
       <div className="overflow-x-auto rounded-xl border border-line bg-card">
         <table className="w-full min-w-[780px] text-left">

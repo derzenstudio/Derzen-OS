@@ -72,7 +72,7 @@ export default function Dashboard() {
   void tzNow;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Greeting band */}
       <div className="relative overflow-hidden rounded-xl border border-pine-800 bg-pine-900 px-5 py-4 text-white">
         <div className="pointer-events-none absolute -right-10 -top-16 h-48 w-48 rounded-full bg-brand/25 blur-2xl" />

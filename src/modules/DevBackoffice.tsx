@@ -36,7 +36,7 @@ export default function DevBackoffice() {
       <aside className="sticky top-0 flex h-screen w-[228px] shrink-0 flex-col border-r border-white/10 bg-[#0a0a09]">
         <div className="border-b border-white/10 px-4 py-4">
           <p className="font-display text-[14px] font-extrabold leading-none">operations backoffice</p>
-          <p className="mt-1 font-mono text-[9px] font-bold uppercase tracking-widest text-brand-bright">admin.trellis.internal · SSO + device trust</p>
+          <p className="mt-1 font-mono text-[9px] font-bold uppercase tracking-widest text-brand-bright">admin.derzen.internal · SSO + device trust</p>
         </div>
         <nav className="flex-1 space-y-0.5 overflow-y-auto p-2">
           {TABS.map((s) => (
@@ -73,7 +73,7 @@ export default function DevBackoffice() {
                       <span className="flex h-9 w-9 items-center justify-center rounded-md bg-white font-display text-[13px] font-extrabold text-ink">{t.name.slice(0, 1)}</span>
                       <span className="min-w-0 flex-1">
                         <span className="flex items-center gap-2 text-[13px] font-bold text-white">{t.name} {t.suspended && <span className="rounded bg-[#3d1f1f] px-1.5 py-0.5 font-mono text-[9px] font-bold text-[#f08c8c]">SUSPENDED</span>}</span>
-                        <span className="block truncate text-[10.5px] text-white/40">{t.email} · {t.subdomain}.trellis.site · since {t.created}</span>
+                        <span className="block truncate text-[10.5px] text-white/40">{t.email} · {t.subdomain}.derzen.site · since {t.created}</span>
                       </span>
                       <span className="rounded-full bg-white/5 px-2.5 py-1 font-mono text-[10.5px] font-bold text-white/60">{t.plan}</span>
                       <span className="font-mono text-[12px] font-bold text-[#4CC38A]">${t.mrr}</span>

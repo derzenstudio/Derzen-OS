@@ -1,43 +1,97 @@
 @import "tailwindcss";
 
+/* ── DERZEN design tokens ──────────────────────────────────────────────────
+   80% paper white · 30% ink (overlap in surfaces) · 10% botanical green.
+   Red is reserved for "broken" semantics only. Violet never.
+   Corners: capped at 3px everywhere (pills/dots/avatars stay circular).
+   Dark mode: same tokens, re-valued under html[data-theme="dark"] —
+   every utility that reads var(--color-*) switches automatically.       */
+
 @theme {
   --font-display: "Big Shoulders Display", "Schibsted Grotesk", sans-serif;
   --font-body: "Schibsted Grotesk", ui-sans-serif, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
 
-  /* 80% white — cool paper, never cream */
-  --color-paper: #f3f4f0;
+  /* corner cap */
+  --radius-DEFAULT: 2px;
+  --radius-sm: 2px;
+  --radius-md: 2px;
+  --radius-lg: 3px;
+  --radius-xl: 3px;
+  --radius-2xl: 3px;
+  --radius-3xl: 3px;
+
+  /* light (default) */
+  --color-paper: #f4f5f0;
   --color-surface: #fafaf7;
   --color-card: #ffffff;
-  --color-line: #e2e4dd;
-  --color-line2: #c9ccc2;
+  --color-line: #eceee6;
+  --color-line2: #d8dccd;
 
-  /* 30% ink — near-black with a leaf cast */
   --color-ink: #141811;
   --color-mute: #5c6357;
-  --color-faint: #8b9184;
-  --color-pine-950: #0b0f0b;
-  --color-pine-900: #121712;
-  --color-pine-800: #1a201a;
-  --color-pine-700: #263026;
-  --color-pine-200: #c3ccc0;
-  --color-pine-100: #dee4db;
+  --color-faint: #949a8b;
 
-  /* 10% green — deep botanical, the only accent */
+  --color-pine-950: #0e110c;
+  --color-pine-900: #161a12;
+  --color-pine-800: #1f251a;
+  --color-pine-700: #2b3224;
+  --color-pine-200: #c3c9b8;
+  --color-pine-100: #e0e3d6;
+
   --color-brand: #0e6b4e;
-  --color-brand-deep: #0a4a37;
+  --color-brand-deep: #0a523b;
   --color-brand-bright: #2e9e77;
-  --color-brand-soft: #dfede5;
-
-  /* functional semantics only — red means broken, amber means caution */
+  --color-brand-soft: #e2efe7;
   --color-danger: #b42318;
   --color-danger-soft: #f6e3df;
   --color-gold: #9a6a0b;
-  --color-gold-soft: #f2e7cb;
+  --color-gold-soft: #f3e9d2;
   --color-sea: #38708a;
-  --color-sea-soft: #dfeaf0;
-  --color-plum: #38708a;
-  --color-plum-soft: #dfeaf0;
+  --color-sea-soft: #e1ebf0;
+  --color-plum: #5c6357;
+  --color-plum-soft: #e8eae2;
+
+  --rule-c: rgba(20, 24, 17, 0.14);
+  --contour-c: rgba(20, 24, 17, 0.045);
+  --scroll-c: #c2c7b8;
+}
+
+/* ── dark mode: token re-value ── */
+[data-theme="dark"] {
+  --color-paper: #0f120d;
+  --color-surface: #131710;
+  --color-card: #171c13;
+  --color-line: #232a1e;
+  --color-line2: #333c2b;
+
+  --color-ink: #e8eae0;
+  --color-mute: #9aa394;
+  --color-faint: #66705f;
+
+  --color-pine-950: #0a0d08;
+  --color-pine-900: #10140c;
+  --color-pine-800: #171d12;
+  --color-pine-700: #232b1a;
+  --color-pine-200: #a9b29e;
+  --color-pine-100: #c6cdb9;
+
+  --color-brand: #148462;
+  --color-brand-deep: #7fd6b4;
+  --color-brand-bright: #3fb98c;
+  --color-brand-soft: #1b2a21;
+  --color-danger: #e0564a;
+  --color-danger-soft: #2c1713;
+  --color-gold: #d9a441;
+  --color-gold-soft: #2a2315;
+  --color-sea: #5fa3c0;
+  --color-sea-soft: #16222a;
+  --color-plum: #a9b29e;
+  --color-plum-soft: #20261c;
+
+  --rule-c: rgba(232, 234, 224, 0.12);
+  --contour-c: rgba(232, 234, 224, 0.035);
+  --scroll-c: #3a4433;
 }
 
 html,
@@ -56,24 +110,25 @@ body {
   position: relative;
 }
 
-/* Condensed display face — slightly open tracking at small sizes reads best */
 .font-display {
-  letter-spacing: 0.005em;
-  text-transform: none;
-}
-h1.font-display,
-h2.font-display {
-  letter-spacing: 0.012em;
+  font-stretch: 112%;
+  letter-spacing: -0.015em;
 }
 
-/* Ambient layered background: fine ink contour lines + one pine wash */
+/* Ambient contour field — adapts to theme via tokens */
 body::before {
   content: "";
   position: fixed;
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='560' height='560' viewBox='0 0 560 560'%3E%3Cg fill='none' stroke='%23141811' stroke-opacity='0.04' stroke-width='1.1'%3E%3Cpath d='M-20 90c90-38 190-38 280 0s190 38 300-6'/%3E%3Cpath d='M-20 150c90-38 190-38 280 0s190 38 300-6'/%3E%3Cpath d='M-20 210c90-38 190-38 280 0s190 38 300-6'/%3E%3Cpath d='M-20 330c100-44 210-44 300 0s180 44 300-8'/%3E%3Cpath d='M-20 390c100-44 210-44 300 0s180 44 300-8'/%3E%3Cpath d='M-20 500c110-50 220-50 310 0s170 50 290-10'/%3E%3C/g%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='560' height='560' viewBox='0 0 560 560'%3E%3Cg fill='none' stroke='%23808a76' stroke-opacity='0.16' stroke-width='1.1'%3E%3Cpath d='M-20 90c90-38 190-38 280 0s190 38 300-6'/%3E%3Cpath d='M-20 150c90-38 190-38 280 0s190 38 300-6'/%3E%3Cpath d='M-20 210c90-38 190-38 280 0s190 38 300-6'/%3E%3Cpath d='M-20 330c100-44 210-44 300 0s180 44 300-8'/%3E%3Cpath d='M-20 390c100-44 210-44 300 0s180 44 300-8'/%3E%3Cpath d='M-20 500c110-50 220-50 310 0s170 50 290-10'/%3E%3C/g%3E%3C/svg%3E");
+  opacity: 0.55;
+  mix-blend-mode: multiply;
+}
+[data-theme="dark"] body::before {
+  mix-blend-mode: screen;
+  opacity: 0.5;
 }
 body::after {
   content: "";
@@ -84,6 +139,11 @@ body::after {
   background:
     radial-gradient(820px 460px at 92% -8%, rgba(14, 107, 78, 0.07), transparent 62%),
     radial-gradient(700px 460px at -10% 108%, rgba(20, 24, 17, 0.05), transparent 60%);
+}
+[data-theme="dark"] body::after {
+  background:
+    radial-gradient(820px 460px at 92% -8%, rgba(63, 185, 140, 0.08), transparent 62%),
+    radial-gradient(700px 460px at -10% 108%, rgba(0, 0, 0, 0.35), transparent 60%);
 }
 #root {
   position: relative;
@@ -97,25 +157,69 @@ body::after {
 *:focus-visible {
   outline: 2px solid var(--color-brand);
   outline-offset: 2px;
-  border-radius: 4px;
+  border-radius: 2px;
 }
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: #b8bdb0 transparent;
+  scrollbar-color: var(--scroll-c) transparent;
 }
 *::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 *::-webkit-scrollbar-thumb {
-  background: #b8bdb0;
+  background: var(--scroll-c);
   border-radius: 8px;
   border: 3px solid transparent;
   background-clip: content-box;
 }
 *::-webkit-scrollbar-track {
   background: transparent;
+}
+
+/* ── Gradient frames — replace hairlines on the important surfaces ─────── */
+.frame {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--color-card), var(--color-card)) padding-box,
+    linear-gradient(135deg, rgba(14, 107, 78, 0.55), rgba(20, 24, 17, 0.16) 38%, rgba(154, 106, 11, 0.3) 72%, rgba(14, 107, 78, 0.4)) border-box;
+}
+[data-theme="dark"] .frame {
+  background:
+    linear-gradient(var(--color-card), var(--color-card)) padding-box,
+    linear-gradient(135deg, rgba(63, 185, 140, 0.5), rgba(232, 234, 224, 0.1) 40%, rgba(217, 164, 65, 0.28) 75%, rgba(63, 185, 140, 0.35)) border-box;
+}
+.frame-2 {
+  border-width: 2px;
+}
+.frame-3 {
+  border-width: 3px;
+}
+.frame-ink {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(#171c13, #171c13) padding-box,
+    linear-gradient(135deg, rgba(63, 185, 140, 0.55), rgba(232, 234, 224, 0.12) 45%, rgba(63, 185, 140, 0.3)) border-box;
+}
+/* horizontal rule that fades at both ends — the anti-hairline */
+.rule-h {
+  height: 1px;
+  border: 0;
+  background: linear-gradient(90deg, transparent, var(--rule-c) 18%, rgba(14, 107, 78, 0.45) 50%, var(--rule-c) 82%, transparent);
+}
+/* solid button treatment */
+.btn-grad {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(115deg, #0f7a59, #0a5b41) padding-box,
+    linear-gradient(115deg, rgba(63, 185, 140, 0.75), rgba(63, 185, 140, 0.15)) border-box;
+  box-shadow: 0 6px 18px -8px rgba(10, 82, 59, 0.55);
+}
+.btn-grad:hover {
+  background:
+    linear-gradient(115deg, #128a65, #0c674a) padding-box,
+    linear-gradient(115deg, rgba(63, 185, 140, 0.9), rgba(63, 185, 140, 0.25)) border-box;
 }
 
 /* Block-type patterns (calendar) */
@@ -157,7 +261,7 @@ kbd {
   font-family: var(--font-mono);
   font-size: 10.5px;
   padding: 1px 5px;
-  border-radius: 4px;
+  border-radius: 2px;
   border: 1px solid var(--color-line2);
   border-bottom-width: 2px;
   background: var(--color-surface);
@@ -178,16 +282,14 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   cursor: pointer;
 }
 
+/* unlayered → wins over utility accents everywhere */
+input[type="checkbox"],
+input[type="radio"],
+input[type="range"] {
+  accent-color: var(--color-brand);
+}
+
 .drag-over-block {
   outline: 2px dashed var(--color-brand);
   outline-offset: 3px;
-}
-
-/* Unlayered → wins over Tailwind's layered accent utilities everywhere */
-input[type="checkbox"],
-input[type="radio"] {
-  accent-color: var(--color-brand);
-}
-input[type="range"] {
-  accent-color: var(--color-brand);
 }

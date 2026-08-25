@@ -1,4 +1,4 @@
-# Trellis — Platform Owner's Integration Playbook
+# DERZEN — Platform Owner's Integration Playbook
 
 > **Audience: you, the platform owner/developer — not your customers.**
 > Everything below is what *you* must obtain, configure and maintain so that every

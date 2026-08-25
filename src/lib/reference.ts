@@ -86,7 +86,7 @@ export const EVENT_ENVELOPE = `{
   "occurred_at": "RFC3339",   "actor": { "type": "channel", "id": "…" },
   "correlation_id": "…",      "resource": { "type": "reservation", "id": "…" },
   "data": { },
-  "schema": "https://trellis.site/events/reservation.confirmed/v1"
+  "schema": "https://derzen.site/events/reservation.confirmed/v1"
 }`;
 
 export const EVENT_CATALOGUE: { resource: string; events: { name: string; v: number }[] }[] = [
@@ -153,7 +153,7 @@ export const API_ENDPOINTS: { group: string; endpoints: { method: string; path: 
     { method: "GET", path: "/v1/events", note: "cursor-based event log for pull integrators" },
   ]},
 ];
-export const GUEST_SURFACE = { origin: "stay.trellis.site", unauthenticated: true, rateLimited: "heavily — separate tier", endpoints: "search · quote · checkout intent · confirmation lookup by token · guidebook fetch · store order" };
+export const GUEST_SURFACE = { origin: "stay.derzen.site", unauthenticated: true, rateLimited: "heavily — separate tier", endpoints: "search · quote · checkout intent · confirmation lookup by token · guidebook fetch · store order" };
 
 // ── §8 Roles & permissions ─────────────────────────────────────────────────
 export const TENANT_ROLES = ["Owner / Admin", "Manager", "Front desk", "Ops lead", "Field staff", "Property owner", "Accountant", "Agency"] as const;
@@ -227,8 +227,8 @@ export const JOB_RULES = "every job: tenant-fair queueing · max attempts · dea
 // ── §11 Configuration & secrets ────────────────────────────────────────────
 export const CONFIG_ENVS: { env: string; db: string; queue: string; origins: string; locales: string; retention: string }[] = [
   { env: "local", db: "docker-compose · seeded", queue: "redis:6379", origins: "localhost:*", locales: "en, id", retention: "∞ (dev)" },
-  { env: "ci", db: "ephemeral per-PR", queue: "in-test", origins: "preview-*.trellis.dev", locales: "en (pseudo-localised)", retention: "run-scoped" },
-  { env: "staging", db: "prod-shaped volume", queue: "redis-ha", origins: "staging.trellis.site", locales: "en, id", retention: "prod policy" },
+  { env: "ci", db: "ephemeral per-PR", queue: "in-test", origins: "preview-*.derzen.dev", locales: "en (pseudo-localised)", retention: "run-scoped" },
+  { env: "staging", db: "prod-shaped volume", queue: "redis-ha", origins: "staging.derzen.site", locales: "en, id", retention: "prod policy" },
   { env: "production", db: "primary + 2 replicas", queue: "redis-ha · 4 workers", origins: "app / stay / api / admin", locales: "en, id (+ pipeline)", retention: "per data class" },
 ];
 export const SECRET_CLASSES = [

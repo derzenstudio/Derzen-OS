@@ -71,6 +71,8 @@ export default function App() {
   const navigate = useApp((s) => s.navigate);
   const featureOn = useApp((s) => s.featureOn);
 
+  const theme = useApp((s) => s.theme);
+
   useEffect(() => {
     const onHash = () => useApp.setState({ route: parseHashSafe() });
     window.addEventListener("hashchange", onHash);
@@ -78,6 +80,11 @@ export default function App() {
     void refreshFx(); // best-effort live rates; falls back to the dated snapshot
     return () => window.removeEventListener("hashchange", onHash);
   }, []);
+
+  // apply theme attribute (light/dark) — tokens re-value under [data-theme="dark"]
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+  }, [theme]);
 
   // ── public surface ──
   if (!session) {

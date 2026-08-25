@@ -126,7 +126,7 @@ export function Backoffice() {
   const [emergencyStop, setEmergencyStop] = useState(false);
 
   const record = useCallback((action: string, target: string, severity: AuditEvent["severity"] = "info") => {
-    setEvents((e) => [{ id: `a${Date.now()}`, ts: Date.now(), actor: "dev@trellis", action, target, severity }, ...e]);
+    setEvents((e) => [{ id: `a${Date.now()}`, ts: Date.now(), actor: "dev@derzen", action, target, severity }, ...e]);
   }, []);
 
   const ctx = useMemo(() => ({ events, record }), [events, record]);
@@ -143,7 +143,7 @@ export function Backoffice() {
               <Ic name="server" size={16} className="text-white" sw={2.2} />
             </span>
             <div>
-              <p className="font-display text-[15px] font-bold leading-none text-white">Trellis Ops</p>
+              <p className="font-display text-[15px] font-bold uppercase leading-none tracking-[0.05em] text-white">Derzen Ops</p>
               <p className="mt-0.5 font-mono text-[9px] uppercase tracking-[0.14em] text-brand-bright">internal backoffice</p>
             </div>
           </div>
@@ -182,7 +182,7 @@ export function Backoffice() {
               <button onClick={() => navigate("/dev/backoffice")} className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[11px] font-bold text-white/50 transition-colors hover:bg-white/5 hover:text-white"><Ic name="alertTri" size={12} /> Ops deep-dive · A–G</button>
               <button onClick={() => navigate("/dev/substrate")} className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-[11px] font-bold text-white/50 transition-colors hover:bg-white/5 hover:text-white"><Ic name="flag" size={12} /> Substrate & roadmap · H–N</button>
             </div>
-            <p className="mb-2 font-mono text-[9px] text-white/30">admin.trellis.internal · SSO + device trust</p>
+            <p className="mb-2 font-mono text-[9px] text-white/30">admin.derzen.internal · SSO + device trust</p>
             <button onClick={logout} className="flex w-full items-center gap-2 rounded-md border border-white/15 px-3 py-2 text-[12px] font-bold text-white/70 transition-colors hover:border-brand hover:text-white">
               <Ic name="logOut" size={13} /> End internal session
             </button>
@@ -217,7 +217,7 @@ export function Backoffice() {
             </div>
           )}
 
-          <div className="p-6">
+          <div className="p-5 md:p-7 xl:p-9">
             {section === "ops" && <OpsDashboard onEmergencyStop={() => { setEmergencyStop(true); record("engaged global emergency stop", "messaging", "destructive"); }} />}
             {section === "tenants" && <TenantsView />}
             {section === "commercials" && <CommercialsView />}

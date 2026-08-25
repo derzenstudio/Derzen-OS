@@ -164,7 +164,7 @@ export default function CalendarModule() {
         return String(st.rate);
       }),
     ]);
-    download(`trellis-calendar-${windowStart}.csv`, toCSV([head, ...body]));
+    download(`derzen-calendar-${windowStart}.csv`, toCSV([head, ...body]));
     toast("ok", "CSV exported", `${rows.length} listings × ${keys.length} nights`);
   };
 

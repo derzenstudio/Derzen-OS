@@ -547,7 +547,7 @@ export const EXPENSES: Expense[] = [
   ex("e-1", -1, "cleaning", 480_000, "Turnover clean × 2 villas", "Sparkle Squad"),
   ex("e-2", -2, "maintenance", 1_250_000, "Pool pump seal + labour", "Bali Pool & Plumbing Co.", { taskId: "t-507" }),
   ex("e-3", -3, "utilities", 2_340_000, "PLN electricity — Seminyak", "PLN", { propertyId: "p-purnama" }),
-  ex("e-4", -4, "software", 1_490_000, "Trellis platform subscription", "Trellis", { recurring: true }),
+  ex("e-4", -4, "software", 1_490_000, "DERZEN platform subscription", "DERZEN", { recurring: true }),
   ex("e-5", -6, "supplies", 860_000, "Toiletries + welcome baskets", "COCO Mart", { propertyId: "p-anggrek", approval: "pending", receipt: "receipt-0412.jpg" }),
   ex("e-6", -8, "salaries", 18_500_000, "Staff wages — week 14", "Payroll", { recurring: true }),
   ex("e-7", -10, "maintenance", 350_000, "Gate sensor battery pack", "Volta Electrical", { approval: "rejected", note: "Duplicate of e-2 line item" }),
@@ -717,7 +717,7 @@ export const CONFLICTS: Conflict[] = [
 // ── Webhooks / audit ───────────────────────────────────────────────────────
 export const WEBHOOKS: WebhookEndpoint[] = [
   {
-    id: "wh-1", url: "https://ops.sanggraha.co/hooks/trellis", events: ["reservation.created", "reservation.modified", "reservation.cancelled", "payment.received"],
+    id: "wh-1", url: "https://ops.sanggraha.co/hooks/derzen", events: ["reservation.created", "reservation.modified", "reservation.cancelled", "payment.received"],
     secret: "whsec_9f2k1m••••redacted", active: true,
     deliveries: [
       { id: "d-1", ts: now - 18 * 60_000, event: "reservation.created", status: 200, ms: 184, response: "200 OK · {\"received\":true}" },
@@ -736,7 +736,7 @@ export const AUDIT: AuditEntry[] = [
   { ts: now - 11 * H, actor: "Automation au-1", action: "Created task “Turnover clean — Villa Purnama” from template tt-clean v4", source: "automation" },
   { ts: now - 22 * H, actor: "Marco Reyes", action: "Refund 30% on R-2432 (VRBO cancellation, guest-initiated)", source: "ui", before: "Paid USD 1,184", after: "Refunded USD 355 · ledger + owner statement updated atomically" },
   { ts: now - 30 * H, actor: "System", action: "Guest identity verification completed for Grace Lin (provider ref VY-88213, expires in 30d)", source: "api" },
-  { ts: now - 2 * D, actor: "Website builder", action: "Published sanggraha.trellis.site (pages: 4, blocks: 18)", source: "ui" },
+  { ts: now - 2 * D, actor: "Website builder", action: "Published sanggraha.derzen.site (pages: 4, blocks: 18)", source: "ui" },
   { ts: now - 3 * D, actor: "RatePilot (dynamic pricing)", action: "Suggested +6% on Villa Anggrek for Oct long weekend — awaiting review", source: "automation" },
 ];
 
@@ -841,7 +841,7 @@ const day30 = Array.from({ length: 30 }, (_, i) => {
   };
 });
 export const WEBSITE: WebsiteState = {
-  id: "w-1", subdomain: "sanggraha.trellis.site", customDomain: "stay.sanggraha.co", domainStatus: "pending_dns", published: true, activePageId: "pg-home",
+  id: "w-1", subdomain: "sanggraha.derzen.site", customDomain: "stay.sanggraha.co", domainStatus: "pending_dns", published: true, activePageId: "pg-home",
   pages: [
     {
       id: "pg-home", name: "Home", slug: "/", home: true,
@@ -863,13 +863,13 @@ export const WEBSITE: WebsiteState = {
   analytics: day30,
 };
 
-export const EMBED_SNIPPET = `<script async src="https://cdn.trellis.site/embed.js"
+export const EMBED_SNIPPET = `<script async src="https://cdn.derzen.site/embed.js"
   data-site="sanggraha" data-widget="search"
   data-currency="EUR" data-locale="en"></script>
-<div class="trellis-embed" data-widget="search"
+<div class="derzen-embed" data-widget="search"
   style="min-height:120px"></div>`;
 
-export const EMBED_IFRAME = `<iframe src="https://sanggraha.trellis.site/embed/search"
+export const EMBED_IFRAME = `<iframe src="https://sanggraha.derzen.site/embed/search"
   style="width:100%;height:140px;border:0"
   title="Search Sanggraha Villas availability"
   sandbox="allow-scripts allow-same-origin allow-popups"></iframe>`;
@@ -914,7 +914,7 @@ export const WORKSPACE = {
   timeFormat: "24h",
   weekStart: "Monday",
   locale: "en" as const,
-  inboundEmail: "invoices-7f3k@sanggraha.trellis.site",
+  inboundEmail: "invoices-7f3k@sanggraha.derzen.site",
   supportAccess: true,
   supportLastAccess: now - 6 * D,
   ownerFinancialsVisible: true,

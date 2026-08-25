@@ -4,6 +4,7 @@ import { Ic } from "../components/icons";
 import { Badge, Btn, Dot, Empty, Field, Input, Modal, SearchBox, Select, StatusChip, Toggle, Avatar, Textarea } from "../components/ui";
 import { useApp } from "../store";
 import { channelDef, guestById, propertyById, serviceById, SERVICES } from "../lib/data";
+import { ChannelMark } from "../components/ota";
 import type { Reservation } from "../lib/types";
 
 const STATUS_FILTERS = ["all", "enquiry", "pending", "confirmed", "deposit_paid", "checked_in", "checked_out", "cancelled"] as const;
@@ -71,7 +72,7 @@ export default function Reservations() {
         </Select>
         <SearchBox value={q} onChange={setQ} placeholder="Guest, ref, property" className="w-[200px]" />
         <label className="flex items-center gap-1.5 text-[11.5px] font-bold text-mute"><Toggle checked={archived} onChange={setArchived} label="Show archived" /> Archived</label>
-        <Btn className="ml-auto" icon="download" onClick={() => { download("trellis-reservations.csv", toCSV([["Ref", "Guest", "Property", "Channel", "Check-in", "Check-out", "Status", "Total", "Currency"], ...list.map((r) => [r.ref, guestById(r.guestId).name, propertyById(r.propertyId).name, r.channel, r.checkIn, r.checkOut, r.status, r.total, r.currency])])); toast("ok", "Exported CSV", `${list.length} rows`); }}>Export</Btn>
+        <Btn className="ml-auto" icon="download" onClick={() => { download("derzen-reservations.csv", toCSV([["Ref", "Guest", "Property", "Channel", "Check-in", "Check-out", "Status", "Total", "Currency"], ...list.map((r) => [r.ref, guestById(r.guestId).name, propertyById(r.propertyId).name, r.channel, r.checkIn, r.checkOut, r.status, r.total, r.currency])])); toast("ok", "Exported CSV", `${list.length} rows`); }}>Export</Btn>
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-line bg-card">
@@ -108,8 +109,8 @@ export default function Reservations() {
                   </td>
                   <td className="px-3 py-2.5 text-[12px] font-semibold text-ink">{p.name}</td>
                   <td className="px-3 py-2.5">
-                    <span className="inline-flex items-center gap-1.5 text-[11.5px] font-bold" style={{ color: channelDef(r.channel).color }}>
-                      <span className="h-2 w-2 rounded-sm" style={{ background: channelDef(r.channel).color }} aria-hidden="true" />{channelDef(r.channel).name}
+                    <span className="inline-flex items-center gap-1.5 text-[11.5px] font-bold text-ink">
+                      <ChannelMark id={r.channel} size={16} />{channelDef(r.channel).name}
                     </span>
                   </td>
                   <td className="px-3 py-2.5">

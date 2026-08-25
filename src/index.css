@@ -94,6 +94,11 @@
   --scroll-c: #3a4433;
 }
 
+:root {
+  --tenant-heading: var(--font-display);
+  --tenant-body: var(--font-body);
+}
+
 html,
 body,
 #root {
@@ -102,7 +107,7 @@ body,
 
 body {
   margin: 0;
-  font-family: var(--font-body);
+  font-family: var(--tenant-body);
   background-color: var(--color-paper);
   color: var(--color-ink);
   font-size: 14px;
@@ -111,6 +116,7 @@ body {
 }
 
 .font-display {
+  font-family: var(--tenant-heading);
   font-stretch: 112%;
   letter-spacing: -0.015em;
 }

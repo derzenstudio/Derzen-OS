@@ -49,7 +49,7 @@ const NAV: { group: string; items: { path: string; icon: IconName; label: string
 ];
 
 function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { route, navigate, t, chatOpen, setChatOpen, featureOn, logout, session, tenants } = useApp();
+  const { route, navigate, t, chatOpen, setChatOpen, featureOn, logout, session, tenants, devMode } = useApp();
   const unread = useUnreadTotal();
   const syncAlerts = useSyncAlerts();
   const overdue = useOverdue();
@@ -64,23 +64,37 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
   return (
     <nav
       className={cx(
-        "fixed inset-y-0 left-0 z-[72] flex h-full w-[240px] shrink-0 flex-col border-r border-pine-800 bg-pine-900 text-pine-100 shadow-2xl transition-transform duration-300 lg:static lg:z-auto lg:w-[220px] lg:translate-x-0 lg:shadow-none",
+        "fixed inset-y-0 left-0 z-[72] flex h-full w-[240px] shrink-0 flex-col border-r border-line bg-card text-ink shadow-2xl transition-transform duration-300 lg:static lg:z-auto lg:w-[220px] lg:translate-x-0 lg:shadow-none",
         open ? "translate-x-0" : "-translate-x-full",
       )}
       aria-label="Primary"
     >
       <button onClick={() => { onClose(); navigate("/dashboard"); }} className="flex items-center gap-2.5 px-4 pb-5 pt-6 text-left">
-        <span className="flex h-8 w-8 items-center justify-center rounded-sm bg-brand shadow-[0_0_0_3px_rgba(14,107,78,0.28)]">
+        <span className="flex h-8 w-8 items-center justify-center rounded-sm bg-brand shadow-[0_0_0_3px_rgba(14,107,78,0.2)]">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path d="M4 6h16M4 12h11M4 18h7" stroke="#fff" strokeWidth="2.6" strokeLinecap="square" />
             <path d="M18 15.5v6" stroke="#8FE3BF" strokeWidth="2.6" strokeLinecap="square" />
           </svg>
         </span>
         <span>
-          <span className="block font-display text-[17px] font-bold uppercase leading-none tracking-[0.04em] text-white">Derzen</span>
-          <span className="block text-[9.5px] font-semibold uppercase tracking-[0.16em] text-pine-200/70">Hospitality OS</span>
+          <span className="block font-display text-[17px] font-bold uppercase leading-none tracking-[0.04em] text-ink">Derzen</span>
+          <span className="block text-[9.5px] font-semibold uppercase tracking-[0.16em] text-faint">Hospitality OS</span>
         </span>
       </button>
+
+      {devMode && session?.kind === "tenant" && (
+        <div className="mx-3 mb-3 rounded-sm border border-brand/40 bg-brand-soft/60 p-2.5 anim-pop">
+          <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-brand-deep">
+            <Ic name="code" size={11} /> Developer session
+          </p>
+          <button
+            onClick={() => { onClose(); navigate("/dev"); }}
+            className="mt-1.5 flex w-full items-center justify-center gap-1.5 rounded-sm btn-grad py-1.5 text-[11px] font-bold text-white"
+          >
+            <Ic name="chevL" size={12} /> Back to console
+          </button>
+        </div>
+      )}
 
       <div className="flex-1 overflow-y-auto px-2.5 pb-3">
         {NAV.map((g) => {
@@ -88,7 +102,7 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
           if (!items.length) return null;
           return (
             <div key={g.group} className="mt-3">
-              <p className="px-2 pb-1 text-[9.5px] font-bold uppercase tracking-[0.16em] text-pine-200/50">{t(g.group)}</p>
+              <p className="px-2 pb-1 text-[9.5px] font-bold uppercase tracking-[0.16em] text-faint">{t(g.group)}</p>
               {items.map((it) => {
                 const isActive = active === it.path;
                 const b = badge(it.path);
@@ -98,11 +112,11 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
                     onClick={() => { onClose(); navigate(`/${it.path}`); }}
                     aria-current={isActive ? "page" : undefined}
                     className={cx(
-                      "group mb-0.5 flex w-full items-center gap-2.5 rounded-md px-2 py-[7px] text-left text-[12.5px] font-semibold transition-all duration-150",
-                      isActive ? "bg-brand/25 text-white shadow-[inset_2px_0_0_#2E9E77]" : "text-pine-100/75 hover:bg-white/5 hover:text-white",
+                      "group mb-0.5 flex w-full items-center gap-2.5 rounded-sm px-2 py-[8px] text-left text-[12.5px] font-semibold transition-all duration-150",
+                      isActive ? "bg-brand-soft text-brand-deep shadow-[inset_2px_0_0_#0E6B4E]" : "text-mute hover:bg-paper hover:text-ink",
                     )}
                   >
-                    <Ic name={it.icon} size={15} className={isActive ? "text-brand-bright" : "text-pine-200/60 group-hover:text-pine-100"} />
+                    <Ic name={it.icon} size={15} className={isActive ? "text-brand" : "text-faint group-hover:text-mute"} />
                     <span className="flex-1">{t(it.label)}</span>
                     {b > 0 && (
                       <span className={cx("rounded-full px-1.5 py-px font-mono text-[10px] font-bold", it.path === "sync" ? "bg-danger text-white" : "bg-brand text-white")}>{b}</span>
@@ -115,19 +129,19 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
         })}
       </div>
 
-      <div className="border-t border-pine-800 p-3">
-        <button onClick={() => setChatOpen(!chatOpen)} className="mb-2 flex w-full items-center gap-2 rounded-md bg-pine-800 px-2.5 py-2 text-left text-[12px] font-semibold text-pine-100 transition-colors hover:bg-pine-700">
-          <Ic name="chat" size={14} className="text-brand-bright" />
+      <div className="border-t border-line p-3">
+        <button onClick={() => setChatOpen(!chatOpen)} className="mb-2 flex w-full items-center gap-2 rounded-sm bg-paper px-2.5 py-2 text-left text-[12px] font-semibold text-ink transition-colors hover:bg-line/50">
+          <Ic name="chat" size={14} className="text-brand" />
           Team chat
           <span className="ml-auto rounded-full bg-brand px-1.5 font-mono text-[10px] font-bold text-white">3</span>
         </button>
-        <div className="flex items-center gap-2.5 rounded-md px-1.5 py-1">
+        <div className="flex items-center gap-2.5 rounded-sm px-1.5 py-1">
           <Avatar name={tenant ? tenant.name : "Operator"} size={30} />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-[12px] font-bold text-white">{tenant ? tenant.name : WORKSPACE.name}</p>
-            <p className="text-[10px] text-pine-200/60">{tenant ? `${tenant.plan} plan · ${tenant.currency}` : "workspace"}{session?.kind === "tenant" && session.impersonated && " · impersonated"}</p>
+            <p className="truncate text-[12px] font-bold text-ink">{tenant ? tenant.name : WORKSPACE.name}</p>
+            <p className="text-[10px] text-faint">{tenant ? `${tenant.plan} plan · ${tenant.currency}` : "workspace"}{session?.kind === "tenant" && session.impersonated && " · impersonated"}</p>
           </div>
-          <button onClick={logout} aria-label="Sign out" title="Sign out" className="rounded-md p-1.5 text-pine-200/60 transition-colors hover:bg-white/10 hover:text-white">
+          <button onClick={logout} aria-label="Sign out" title="Sign out" className="rounded-sm p-1.5 text-faint transition-colors hover:bg-paper hover:text-danger">
             <Ic name="logOut" size={14} />
           </button>
         </div>

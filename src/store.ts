@@ -3,9 +3,14 @@ import type { Locale } from "./lib/i18n";
 import { t as tr } from "./lib/i18n";
 import { uid, addDays, dayKey, today, nightsBetween } from "./lib/format";
 import type {
-  AuditEntry, Conversation, Expense, Guidebook, IssueReport, OnboardStep, Property,
+  AuditEntry, Block, BlockStyle, Conversation, Expense, Guidebook, IssueReport, OnboardStep, Property,
   QueuedMessage, Quote, Reservation, Review, SyncState, Task, Toast, WebsiteState, Message,
 } from "./lib/types";
+import { DEFAULT_WIDGET_STYLE, type WidgetStyle } from "./lib/widgetTheme";
+
+export const DEFAULT_BLOCK_STYLE: BlockStyle = {
+  width: "full", py: 28, px: 24, mt: 0, mb: 0, bg: "", color: "", scale: 1, align: "left", radius: 3,
+};
 import {
   ACTION_ITEMS, AUDIT, CONFLICTS, CONVERSATIONS, EXPENSES, GUIDEBOOKS, ISSUES, MEMBERS,
   MSG_QUEUE, ONBOARD_STEPS, PROPERTIES, QUOTES, RESERVATIONS, REVIEWS, SYNC, TASKS,
@@ -79,6 +84,14 @@ interface App {
   refreshRates: () => Promise<boolean>;
   theme: "light" | "dark";
   setTheme: (t: "light" | "dark") => void;
+
+  // ── developer-in-tenant & tenant branding ──
+  devMode: boolean;
+  setDevMode: (v: boolean) => void;
+  tenantFonts: Record<string, { headingUrl: string; headingFamily: string; bodyUrl: string; bodyFamily: string }>;
+  setTenantFonts: (tenantId: string, fonts: { headingUrl: string; headingFamily: string; bodyUrl: string; bodyFamily: string }) => void;
+  widgetStyle: WidgetStyle;
+  setWidgetStyle: (patch: Partial<WidgetStyle>) => void;
   devIntegrations: PlatformIntegration[];
   checking: string[];
   setIntegration: (id: string, patch: Partial<PlatformIntegration>) => void;
@@ -186,10 +199,15 @@ interface App {
   retrySync: (key: string) => void;
 
   moveBlock: (pageId: string, blockId: string, dir: "up" | "down") => void;
-  addBlock: (pageId: string, type: string) => void;
+  moveBlockTo: (pageId: string, blockId: string, toIndex: number) => void;
+  addBlock: (pageId: string, type: string, afterId?: string | null) => void;
+  duplicateBlock: (pageId: string, blockId: string) => void;
+  updateBlock: (pageId: string, blockId: string, patch: Partial<Block>) => void;
   removeBlock: (pageId: string, blockId: string) => void;
   setSiteTheme: (patch: Partial<WebsiteState["theme"]>) => void;
   setSiteActivePage: (id: string) => void;
+  siteChrome: { header: string; footer: string };
+  setSiteChrome: (patch: Partial<{ header: string; footer: string }>) => void;
 
   sendChat: (channelId: string, body: string) => void;
   spendCredit: (n: number) => void;
@@ -256,7 +274,8 @@ export const useApp = create<App>((set, get) => ({
       return { ok: false, error: "Developer credentials not recognised." };
     const session: Session = { kind: "developer" };
     saveSession(session);
-    set({ session, features: null });
+    try { localStorage.setItem("derzen.devMode", "1"); } catch { /* private mode */ }
+    set({ session, features: null, devMode: true });
     return { ok: true };
   },
   logout: () => {
@@ -314,6 +333,17 @@ export const useApp = create<App>((set, get) => ({
     document.documentElement.dataset.theme = t;
     set({ theme: t });
   },
+
+  devMode: (() => { try { return localStorage.getItem("derzen.devMode") === "1"; } catch { return false; } })(),
+  setDevMode: (v) => {
+    try { v ? localStorage.setItem("derzen.devMode", "1") : localStorage.removeItem("derzen.devMode"); } catch { /* private mode */ }
+    set({ devMode: v });
+  },
+  tenantFonts: {},
+  setTenantFonts: (tenantId, fonts) =>
+    set((st) => ({ tenantFonts: { ...st.tenantFonts, [tenantId]: fonts } })),
+  widgetStyle: { ...DEFAULT_WIDGET_STYLE },
+  setWidgetStyle: (patch) => set((st) => ({ widgetStyle: { ...st.widgetStyle, ...patch } })),
   devIntegrations: PLATFORM_INTEGRATIONS,
   checking: [],
   setIntegration: (id, patch) => set((st) => ({ devIntegrations: st.devIntegrations.map((x) => (x.id === id ? { ...x, ...patch } : x)) })),
@@ -618,14 +648,67 @@ export const useApp = create<App>((set, get) => ({
         }),
       },
     })),
-  addBlock: (pageId, type) =>
+  moveBlockTo: (pageId, blockId, toIndex) =>
     set((st) => ({
-      website: { ...st.website, pages: st.website.pages.map((pg) => (pg.id === pageId ? { ...pg, blocks: [...pg.blocks, { id: uid("b"), type }] } : pg)) },
+      website: {
+        ...st.website,
+        pages: st.website.pages.map((pg) => {
+          if (pg.id !== pageId) return pg;
+          const idx = pg.blocks.findIndex((b) => b.id === blockId);
+          if (idx < 0) return pg;
+          const blocks = [...pg.blocks];
+          const [b] = blocks.splice(idx, 1);
+          blocks.splice(Math.max(0, Math.min(toIndex, blocks.length)), 0, b);
+          return { ...pg, blocks };
+        }),
+      },
+    })),
+  addBlock: (pageId, type, afterId) =>
+    set((st) => ({
+      website: {
+        ...st.website,
+        pages: st.website.pages.map((pg) => {
+          if (pg.id !== pageId) return pg;
+          const nb: Block = { id: uid("b"), type, style: { width: "full", py: 28, px: 24, mt: 0, mb: 0, bg: "", color: "", scale: 1, align: "left", radius: 3 } };
+          const blocks = [...pg.blocks];
+          const at = afterId ? blocks.findIndex((b) => b.id === afterId) : -1;
+          blocks.splice(at < 0 ? blocks.length : at + 1, 0, nb);
+          return { ...pg, blocks };
+        }),
+      },
+    })),
+  duplicateBlock: (pageId, blockId) =>
+    set((st) => ({
+      website: {
+        ...st.website,
+        pages: st.website.pages.map((pg) => {
+          if (pg.id !== pageId) return pg;
+          const idx = pg.blocks.findIndex((b) => b.id === blockId);
+          if (idx < 0) return pg;
+          const blocks = [...pg.blocks];
+          const src = blocks[idx];
+          blocks.splice(idx + 1, 0, { ...src, id: uid("b"), style: { ...DEFAULT_BLOCK_STYLE, ...src.style } });
+          return { ...pg, blocks };
+        }),
+      },
+    })),
+  updateBlock: (pageId, blockId, patch) =>
+    set((st) => ({
+      website: {
+        ...st.website,
+        pages: st.website.pages.map((pg) =>
+          pg.id === pageId
+            ? { ...pg, blocks: pg.blocks.map((b) => (b.id === blockId ? { ...b, ...patch, style: { ...DEFAULT_BLOCK_STYLE, ...b.style, ...patch.style } } : b)) }
+            : pg,
+        ),
+      },
     })),
   removeBlock: (pageId, blockId) =>
     set((st) => ({
       website: { ...st.website, pages: st.website.pages.map((pg) => (pg.id === pageId ? { ...pg, blocks: pg.blocks.filter((b) => b.id !== blockId) } : pg)) },
     })),
+  siteChrome: { header: "Sanggraha Villas · Villas · Services · Journal · Contact", footer: "© Sanggraha Villas — Bali · hello@sanggraha.co · +62 812 390 110" },
+  setSiteChrome: (patch) => set((st) => ({ siteChrome: { ...st.siteChrome, ...patch } })),
   setSiteTheme: (patch) => set((st) => ({ website: { ...st.website, theme: { ...st.website.theme, ...patch } } })),
   setSiteActivePage: (id) => set((st) => ({ website: { ...st.website, activePageId: id } })),
 

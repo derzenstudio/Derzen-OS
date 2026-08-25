@@ -213,6 +213,58 @@ function General() {
             <Btn size="xs" icon="copy" onClick={() => toast("ok", "Copied")}>Copy</Btn>
           </div>
         </div>
+        <TenantFonts />
+      </div>
+    </div>
+  );
+}
+
+function TenantFonts() {
+  const { session, tenantFonts, setTenantFonts, toast } = useApp();
+  const tenantId = session?.kind === "tenant" ? session.tenantId : "t-sanggraha";
+  const saved = tenantFonts[tenantId] ?? { headingUrl: "", headingFamily: "", bodyUrl: "", bodyFamily: "" };
+  const [headingUrl, setHeadingUrl] = useState(saved.headingUrl);
+  const [headingFamily, setHeadingFamily] = useState(saved.headingFamily);
+  const [bodyUrl, setBodyUrl] = useState(saved.bodyUrl);
+  const [bodyFamily, setBodyFamily] = useState(saved.bodyFamily);
+
+  const apply = () => {
+    setTenantFonts(tenantId, { headingUrl, headingFamily, bodyUrl, bodyFamily });
+    toast("ok", "Brand fonts applied", "Every heading and body text across your workspace now uses them.");
+  };
+  const reset = () => {
+    setTenantFonts(tenantId, { headingUrl: "", headingFamily: "", bodyUrl: "", bodyFamily: "" });
+    setHeadingUrl(""); setHeadingFamily(""); setBodyUrl(""); setBodyFamily("");
+    toast("info", "Reverted to DERZEN type", "Big Shoulders Display + Schibsted Grotesk.");
+  };
+
+  return (
+    <div className="rounded-xl border border-line bg-card p-4">
+      <h3 className="font-display text-[13.5px] font-bold text-ink">Brand typography</h3>
+      <p className="mb-3 text-[11px] leading-relaxed text-mute">
+        Paste a CSS link (Google Fonts, Adobe, or your own stylesheet) and a family name — applied globally to your headings and body text.
+      </p>
+      <div className="space-y-3">
+        <Field label="Heading font — CSS URL" hint="e.g. https://fonts.googleapis.com/css2?family=Fraunces:wght@600;700&display=swap">
+          <Input value={headingUrl} onChange={(e) => setHeadingUrl(e.target.value)} placeholder="https://…/css2?family=…" className="font-mono !text-[11px]" />
+        </Field>
+        <Field label="Heading family name">
+          <Input value={headingFamily} onChange={(e) => setHeadingFamily(e.target.value)} placeholder="Fraunces" />
+        </Field>
+        <Field label="Body font — CSS URL">
+          <Input value={bodyUrl} onChange={(e) => setBodyUrl(e.target.value)} placeholder="https://…/css2?family=…" className="font-mono !text-[11px]" />
+        </Field>
+        <Field label="Body family name">
+          <Input value={bodyFamily} onChange={(e) => setBodyFamily(e.target.value)} placeholder="Public Sans" />
+        </Field>
+      </div>
+      <div className="mt-3 rounded-sm border border-line bg-paper px-3 py-2.5" style={{ fontFamily: bodyFamily || undefined }}>
+        <p className="text-[15px] font-bold" style={{ fontFamily: headingFamily || undefined }}>{headingFamily || "Your heading font"} — preview</p>
+        <p className="mt-0.5 text-[11.5px] text-mute">{bodyFamily || "Your body font"} renders here across dashboards, inbox and reports.</p>
+      </div>
+      <div className="mt-3 flex gap-2">
+        <Btn size="sm" variant="solid" icon="check" onClick={apply}>Apply fonts</Btn>
+        <Btn size="sm" variant="ghost" icon="undo" onClick={reset}>Reset</Btn>
       </div>
     </div>
   );

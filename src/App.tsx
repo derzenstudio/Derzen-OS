@@ -86,6 +86,33 @@ export default function App() {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
 
+  // tenant font injection — heading + body fonts from the tenant's own URLs
+  const sessionState = useApp((s) => s.session);
+  const tenantFonts = useApp((s) => s.tenantFonts);
+  useEffect(() => {
+    const root = document.documentElement;
+    const rootStyle = root.style;
+    // clear previous injection
+    document.querySelectorAll("link[data-tenant-font]").forEach((l) => l.remove());
+    rootStyle.removeProperty("--tenant-heading");
+    rootStyle.removeProperty("--tenant-body");
+    const tid = sessionState?.kind === "tenant" ? sessionState.tenantId : null;
+    const f = tid ? tenantFonts[tid] : undefined;
+    if (!f) return;
+    const inject = (url: string) => {
+      if (!url.trim()) return;
+      const link = document.createElement("link");
+      link.rel = "stylesheet";
+      link.href = url.trim();
+      link.dataset.tenantFont = "1";
+      document.head.appendChild(link);
+    };
+    if (f.headingUrl) inject(f.headingUrl);
+    if (f.bodyUrl) inject(f.bodyUrl);
+    if (f.headingFamily) rootStyle.setProperty("--tenant-heading", f.headingFamily);
+    if (f.bodyFamily) rootStyle.setProperty("--tenant-body", f.bodyFamily);
+  }, [sessionState, tenantFonts]);
+
   // ── public surface ──
   if (!session) {
     return route.path[0] === "login" ? <LoginPage /> : <PublicSite />;

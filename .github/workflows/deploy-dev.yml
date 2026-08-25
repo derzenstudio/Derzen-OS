@@ -1,3 +1,17 @@
+# Builds the Vite app and publishes dist/ to dev.alvianpermana.art on Hostinger.
+#
+# Required repository secrets (Settings > Secrets and variables > Actions > Secrets):
+#   FTP_SERVER    e.g. 153.92.10.17
+#   FTP_USERNAME  e.g. u157847892.alvianpermana.art
+#   FTP_PASSWORD  your Hostinger FTP password
+#
+# Optional repository variable (same page, "Variables" tab):
+#   FTP_SERVER_DIR  target folder, defaults to public_html/derzen/
+#                   set it to derzen/ if the FTP login already lands inside public_html
+#
+# Every push to a branch that contains this file wipes the target folder and
+# uploads a fresh build, so the live site always mirrors the latest commit.
+
 name: deploy-dev
 
 on:
@@ -20,7 +34,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "22"
 
       - name: Install dependencies
         run: npm ci || npm install --no-audit --no-fund
@@ -49,5 +63,5 @@ jobs:
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
           local-dir: ./dist/
-          server-dir: public_html/derzen/
+          server-dir: ${{ vars.FTP_SERVER_DIR || 'public_html/derzen/' }}
           dangerous-clean-slate: true

@@ -411,6 +411,240 @@ export const STAFF_ROLES = [
   { role: "admin", perms: ["role grants", "two-person approvals"], sep: "all actions logged" },
 ];
 
+// ── Console guardrails (preamble) — enforced in code, not culture ─────────
+export const GUARDRAILS = [
+  { rule: "No bulk guest-PII display or export", detail: "Guest fields render masked outside single-record contexts; exports require an approved bulk-access grant.", enforced: true, probe: "PII-bULK" },
+  { rule: "No channel or payment credential reveal", detail: "Vault values are never returned to any console surface — only metadata and last-4 of provider references.", enforced: true, probe: "VAULT-LEAK" },
+  { rule: "No direct SQL / arbitrary code execution", detail: "There is no query console. Data access is via typed, scoped read APIs.", enforced: true, probe: "SQL-EXEC" },
+  { rule: "No impersonation without consent + audit", detail: "Consent switch is checked at session start; every keystroke-class action is attributed to the staff identity.", enforced: true, probe: "IMP-NOCONSENT" },
+  { rule: "No self-audit-disable", detail: "Audit suspension is not an available mutation for any role, including admin.", enforced: true, probe: "AUDIT-OFF" },
+];
+export const BULK_ACCESS_GRANTS = [
+  { id: "BA-19", requester: "finance@trellis", scope: "Payout ledger rows · Q1 · 2 tenants", approver: "admin (2-person)", windowMin: 60, status: "approved", remainingMin: 34 },
+  { id: "BA-20", requester: "mira@trellis", scope: "Conversation bodies · fraud case F-21", approver: "pending second approver", windowMin: 30, status: "pending", remainingMin: 0 },
+];
+
+// ── Section O · OTA commercial & legal prerequisites ──────────────────────
+export const PARTNER_PROGRAMS = [
+  { ota: "Airbnb", program: "Connectivity Partner", status: "application in review", owner: "integrations + legal", appliedMonthsAgo: 4, blocked: ["direct adapter", "messaging pull"], note: "Security questionnaire round 2 · volume commitments submitted" },
+  { ota: "Booking.com", program: "Connectivity Partner · Tier 2", status: "certified", owner: "integrations", appliedMonthsAgo: 9, blocked: ["rates:LOS pricing (Tier 3)"], note: "Tier 3 gates LOS endpoints; upgrade review in Q2" },
+  { ota: "Expedia Group", program: "EPS Rapid + Vrbo Connectivity", status: "sandbox approved", owner: "integrations", appliedMonthsAgo: 3, blocked: ["production push"], note: "Certification scenarios 8/11 green" },
+  { ota: "Agoda", program: "Connectivity Partner", status: "contract negotiation", owner: "legal", appliedMonthsAgo: 2, blocked: ["all"], note: "Data-use clause §7 under review" },
+  { ota: "Trip.com", program: "Partner API", status: "not started", owner: "—", appliedMonthsAgo: 0, blocked: ["all"], note: "Queued behind Expedia production cert" },
+];
+export const CERT_TEST_LISTINGS = [
+  { provider: "Booking.com", listing: "CERT-BDC-01 (sandbox unit)", owner: "integrations", lastRun: now - 2 * D, state: "green" },
+  { provider: "Expedia/Vrbo", listing: "CERT-EPS-04", owner: "integrations", lastRun: now - 5 * D, state: "amber" },
+  { provider: "Airbnb (via aggregator)", listing: "CERT-AGG-02", owner: "aggregator TAM", lastRun: now - 1 * D, state: "green" },
+];
+export const COMMERCIAL_TERMS = [
+  { ota: "Booking.com", term: "Per-booking commission", value: "15% · virtual-card settlement", constraint: "Rate-parity clause in force" },
+  { ota: "Expedia", term: "Revenue share", value: "18% standard", constraint: "Logo usage restricted to partner badge set" },
+  { ota: "Agoda (draft)", term: "Per-booking fee", value: "TBD · min-volume clause", constraint: "May not store guest email > stay +30d" },
+];
+export const PARITY_WATCH = [
+  { tenant: "Azure Coast Rentals", channel: "booking.com", listing: "Azure One", direct: "€214", channelPrice: "€229", status: "compliant" },
+  { tenant: "Kite & Palm Co.", channel: "booking.com", listing: "Palm Suite", direct: "€168", channelPrice: "€168", status: "compliant" },
+  { tenant: "Sanggraha Villas", channel: "agoda", listing: "Villa Purnama", direct: "Rp 5.4M", channelPrice: "Rp 5.1M", status: "breach-risk" },
+];
+export const CONTENT_CHECKS = [
+  { channel: "Airbnb", rule: "≥ 5 photos · cover landscape · amenities mapped", failures: 2, listings: 41 },
+  { channel: "Booking.com", rule: "Description ≥ 200 chars · facilities list", failures: 0, listings: 38 },
+  { channel: "Expedia", rule: "Cancellation policy code present", failures: 5, listings: 29 },
+];
+export const DEPRECATION_RISK = [
+  { provider: "Airbnb (aggregator path)", risk: "Aggregator deprecation would cut Airbnb+3 OTAs", contingency: "Direct-application track · 6-month bridge", exposure: "high" },
+  { provider: "Booking.com R&A v2", risk: "Forced migration announced · sunset 2026-11", contingency: "Adapter v3 in CI against sandbox", exposure: "med" },
+];
+
+// ── Section P · Money movement & accounting engine ────────────────────────
+export const CHART_OF_ACCOUNTS = ["1000 Cash & clearing", "2000 Guest prepayments (liability)", "2100 VAT payable", "2200 Tourist tax payable", "4000 Lodging revenue", "4100 Ancillary revenue", "5000 OTA commissions", "6000 Owner payouts (clearing)", "8000 Refunds & chargebacks"];
+export const JOURNAL = [
+  { id: "JE-88412", ts: now - 12 * 60_000, memo: "Booking captured · R-2418", lines: [{ acct: "1000", dr: 612_00, cr: 0 }, { acct: "4000", dr: 0, cr: 519_96 }, { acct: "5000", dr: 0, cr: 92_04 }], status: "posted" },
+  { id: "JE-88411", ts: now - 41 * 60_000, memo: "Tourist tax collected · Sanggraha", lines: [{ acct: "1000", dr: 31_50 }, { acct: "2200", dr: 0, cr: 31_50 }].map((l) => ({ acct: l.acct, dr: l.dr ?? 0, cr: l.cr ?? 0 })), status: "posted" },
+  { id: "JE-88407", ts: now - 3 * H, memo: "Refund reversal · R-2432 (cancellation)", lines: [{ acct: "8000", dr: 355_00, cr: 0 }, { acct: "1000", dr: 0, cr: 355_00 }], status: "posted" },
+  { id: "JE-88399", ts: now - 9 * H, memo: "Correction: reverse JE-88201 (wrong rate plan)", lines: [{ acct: "4000", dr: 40_00, cr: 0 }, { acct: "2000", dr: 0, cr: 40_00 }], status: "reversal" },
+];
+export const OWNER_FUNDS_POLICY = { custody: "none", model: "Money flows to the tenant's own connected payment account. Owner payouts are calculated statements, not funds we move.", trustAccount: "not required (no custody)", reviewGate: "Legal appetite review before any custody model" };
+export const KYC_QUEUE = [
+  { tenant: "Ambara Island Co.", provider: "Stripe connected account", state: "documents submitted", ageDays: 2, nudged: true },
+  { tenant: "Kite & Palm Co.", provider: "Stripe connected account", state: "identity verification", ageDays: 5, nudged: true },
+  { tenant: "Nordlys Stays", provider: "Stripe connected account", state: "restricted — bank account mismatch", ageDays: 9, nudged: false },
+];
+export const VCC_FLOWS = [
+  { ota: "Booking.com", vcc: "•••• 4412", reservation: "R-2418", amount: "€519.96", activatesIn: "2d (check-in − 24h)", persisted: false },
+  { ota: "Expedia", vcc: "•••• 9030", reservation: "R-2425", amount: "$1,204.00", activatesIn: "active now", persisted: false },
+];
+export const FX_POLICY = { provider: "open.er-api (SLA 99.9%)", snapshot: "rate + timestamp + source stored on every conversion", rateOfRecord: "booking date", rule: "Historical figures are never recomputed with today's rate" };
+export const TAX_COLLECTED_BY = [
+  { jurisdiction: "Bali, Indonesia", tax: "Tourism levy 10%", collectedBy: "host on direct · OTA-collected on channels", remitsTo: "Bapenda" },
+  { jurisdiction: "Lisbon, Portugal", tax: "City tax €2/pax/night", collectedBy: "OTA-collected (Booking/Airbnb) · host on direct", remitsTo: "Câmara Municipal" },
+];
+export const RECON_JOBS = [
+  { job: "Provider settlements ↔ ledger", lastRun: now - 6 * H, matched: 1240, unmatched: 2, status: "alert" },
+  { job: "Channel bookings ↔ reservations", lastRun: now - 2 * H, matched: 987, unmatched: 0, status: "clean" },
+  { job: "Meter ↔ subscription", lastRun: now - 8 * H, matched: 96, unmatched: 0, status: "clean" },
+];
+
+// ── Section Q · Mobile & release pipeline ─────────────────────────────────
+export const MOBILE_DECISION = { choice: "Staff: PWA (offline-first) · Guest: responsive web", stores: "Owner app planned native (React Native) — not before v3", rationale: "Field staff need offline + cheap-Android baseline today; store review latency is incompatible with sync hotfixes" };
+export const APP_MATRIX = [
+  { client: "Staff PWA", minApi: "/v1", offline: "today + tomorrow cache", push: "Web Push (FCM)", status: "live" },
+  { client: "Owner app (iOS)", minApi: "/v1", offline: "statements cache", push: "APNs", status: "testflight" },
+  { client: "Owner app (Android)", minApi: "/v1", offline: "statements cache", push: "FCM", status: "internal track" },
+];
+export const STORE_TRACK = [
+  { item: "Apple developer account + certificates", state: "done" },
+  { item: "Google Play console + signing keys", state: "done" },
+  { item: "TestFlight / internal track builds", state: "live" },
+  { item: "Store listings · screenshots per locale (en, id)", state: "in review" },
+  { item: "Privacy nutrition labels + data-safety forms", state: "filed" },
+  { item: "Universal links → reservation/task deep links", state: "in review" },
+  { item: "Forced-upgrade min-version flag", state: "done" },
+];
+export const CRASH_FREE = [
+  { build: "staff-pwa 2.14.0", rate: "99.7%", platform: "web" },
+  { build: "owner-ios 0.9.2 (TF)", rate: "98.9%", platform: "iOS" },
+  { build: "owner-android 0.9.1", rate: "97.8%", platform: "Android (low-end 62%)" },
+];
+
+// ── Section R · Design system & content design ────────────────────────────
+export const DS_TOKENS = [
+  { set: "Console (internal)", base: "60/30/10 white·black·red", radius: "6px", motion: "150–300ms", contrast: "AA verified" },
+  { set: "Tenant app", base: "same family, density-tuned", radius: "8px", motion: "200–350ms", contrast: "AA verified" },
+  { set: "Guest surfaces (per-tenant theme)", base: "tenant palette, clamped", radius: "tenant-set (clamped 0–16px)", motion: "respect reduced-motion", contrast: "auto-clamped to 4.5:1" },
+];
+export const DS_STATES = ["default", "hover", "focus-visible", "active", "disabled", "loading", "error", "empty", "offline"];
+export const EMAIL_TEMPLATES = [
+  { template: "Reservation confirmed", clients: "Gmail · Outlook · Apple Mail · Yahoo", tested: now - 6 * D, pass: true },
+  { template: "Invoice PDF", clients: "weasyprint → PDF/A", tested: now - 6 * D, pass: true },
+  { template: "Owner statement PDF", clients: "weasyprint → PDF/A", tested: now - 13 * D, pass: true },
+];
+export const CONTENT_PATTERNS = { voice: "Plain, operational, never cute in error paths", emptyRule: "Every empty state teaches the next action", errorRule: "Say what happened, what it means, what to do", iconPolicy: "In-house stroke set · OTA/payment marks per brand guidelines only" };
+
+// ── Section S · Localisation operations ───────────────────────────────────
+export const LOCALE_COVERAGE = [
+  { locale: "en", app: 100, guestContent: 100, reviewer: "—" },
+  { locale: "id", app: 82, guestContent: 64, reviewer: "Kadek M." },
+  { locale: "fr", app: 41, guestContent: 12, reviewer: "unassigned" },
+];
+export const TMS_PIPELINE = [
+  { step: "Extraction (keys + screenshots + context)", state: "automated · nightly" },
+  { step: "Machine first-pass", state: "automated" },
+  { step: "Human review — guest-facing copy mandatory", state: "reviewer workflow" },
+  { step: "Pseudo-localisation in CI", state: "gates merge" },
+  { step: "Hardcoded-string lint", state: "gates merge" },
+  { step: "Staleness detection on source change", state: "flags guest content" },
+];
+
+// ── Section T · Go-to-market platform ─────────────────────────────────────
+export const GTM_LIFECYCLE = [
+  { trigger: "Onboarding: property created", send: "Calendar-import nudge", channel: "email", consentGated: true },
+  { trigger: "Trial day 10 / 12 / 14", send: "Expiry sequence + payment-method prompt", channel: "email", consentGated: true },
+  { trigger: "7d inactive after activation", send: "Win-back: what's blocking you?", channel: "email", consentGated: true },
+  { trigger: "Approaching plan limit (units ≥ 90%)", send: "Expansion prompt with live meter", channel: "in-app", consentGated: false },
+];
+export const GTM_METRICS = [
+  { metric: "Published price ↔ charged price drift", value: "0 (same catalogue)", status: "clean" },
+  { metric: "Demo → trial conversion (30d)", value: "31%", status: "info" },
+  { metric: "Trial → paid (60d)", value: "24%", status: "info" },
+  { metric: "Cookie consent gating", value: "trackers blocked pre-consent", status: "clean" },
+];
+
+// ── Section U · Product operations ────────────────────────────────────────
+export const FEEDBACK_TAXONOMY = [
+  { theme: "Bulk-edit speed at 50+ listings", count: 34, sources: "tickets 19 · in-app 11 · calls 4", priority: "P1" },
+  { theme: "Owner statement PDF layout", count: 21, sources: "tickets 17 · in-app 4", priority: "P2" },
+  { theme: "WhatsApp template approval latency", count: 12, sources: "calls 12", priority: "P2" },
+];
+export const BETA_PROGRAM = { cohort: "dynamic-pricing connector", size: 9, optIn: "flag-gated", graduationBar: "≥ 7 cohorts active 4 weeks, zero pricing disputes, parity-watch clean" };
+export const NPS_READS = [{ when: now - 12 * D, nps: 47, csat: 4.4, moment: "post-first-sync" }, { when: now - 42 * D, nps: 39, csat: 4.1, moment: "post-first-sync" }];
+export const DEPRECATIONS = [
+  { feature: "Legacy iCal-only pricing (per-listing)", usage: "3 tenants", plan: "90-day notice → migrate to rate plans", state: "notice sent" },
+  { feature: "v0 API", usage: "4 keys", plan: "Sunset 2026-06-30 · sunset headers live", state: "in sunset" },
+];
+
+// ── Section V · Vendor & third-party risk ─────────────────────────────────
+export const VENDOR_RISK = [
+  { vendor: "Channel aggregator", role: "multi-OTA distribution", sla: "99.9%", residency: "EU", cost10x: "linear · renegotiate at tier", exit: "Direct-OTA track · 6–9 mo", concentration: "high" },
+  { vendor: "Model provider (concierge)", role: "AI inference", sla: "99.95%", residency: "US", cost10x: "superlinear — cache + cheap router", exit: "Model router abstraction · 2 wk", concentration: "high" },
+  { vendor: "Stripe", role: "payments + billing", sla: "99.99%", residency: "US/EU", cost10x: "linear", exit: "Razorpay adapter ready · 1 mo", concentration: "med" },
+  { vendor: "WhatsApp BSP (Meta)", role: "messaging", sla: "99.9%", residency: "US", cost10x: "per-conversation", exit: "email/SMS fallback chains", concentration: "med" },
+  { vendor: "Postgres host", role: "system of record", sla: "99.99%", residency: "tenant-selected", cost10x: "sublinear w/ replicas", exit: "PITR + logical replication · 2 wk", concentration: "low" },
+];
+
+// ── Section W · Hospitality regulatory surface ────────────────────────────
+export const GUEST_REGISTRATION = [
+  { country: "Indonesia", obligation: "Guest register + police report", capture: "ID via web check-in vendor", submission: "batch export, daily", status: "shipped" },
+  { country: "Portugal", obligation: "SEF border declaration", capture: "structured passport fields", submission: "API (planned)", status: "planned" },
+];
+export const LICENCE_NUMBERS = [
+  { tenant: "Azure Coast Rentals", city: "Lisbon", licence: "AL-4471/2024", expires: now + 210 * D, onListing: true },
+  { tenant: "Sanggraha Villas", city: "Badung", licence: "PON-2019-88", expires: now + 340 * D, onListing: true },
+  { tenant: "Kite & Palm Co.", city: "Palma", licence: "VT-10293", expires: now + 41 * D, onListing: false },
+];
+export const NIGHT_CAPS = [
+  { market: "Amsterdam", cap: "30 nights/property/yr", expression: "per-listing annual counter · hard block at cap", status: "enforced" },
+  { market: "Barcelona", cap: "zoning: no new licences", expression: "listing eligibility flag", status: "enforced" },
+];
+export const CONSENT_MATRIX = [
+  { channel: "Email marketing", law: "GDPR · CAN-SPAM", capture: "double opt-in, timestamped", perGuest: true },
+  { channel: "WhatsApp", law: "GDPR · WhatsApp policy", capture: "opt-in keyword + template window", perGuest: true },
+  { channel: "SMS", law: "TCPA", capture: "explicit written consent", perGuest: true },
+];
+
+// ── Section X · Engineering organisation practices ────────────────────────
+export const ADRS = [
+  { id: "ADR-014", title: "Shared schema + RLS tenancy", status: "accepted", decided: now - 380 * D, owner: "platform" },
+  { id: "ADR-021", title: "Double-entry ledger as money core", status: "accepted", decided: now - 340 * D, owner: "finance-eng" },
+  { id: "ADR-027", title: "Adapter interface over aggregator-first", status: "accepted", decided: now - 200 * D, owner: "integrations" },
+];
+export const SERVICE_CATALOG = [
+  { service: "calendar-api", team: "availability", oncall: "rotation A", slo: "p95 500ms", deps: "postgres · redis" },
+  { service: "sync-worker", team: "integrations", oncall: "rotation B", slo: "freshness < 15m", deps: "aggregator · vault" },
+  { service: "concierge-ai", team: "ai-platform", oncall: "rotation C", slo: "p95 4s", deps: "model provider · KB" },
+];
+export const CAPACITY_MODEL = [
+  { component: "Calendar hot path", breaksAt: "~900 active listings", fix: "read replicas + materialised night grid", horizon: "Q3" },
+  { component: "Inbox thread load", breaksAt: "~80k conversations", fix: "partition by tenant + cursor pagination", horizon: "Q4" },
+  { component: "Sync queue throughput", breaksAt: "~40 tenants · full-matrix OTAs", fix: "per-tenant partition + coalescing", horizon: "Q3" },
+];
+export const MAINTENANCE = [
+  { item: "tzdata update", cadence: "quarterly + on release", next: now + 24 * D, owner: "platform" },
+  { item: "Certificate + domain renewals", cadence: "auto · 30d alert", next: now + 61 * D, owner: "platform" },
+  { item: "Credential rotation drill", cadence: "quarterly", next: now + 12 * D, owner: "security" },
+  { item: "Calendar-table index maintenance", cadence: "monthly", next: now + 6 * D, owner: "availability" },
+];
+
+// ── Section Y · Domain edge cases (acceptance suite) ──────────────────────
+export const EDGE_CASES = [
+  { id: "EC-01", case: "DST transition moves local check-in/out times", expectation: "local time preserved; UTC shifts; scheduled messages fire at local wall time", suite: "availability", state: "pass" },
+  { id: "EC-02", case: "Booking spans a rate-plan / tax-rate change", expectation: "nights price at the rate in force per night; tax split at effective date", suite: "money", state: "pass" },
+  { id: "EC-03", case: "Long-stay monthly rate with different tax treatment", expectation: "monthly nights taxed at long-stay rule; breakdown itemised", suite: "money", state: "pass" },
+  { id: "EC-04", case: "Group booking across units, one payer", expectation: "single folio, per-unit availability, one payment intent", suite: "availability", state: "wip" },
+  { id: "EC-05", case: "Overbooking despite guards (channel race)", expectation: "second booking rejected + alert + relocation workflow", suite: "availability", state: "pass" },
+  { id: "EC-06", case: "No-show / early departure", expectation: "policy-driven refund arithmetic; nights released per policy", suite: "money", state: "pass" },
+  { id: "EC-07", case: "Mid-stay channel-initiated amendment", expectation: "diff applied to ledger as reversing + new entries; calendar re-blocked", suite: "sync", state: "wip" },
+  { id: "EC-08", case: "Currency change on an existing reservation", expectation: "rate-of-record frozen; display-only conversion", suite: "money", state: "pass" },
+  { id: "EC-09", case: "Guest books on one channel, messages on another", expectation: "guest graph merges on email/phone; thread attaches to reservation", suite: "crm", state: "pass" },
+  { id: "EC-10", case: "Unit offline for maintenance mid-reservation", expectation: "relocation workflow + owner notification + ledger adjustment", suite: "ops", state: "planned" },
+];
+
+// ── Section Z · Deliberately not built ────────────────────────────────────
+export const NOT_BUILT = [
+  { capability: "Payment processing", buy: "Stripe / Razorpay behind gateway adapter", exit: "adapter swap" },
+  { capability: "Tax determination", buy: "tax provider + jurisdiction tables", exit: "adapter swap" },
+  { capability: "KYC / KYB", buy: "Stripe Identity / connected-account onboarding", exit: "vendor swap" },
+  { capability: "Billing engine", buy: "billing provider (metering feeds it)", exit: "re-export usage events" },
+  { capability: "Email sending", buy: "ESP with custom-domain tooling", exit: "SMTP fallback" },
+  { capability: "Model hosting", buy: "model provider + router abstraction", exit: "router swap" },
+  { capability: "Search engine", buy: "managed search with tenant indexes", exit: "reindex job" },
+  { capability: "Feature-flag service", buy: "managed flags behind entitlement service", exit: "export flag state" },
+  { capability: "Revenue management", buy: "PriceLabs/Wheelhouse connector", exit: "rules-engine fallback" },
+  { capability: "Long-tail direct OTA adapters", buy: "aggregator (adapter interface preserves optionality)", exit: "incremental direct adapters" },
+];
+export const DEFENSIBLE = ["Calendar & availability engine", "Operations automation", "AI concierge quality", "Sync-layer reliability"];
+
 export interface AuditEvent { id: string; ts: number; actor: string; action: string; target: string; severity: "info" | "sensitive" | "destructive"; }
 export const AUDIT_STREAM: AuditEvent[] = [
   { id: "a1", ts: now - 4 * 60_000, actor: "mira@trellis", action: "read tenant snapshot", target: "Kite & Palm Co.", severity: "info" },

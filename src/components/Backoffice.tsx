@@ -8,11 +8,9 @@ import { OpsDashboard, TenantsView, CommercialsView } from "../modules/bo/Sectio
 import { EntitlementsView, IntegrationsView, MessagingView } from "../modules/bo/Sections2";
 import { AIPlatformView, DataPlatformView, SupportView } from "../modules/bo/Sections3";
 import { EngineeringView, SecurityView, EcosystemView, AccessView } from "../modules/bo/Sections4";
-import {
-  AdapterView, EventsView, ApiReferenceView, PermissionsView, AiTasksView,
-  JobsView, ConfigSecretsView, CalculationsView, ChecklistView,
-} from "../modules/bo/Sections7";
 import { ArchitectureView, SchemaView, StateMachinesView, ResolverView } from "../modules/bo/Sections6";
+import { AdapterView, EventsView, ApiReferenceView, PermissionsView, AiTasksView, JobsView, ConfigSecretsView, CalculationsView, ChecklistView } from "../modules/bo/Sections7";
+import { QueuesView, InspectorView, ProvidersView, RunbooksView, SlosView, GoLiveView, MetricsView, TeamView } from "../modules/bo/Manual";
 
 // ── Internal audit context (append-only, staff cannot mutate) ─────────────
 interface AuditCtx {
@@ -26,12 +24,23 @@ export type BoSection =
   | "ops" | "tenants" | "commercials" | "entitlements" | "integrations"
   | "messaging" | "ai" | "data" | "support" | "engineering" | "security" | "ecosystem" | "access"
   | "topology" | "schema" | "machines" | "resolver"
-  | "adapter" | "events" | "api" | "permissions" | "aitasks" | "jobs" | "config" | "calcs" | "checklist";
+  | "adapter" | "events" | "api" | "permissions" | "aitasks" | "jobs" | "config" | "calcs" | "checklist"
+  | "queues" | "inspector" | "providers" | "runbooks" | "slos" | "golive" | "metrics" | "team";
 
 const NAV: { group: string; items: { id: BoSection; label: string; icon: IconName }[] }[] = [
   { group: "Operate", items: [
     { id: "ops", label: "Ops dashboard", icon: "grid" },
+    { id: "queues", label: "Work queues", icon: "inbox" },
+    { id: "inspector", label: "Entity inspector", icon: "eye" },
+    { id: "providers", label: "Provider health", icon: "plug" },
     { id: "tenants", label: "Tenants & lifecycle", icon: "users" },
+  ]},
+  { group: "Operator's manual", items: [
+    { id: "runbooks", label: "Incident runbooks", icon: "book" },
+    { id: "slos", label: "SLO targets", icon: "trendUp" },
+    { id: "golive", label: "Go-live playbook", icon: "flag" },
+    { id: "metrics", label: "Metric definitions", icon: "chart" },
+    { id: "team", label: "Team, cost & risk", icon: "users" },
   ]},
   { group: "Commercial", items: [
     { id: "commercials", label: "Plans & billing", icon: "card" },
@@ -100,6 +109,14 @@ const TITLES: Record<BoSection, { title: string; sub: string }> = {
   config: { title: "Configuration & secrets", sub: "Config by environment · KMS-backed secrets with rotation" },
   calcs: { title: "Derived calculations", sub: "Meter, owner statement, occupancy math and task generation — live" },
   checklist: { title: "Ready-to-code checklist", sub: "The artefacts that must exist before implementation starts" },
+  queues: { title: "Work queues", sub: "Ten claimable daily surfaces with SLA timers — raw payload, fix, resolve-with-reason" },
+  inspector: { title: "Universal entity inspector", sub: "Record + mutation history + raw payload + permission trace — no production access" },
+  providers: { title: "Provider health", sub: "Per-channel success, latency, error taxonomy, certification and deprecation" },
+  runbooks: { title: "Incident runbooks", sub: "The ten incidents that will actually happen — detection, mitigation, comms, follow-up" },
+  slos: { title: "SLO targets", sub: "Put numbers on it or it isn't an SLO — with an error-budget policy that bites" },
+  golive: { title: "Go-live playbook", sub: "Migration as a product with a checklist — dry-run, read-only parity, cutover, hypercare" },
+  metrics: { title: "Metric definitions", sub: "Agreed once in the semantic layer so nobody argues in a meeting" },
+  team: { title: "Team, cost & risk", sub: "Minimum viable team, per-tenant unit economics, and the quarterly risk register" },
 };
 
 export function Backoffice() {
@@ -227,6 +244,14 @@ export function Backoffice() {
             {section === "config" && <ConfigSecretsView />}
             {section === "calcs" && <CalculationsView />}
             {section === "checklist" && <ChecklistView />}
+            {section === "queues" && <QueuesView />}
+            {section === "inspector" && <InspectorView />}
+            {section === "providers" && <ProvidersView />}
+            {section === "runbooks" && <RunbooksView />}
+            {section === "slos" && <SlosView />}
+            {section === "golive" && <GoLiveView />}
+            {section === "metrics" && <MetricsView />}
+            {section === "team" && <TeamView />}
           </div>
         </main>
       </div>

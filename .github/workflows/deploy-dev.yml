@@ -1,0 +1,53 @@
+name: deploy-dev
+
+on:
+  push:
+    branches:
+      - "**"
+  workflow_dispatch: {}
+
+concurrency:
+  group: deploy-dev
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install dependencies
+        run: npm ci || npm install --no-audit --no-fund
+
+      - name: Build
+        run: npm run build
+
+      - name: SPA fallback + keep dev site out of search engines
+        run: |
+          cp dist/index.html dist/404.html
+          printf 'User-agent: *\nDisallow: /\n' > dist/robots.txt
+
+      - name: Verify FTP secrets exist
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+        run: |
+          if [ -z "$FTP_SERVER" ]; then
+            echo "::error::Missing FTP secrets. Add FTP_SERVER, FTP_USERNAME and FTP_PASSWORD under Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+
+      - name: Deploy to Hostinger (dev.alvianpermana.art)
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          local-dir: ./dist/
+          server-dir: public_html/derzen/
+          dangerous-clean-slate: true

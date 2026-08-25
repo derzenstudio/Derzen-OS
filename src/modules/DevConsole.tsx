@@ -28,7 +28,7 @@ export default function DevConsole() {
       {/* Rail */}
       <aside className="sticky top-0 flex h-screen w-[218px] shrink-0 flex-col border-r border-white/10 bg-[#0a0a09]">
         <div className="flex items-center gap-2 border-b border-white/10 px-4 py-4">
-          <svg width="22" height="22" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="6" fill="#fff" /><path d="M8 10h16M16 10v13" stroke="#0E0E0C" strokeWidth="3" /><rect x="8" y="21" width="6" height="3" fill="#B22222" /></svg>
+          <svg width="22" height="22" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="6" fill="#fff" /><path d="M8 10h16M16 10v13" stroke="#141811" strokeWidth="3" /><rect x="8" y="21" width="6" height="3" fill="#0E6B4E" /></svg>
           <div>
             <p className="font-display text-[14px] font-extrabold leading-none">trellis</p>
             <p className="mt-0.5 font-mono text-[9px] font-bold uppercase tracking-widest text-brand-bright">dev console</p>
@@ -314,7 +314,7 @@ function AiControl() {
           </label>
           <label className="block">
             <span className="mb-1 block font-mono text-[10px] font-bold uppercase tracking-widest text-white/35">temperature · {aiConfig.temperature.toFixed(2)}</span>
-            <input type="range" min={0} max={1} step={0.05} value={aiConfig.temperature} onChange={(e) => setAiConfig({ temperature: Number(e.target.value) })} className="mt-2 w-full accent-[#B22222]" aria-label="Model temperature" />
+            <input type="range" min={0} max={1} step={0.05} value={aiConfig.temperature} onChange={(e) => setAiConfig({ temperature: Number(e.target.value) })} className="mt-2 w-full accent-[#0E6B4E]" aria-label="Model temperature" />
           </label>
         </div>
         <p className="mt-4 mb-2 font-mono text-[10px] font-bold uppercase tracking-widest text-white/35">guardrails — correctness over automation</p>

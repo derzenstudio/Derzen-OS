@@ -161,7 +161,7 @@ export function Backoffice() {
                       aria-current={active ? "page" : undefined}
                       className={cx(
                         "mb-0.5 flex w-full items-center gap-2.5 rounded-md px-2 py-[7px] text-left text-[12.5px] font-semibold transition-colors",
-                        active ? "bg-brand/25 text-white shadow-[inset_2px_0_0_#D92B2B]" : "text-white/60 hover:bg-white/5 hover:text-white",
+                        active ? "bg-brand/25 text-white shadow-[inset_2px_0_0_#2E9E77]" : "text-white/60 hover:bg-white/5 hover:text-white",
                       )}
                     >
                       <Ic name={it.icon} size={14} className={active ? "text-brand-bright" : "text-white/40"} />

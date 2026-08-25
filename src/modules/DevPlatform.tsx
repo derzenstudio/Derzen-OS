@@ -33,7 +33,7 @@ const sevTone: Record<OpsItem["severity"], string> = { p1: "bg-[#3d1f1f] text-[#
 function Sev({ s }: { s: OpsItem["severity"] }) {
   return <span className={cx("rounded px-1.5 py-0.5 font-mono text-[9px] font-bold uppercase", sevTone[s])}>{s}</span>;
 }
-const srcChip: Record<string, string> = { ui: "bg-white/10 text-white/70", ai: "bg-[#2a2140] text-[#c9b3f0]", automation: "bg-[#3a3320] text-[#e2a33c]", channel_sync: "bg-[#173042] text-[#8fc4dd]", api: "bg-[#1d3527] text-[#4CC38A]", system: "bg-white/5 text-white/40" };
+const srcChip: Record<string, string> = { ui: "bg-white/10 text-white/70", ai: "bg-[#1b2f3d] text-[#9cc3d8]", automation: "bg-[#3a3320] text-[#e2a33c]", channel_sync: "bg-[#173042] text-[#8fc4dd]", api: "bg-[#1d3527] text-[#4CC38A]", system: "bg-white/5 text-white/40" };
 export function SourceChip({ s }: { s: string }) {
   return <span className={cx("rounded px-1.5 py-0.5 font-mono text-[9px] font-bold", srcChip[s] ?? srcChip.system)}>{s.replace("_", " ")}</span>;
 }
@@ -204,7 +204,7 @@ export function TenantDetail({ tenantId, onBack }: { tenantId: string; onBack: (
             </p>
           ))}
           <div className="mt-3">
-            <Spark points={d.errorRate30d} color="#D92B2B" h={52} w={280} />
+            <Spark points={d.errorRate30d} color="#B42318" h={52} w={280} />
             <p className="mt-1 font-mono text-[9.5px] text-white/35">30d error rate · spike = VRBO auth expiry window</p>
           </div>
         </Panel>

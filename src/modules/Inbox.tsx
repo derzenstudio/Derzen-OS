@@ -169,7 +169,7 @@ export default function Inbox() {
             <div className="rounded-xl border border-line bg-card p-3">
               <p className="mb-2 text-[10.5px] font-bold uppercase tracking-wider text-mute">Guest 360</p>
               <div className="flex items-center gap-2.5">
-                <Avatar name={guest.name} size={38} color="#0E7A5F" />
+                <Avatar name={guest.name} size={38} color="#0E6B4E" />
                 <div>
                   <p className="text-[13px] font-bold text-ink">{guest.name}</p>
                   <p className="text-[10.5px] text-mute">{guest.country} · {guest.status === "vip" ? "VIP" : "active"}</p>

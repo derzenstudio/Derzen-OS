@@ -110,7 +110,7 @@ export default function Guidebooks() {
             </Field>
             <Field label="Accent colour">
               <div className="flex gap-2">
-                {["#0E7A5F", "#C07F14", "#2F6E8C", "#A63DBF", "#BB3A28"].map((c) => (
+                {["#0E6B4E", "#9A6A0B", "#38708A", "#5C6357", "#B42318"].map((c) => (
                   <button key={c} aria-label={`Accent ${c}`} onClick={() => setGbDesign(pid, { accent: c })} className={cx("h-8 w-8 rounded-full border-2 transition-transform hover:scale-110", gb.design.accent === c ? "border-ink" : "border-transparent")} style={{ background: c }} />
                 ))}
               </div>

@@ -21,12 +21,12 @@ export const CHANNEL_DEFS: ChannelDef[] = [
   { id: "booking", name: "Booking.com", short: "BDC", color: "#2557D6", structure: "hotel", auth: "extranet", currency: "EUR", markupPct: 12, replyWindowH: 72 },
   { id: "vrbo", name: "VRBO", short: "VR", color: "#1485A8", structure: "unit", auth: "email_code", currency: "USD", markupPct: 8, replyWindowH: null },
   { id: "expedia", name: "Expedia", short: "EX", color: "#D98E04", structure: "hotel", auth: "extranet", currency: "USD", markupPct: 12, replyWindowH: null },
-  { id: "agoda", name: "Agoda", short: "AG", color: "#A63DBF", structure: "hotel", auth: "extranet", currency: "USD", markupPct: 10, replyWindowH: null },
+  { id: "agoda", name: "Agoda", short: "AG", color: "#0F8B8D", structure: "hotel", auth: "extranet", currency: "USD", markupPct: 10, replyWindowH: null },
   { id: "trip", name: "Trip.com", short: "TC", color: "#3E9BFF", structure: "hotel", auth: "extranet", currency: "USD", markupPct: 10, replyWindowH: 48 },
   { id: "mmt", name: "MakeMyTrip", short: "MM", color: "#E05C2A", structure: "hotel", auth: "api_key", currency: "USD", markupPct: 9, replyWindowH: null },
   { id: "traveloka", name: "Traveloka", short: "TV", color: "#0FA3B1", structure: "unit", auth: "extranet", currency: "IDR", markupPct: 7, replyWindowH: null },
   { id: "ical", name: "iCal", short: "IC", color: "#6B7280", structure: "unit", auth: "api_key", currency: "IDR", markupPct: 0, replyWindowH: null },
-  { id: "direct", name: "Direct", short: "DR", color: "#0E7A5F", structure: "unit", auth: "oauth", currency: "IDR", markupPct: 0, replyWindowH: null },
+  { id: "direct", name: "Direct", short: "DR", color: "#0E6B4E", structure: "unit", auth: "oauth", currency: "IDR", markupPct: 0, replyWindowH: null },
 ];
 export const channelDef = (id: ChannelId | "email" | "whatsapp" | "google") =>
   CHANNEL_DEFS.find((c) => c.id === id) ?? { id: "direct", name: String(id), short: "•", color: "#61705F", structure: "unit", auth: "oauth", currency: "IDR", markupPct: 0, replyWindowH: null } as ChannelDef;
@@ -379,10 +379,10 @@ export const CONVERSATIONS: Conversation[] = [
 
 // ── Team ───────────────────────────────────────────────────────────────────
 export const MEMBERS: StaffMember[] = [
-  { id: "m-you", name: "Sarah Whitfield", email: "sarah@sanggraha.co", phone: "+62 812 390 110", role: "owner", duty: "none", propertyIds: [], color: "#0E7A5F", isYou: true },
+  { id: "m-you", name: "Sarah Whitfield", email: "sarah@sanggraha.co", phone: "+62 812 390 110", role: "owner", duty: "none", propertyIds: [], color: "#0E6B4E", isYou: true },
   { id: "m-marco", name: "Marco Reyes", email: "marco@sanggraha.co", phone: "+62 812 390 111", role: "admin", duty: "task_service", propertyIds: [], color: "#2557D6" },
   { id: "m-wayan", name: "Wayan Sudiarta", email: "wayan@sanggraha.co", phone: "+62 813 220 480", role: "manager", duty: "task", propertyIds: [], color: "#1485A8" },
-  { id: "m-kadek", name: "Kadek Mira", email: "mira@sanggraha.co", phone: "+62 819 771 235", role: "staff", duty: "task_service", propertyIds: ["p-anggrek", "p-samudra", "p-purnama"], color: "#A63DBF" },
+  { id: "m-kadek", name: "Kadek Mira", email: "mira@sanggraha.co", phone: "+62 819 771 235", role: "staff", duty: "task_service", propertyIds: ["p-anggrek", "p-samudra", "p-purnama"], color: "#38708A" },
   { id: "m-ari", name: "Made Ari", email: "ari@sanggraha.co", phone: "+62 817 033 902", role: "staff", duty: "task", propertyIds: ["p-cemara", "p-senja"], color: "#D98E04" },
   { id: "m-komang", name: "Komang Devi", email: "devi@sanggraha.co", phone: "+62 818 552 117", role: "staff", duty: "task", propertyIds: ["p-cemara", "p-senja", "p-kelapa"], color: "#E8485F" },
   { id: "m-nyoman", name: "Nyoman Putra", email: "nyoman@sanggraha.co", phone: "+62 821 900 342", role: "staff", duty: "service", propertyIds: [], color: "#0FA3B1" },
@@ -790,7 +790,7 @@ function gb(propertyId: string, completeness: number, aiOnly = "Escalate any que
         fieldDefs: [],
       },
     ],
-    design: { theme: "Bali Dusk", font: "Fraunces / Inter", accent: "#0E7A5F" },
+    design: { theme: "Bali Dusk", font: "Big Shoulders / Schibsted Grotesk", accent: "#0E6B4E" },
     published: completeness >= 0.8,
     views30d: Math.round(140 * completeness) + 20,
     sectionEngagement: { arrival: 92, space: 78, rules: 41, stay: 66, where: 57, checkout: 83 },

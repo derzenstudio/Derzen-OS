@@ -218,7 +218,7 @@ export function Kbd({ children }: { children: ReactNode }) {
 }
 
 // ── Charts (hand-set SVG) ──────────────────────────────────────────────────
-export function Spark({ points, color = "#B22222", h = 36, w = 120, fill = true }: { points: number[]; color?: string; h?: number; w?: number; fill?: boolean }) {
+export function Spark({ points, color = "#0E6B4E", h = 36, w = 120, fill = true }: { points: number[]; color?: string; h?: number; w?: number; fill?: boolean }) {
   const max = Math.max(...points, 1);
   const min = Math.min(...points, 0);
   const span = max - min || 1;
@@ -231,7 +231,7 @@ export function Spark({ points, color = "#B22222", h = 36, w = 120, fill = true 
   );
 }
 
-export function Hist({ data, labels, color = "#B22222", h = 120 }: { data: number[]; labels: string[]; color?: string; h?: number }) {
+export function Hist({ data, labels, color = "#0E6B4E", h = 120 }: { data: number[]; labels: string[]; color?: string; h?: number }) {
   const max = Math.max(...data, 1);
   return (
     <div className="flex items-end gap-1.5" style={{ height: h }} role="img" aria-label={`Histogram: ${data.map((d, i) => `${labels[i]} ${d}`).join(", ")}`}>
@@ -302,7 +302,7 @@ export function Ring({ value, size = 44, label }: { value: number; size?: number
     <div className="relative inline-flex items-center justify-center" role="img" aria-label={`${label ?? "progress"}: ${Math.round(value * 100)}%`}>
       <svg width={size} height={size} className="-rotate-90">
         <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke="#E3E7DB" strokeWidth="5" />
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={ok ? "#0E7A5F" : value >= 0.5 ? "#C07F14" : "#BB3A28"} strokeWidth="5" strokeLinecap="round" strokeDasharray={`${value * c} ${c}`} />
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" stroke={ok ? "#0E6B4E" : value >= 0.5 ? "#9A6A0B" : "#B42318"} strokeWidth="5" strokeLinecap="round" strokeDasharray={`${value * c} ${c}`} />
       </svg>
       <span className="absolute font-mono text-[10.5px] font-bold text-ink">{Math.round(value * 100)}%</span>
     </div>
@@ -312,7 +312,7 @@ export function Ring({ value, size = 44, label }: { value: number; size?: number
 export function Avatar({ name, color, size = 28 }: { name: string; color?: string; size?: number }) {
   const init = name.split(" ").filter(Boolean).slice(0, 2).map((p) => p[0]?.toUpperCase()).join("");
   return (
-    <span className="inline-flex shrink-0 items-center justify-center rounded-full font-bold text-white" style={{ width: size, height: size, background: color ?? "#0E7A5F", fontSize: size * 0.36 }} aria-hidden="true">
+    <span className="inline-flex shrink-0 items-center justify-center rounded-full font-bold text-white" style={{ width: size, height: size, background: color ?? "#0E6B4E", fontSize: size * 0.36 }} aria-hidden="true">
       {init}
     </span>
   );

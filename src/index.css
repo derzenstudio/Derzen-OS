@@ -1,42 +1,43 @@
 @import "tailwindcss";
 
 @theme {
-  --font-display: "Archivo", "IBM Plex Sans", sans-serif;
-  --font-body: "IBM Plex Sans", ui-sans-serif, sans-serif;
+  --font-display: "Big Shoulders Display", "Schibsted Grotesk", sans-serif;
+  --font-body: "Schibsted Grotesk", ui-sans-serif, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
 
-  /* 60% white */
-  --color-paper: #f4f4f1;
-  --color-surface: #fafaf8;
+  /* 80% white — cool paper, never cream */
+  --color-paper: #f3f4f0;
+  --color-surface: #fafaf7;
   --color-card: #ffffff;
-  --color-line: #e2e2dc;
-  --color-line2: #cbcbc2;
+  --color-line: #e2e4dd;
+  --color-line2: #c9ccc2;
 
-  /* 30% black */
-  --color-ink: #141412;
-  --color-mute: #63635c;
-  --color-faint: #94948b;
-  --color-pine-950: #0e0e0c;
-  --color-pine-900: #171714;
-  --color-pine-800: #1f1f1b;
-  --color-pine-700: #2b2b26;
-  --color-pine-200: #c6c6bd;
-  --color-pine-100: #e2e2da;
+  /* 30% ink — near-black with a leaf cast */
+  --color-ink: #141811;
+  --color-mute: #5c6357;
+  --color-faint: #8b9184;
+  --color-pine-950: #0b0f0b;
+  --color-pine-900: #121712;
+  --color-pine-800: #1a201a;
+  --color-pine-700: #263026;
+  --color-pine-200: #c3ccc0;
+  --color-pine-100: #dee4db;
 
-  /* 10% red — vermilion family, never pink */
-  --color-brand: #b22222;
-  --color-brand-deep: #7f1414;
-  --color-brand-bright: #d92b2b;
-  --color-brand-soft: #f7e4e0;
-  --color-danger: #9f1d1d;
-  --color-danger-soft: #f3dfdb;
+  /* 10% green — deep botanical, the only accent */
+  --color-brand: #0e6b4e;
+  --color-brand-deep: #0a4a37;
+  --color-brand-bright: #2e9e77;
+  --color-brand-soft: #dfede5;
 
-  --color-gold: #a16207;
-  --color-gold-soft: #f4e8cd;
-  --color-sea: #2f6e8c;
-  --color-sea-soft: #dceaf1;
-  --color-plum: #6b4f9e;
-  --color-plum-soft: #e6dff2;
+  /* functional semantics only — red means broken, amber means caution */
+  --color-danger: #b42318;
+  --color-danger-soft: #f6e3df;
+  --color-gold: #9a6a0b;
+  --color-gold-soft: #f2e7cb;
+  --color-sea: #38708a;
+  --color-sea-soft: #dfeaf0;
+  --color-plum: #38708a;
+  --color-plum-soft: #dfeaf0;
 }
 
 html,
@@ -55,19 +56,24 @@ body {
   position: relative;
 }
 
+/* Condensed display face — slightly open tracking at small sizes reads best */
 .font-display {
-  font-stretch: 112%;
-  letter-spacing: -0.022em;
+  letter-spacing: 0.005em;
+  text-transform: none;
+}
+h1.font-display,
+h2.font-display {
+  letter-spacing: 0.012em;
 }
 
-/* Ambient layered background: graphite contour lines + one warm ember wash */
+/* Ambient layered background: fine ink contour lines + one pine wash */
 body::before {
   content: "";
   position: fixed;
   inset: 0;
   z-index: 0;
   pointer-events: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='560' height='560' viewBox='0 0 560 560'%3E%3Cg fill='none' stroke='%23141412' stroke-opacity='0.04' stroke-width='1.1'%3E%3Cpath d='M-20 90c90-38 190-38 280 0s190 38 300-6'/%3E%3Cpath d='M-20 150c90-38 190-38 280 0s190 38 300-6'/%3E%3Cpath d='M-20 210c90-38 190-38 280 0s190 38 300-6'/%3E%3Cpath d='M-20 330c100-44 210-44 300 0s180 44 300-8'/%3E%3Cpath d='M-20 390c100-44 210-44 300 0s180 44 300-8'/%3E%3Cpath d='M-20 500c110-50 220-50 310 0s170 50 290-10'/%3E%3C/g%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='560' height='560' viewBox='0 0 560 560'%3E%3Cg fill='none' stroke='%23141811' stroke-opacity='0.04' stroke-width='1.1'%3E%3Cpath d='M-20 90c90-38 190-38 280 0s190 38 300-6'/%3E%3Cpath d='M-20 150c90-38 190-38 280 0s190 38 300-6'/%3E%3Cpath d='M-20 210c90-38 190-38 280 0s190 38 300-6'/%3E%3Cpath d='M-20 330c100-44 210-44 300 0s180 44 300-8'/%3E%3Cpath d='M-20 390c100-44 210-44 300 0s180 44 300-8'/%3E%3Cpath d='M-20 500c110-50 220-50 310 0s170 50 290-10'/%3E%3C/g%3E%3C/svg%3E");
 }
 body::after {
   content: "";
@@ -76,8 +82,8 @@ body::after {
   z-index: 0;
   pointer-events: none;
   background:
-    radial-gradient(820px 460px at 92% -8%, rgba(178, 34, 34, 0.06), transparent 62%),
-    radial-gradient(700px 460px at -10% 108%, rgba(20, 20, 18, 0.05), transparent 60%);
+    radial-gradient(820px 460px at 92% -8%, rgba(14, 107, 78, 0.07), transparent 62%),
+    radial-gradient(700px 460px at -10% 108%, rgba(20, 24, 17, 0.05), transparent 60%);
 }
 #root {
   position: relative;
@@ -85,7 +91,7 @@ body::after {
 }
 
 ::selection {
-  background: rgba(178, 34, 34, 0.2);
+  background: rgba(14, 107, 78, 0.22);
 }
 
 *:focus-visible {
@@ -96,14 +102,14 @@ body::after {
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: #bbbbb1 transparent;
+  scrollbar-color: #b8bdb0 transparent;
 }
 *::-webkit-scrollbar {
   width: 10px;
   height: 10px;
 }
 *::-webkit-scrollbar-thumb {
-  background: #bbbbb1;
+  background: #b8bdb0;
   border-radius: 8px;
   border: 3px solid transparent;
   background-clip: content-box;
@@ -117,7 +123,7 @@ body::after {
   background-image: repeating-linear-gradient(-45deg, rgba(255, 255, 255, 0.28) 0 5px, transparent 5px 10px);
 }
 .pat-hatch {
-  background-image: repeating-linear-gradient(45deg, rgba(20, 20, 18, 0.22) 0 2px, transparent 2px 7px);
+  background-image: repeating-linear-gradient(45deg, rgba(20, 24, 17, 0.22) 0 2px, transparent 2px 7px);
 }
 .pat-dots {
   background-image: radial-gradient(rgba(255, 255, 255, 0.4) 1px, transparent 1.4px);
@@ -129,7 +135,7 @@ body::after {
 @keyframes pop { 0% { opacity: 0; transform: scale(0.96) translateY(6px); } 100% { opacity: 1; transform: scale(1) translateY(0); } }
 @keyframes slideL { from { opacity: 0; transform: translateX(28px); } to { opacity: 1; transform: translateX(0); } }
 @keyframes toastIn { from { opacity: 0; transform: translateY(12px) scale(0.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
-@keyframes pulseDot { 0%, 100% { box-shadow: 0 0 0 0 rgba(178, 34, 34, 0.45); } 60% { box-shadow: 0 0 0 6px rgba(178, 34, 34, 0); } }
+@keyframes pulseDot { 0%, 100% { box-shadow: 0 0 0 0 rgba(180, 35, 24, 0.45); } 60% { box-shadow: 0 0 0 6px rgba(180, 35, 24, 0); } }
 @keyframes spin360 { to { transform: rotate(360deg); } }
 @keyframes barGrow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
 @keyframes drawLine { from { stroke-dashoffset: 600; } to { stroke-dashoffset: 0; } }
@@ -172,6 +178,11 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   cursor: pointer;
 }
 
+.drag-over-block {
+  outline: 2px dashed var(--color-brand);
+  outline-offset: 3px;
+}
+
 /* Unlayered → wins over Tailwind's layered accent utilities everywhere */
 input[type="checkbox"],
 input[type="radio"] {
@@ -179,9 +190,4 @@ input[type="radio"] {
 }
 input[type="range"] {
   accent-color: var(--color-brand);
-}
-
-.drag-over-block {
-  outline: 2px dashed var(--color-brand);
-  outline-offset: 3px;
 }

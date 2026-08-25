@@ -23,7 +23,7 @@ function Stat({ label, value, to, tone, spark, suffix }: { label: string; value:
       <span className="mt-2 flex w-full items-center justify-between">
         {spark ? (
           <svg width="84" height="22" aria-hidden="true">
-            <polyline points={spark.map((p, i) => `${(i / (spark.length - 1)) * 84},${20 - p * 18}`).join(" ")} fill="none" stroke={tone ?? "#0E7A5F"} strokeWidth="1.6" strokeLinecap="round" />
+            <polyline points={spark.map((p, i) => `${(i / (spark.length - 1)) * 84},${20 - p * 18}`).join(" ")} fill="none" stroke={tone ?? "#0E6B4E"} strokeWidth="1.6" strokeLinecap="round" />
           </svg>
         ) : <span className="text-[10px] font-semibold text-faint">click to filter</span>}
         <Ic name="arrowR" size={13} className="text-faint transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-brand" />
@@ -119,8 +119,8 @@ export default function Dashboard() {
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
         <Stat label={t("dash.unread")} value={unread} to="/inbox?filter=unread" tone="#2557D6" spark={[0.2, 0.5, 0.3, 0.8, 0.4, 0.9, 0.6]} />
         <Stat label={t("dash.openTasks")} value={openTasks.length} to="/ops?tab=board&filter=active&mine=1" tone="#C07F14" spark={[0.6, 0.4, 0.7, 0.5, 0.8, 0.4, 0.3]} />
-        <Stat label={t("dash.checkins")} value={ciToday.length} to="/reservations?focus=arrivals-today" suffix={`+${ciTmr.length} ${t("dash.tomorrow")}`} tone="#0E7A5F" />
-        <Stat label={t("dash.checkouts")} value={coToday.length} to="/reservations?focus=departures-today" suffix={`+${coTmr.length} ${t("dash.tomorrow")}`} tone="#A63DBF" />
+        <Stat label={t("dash.checkins")} value={ciToday.length} to="/reservations?focus=arrivals-today" suffix={`+${ciTmr.length} ${t("dash.tomorrow")}`} tone="#0E6B4E" />
+        <Stat label={t("dash.checkouts")} value={coToday.length} to="/reservations?focus=departures-today" suffix={`+${coTmr.length} ${t("dash.tomorrow")}`} tone="#38708A" />
         <Stat label={t("dash.reviews7")} value={newReviews} to="/reviews?filter=new" tone="#E8485F" spark={[0.1, 0.3, 0.2, 0.5, 0.7, 0.4, 0.6]} />
         <Stat label={t("dash.bookings7")} value={newRes} to="/reservations?focus=new" tone="#1485A8" spark={[0.3, 0.2, 0.5, 0.4, 0.6, 0.8, 0.7]} />
       </div>
@@ -156,7 +156,7 @@ export default function Dashboard() {
                 {coToday.map((r) => (
                   <li key={r.id}>
                     <button onClick={() => navigate(`/reservations/${r.id}`)} className="flex w-full items-center gap-2.5 rounded-lg border border-transparent px-2 py-1.5 text-left transition-colors hover:border-line hover:bg-paper">
-                      <Avatar name={guestById(r.guestId).name} color="#A63DBF" size={26} />
+                      <Avatar name={guestById(r.guestId).name} color="#38708A" size={26} />
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-[12.5px] font-bold text-ink">{guestById(r.guestId).name}</span>
                         <span className="block truncate text-[11px] text-mute">{propertyById(r.propertyId).name} · out by {propertyById(r.propertyId).checkOutTime}</span>
@@ -204,7 +204,7 @@ export default function Dashboard() {
                 return (
                   <li key={c.id}>
                     <button onClick={() => navigate(`/inbox?conv=${c.id}`)} className="flex w-full items-start gap-2.5 px-4 py-2.5 text-left transition-colors hover:bg-paper">
-                      <Avatar name={g.name} size={30} color={c.escalated ? "#BB3A28" : "#2557D6"} />
+                      <Avatar name={g.name} size={30} color={c.escalated ? "#B42318" : "#141811"} />
                       <span className="min-w-0 flex-1">
                         <span className="flex items-center gap-2">
                           <span className="truncate text-[12.5px] font-bold text-ink">{g.name}</span>

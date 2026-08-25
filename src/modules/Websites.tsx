@@ -117,7 +117,7 @@ export default function Websites() {
                 </Select>
               </Field>
               <Field label={`Corner radius · ${website.theme.radius}px`}>
-                <input type="range" min={0} max={20} value={website.theme.radius} onChange={(e) => setSiteTheme({ radius: Number(e.target.value) })} className="w-full accent-[#0E7A5F]" aria-label="Corner radius" />
+                <input type="range" min={0} max={20} value={website.theme.radius} onChange={(e) => setSiteTheme({ radius: Number(e.target.value) })} className="w-full accent-[#0E6B4E]" aria-label="Corner radius" />
               </Field>
             </div>
             <div className="rounded-xl border border-line bg-card p-4">
@@ -170,14 +170,14 @@ export default function Websites() {
               <>
                 <MetricCard label="Page views" value={String(website.analytics.reduce((s, a) => s + a.views, 0))} series={website.analytics.map((a) => a.views)} />
                 <MetricCard label="Unique visitors" value={String(website.analytics.reduce((s, a) => s + a.visitors, 0))} series={website.analytics.map((a) => a.visitors)} color="#2F6E8C" />
-                <MetricCard label="Avg. time on site" value="2m 41s" series={website.analytics.map((a) => a.views / 40)} color="#A63DBF" />
+                <MetricCard label="Avg. time on site" value="2m 41s" series={website.analytics.map((a) => a.views / 40)} color="#38708A" />
                 <MetricCard label="Top page" value="/villas" series={website.analytics.map((a) => a.visitors / 2)} color="#C07F14" />
               </>
             ) : (
               <>
                 <MetricCard label="Bookings" value={String(website.analytics.reduce((s, a) => s + a.bookings, 0))} series={website.analytics.map((a) => a.bookings)} />
                 <MetricCard label="Revenue" value={money(website.analytics.reduce((s, a) => s + a.revenue, 0), "EUR")} series={website.analytics.map((a) => a.revenue)} color="#C07F14" />
-                <MetricCard label="Conversion" value="2.4%" series={website.analytics.map((a) => a.bookings * 3 + 1)} color="#A63DBF" />
+                <MetricCard label="Conversion" value="2.4%" series={website.analytics.map((a) => a.bookings * 3 + 1)} color="#38708A" />
                 <MetricCard label="Avg. booking value" value={money(524_00, "EUR")} series={website.analytics.map((a) => a.revenue / 40 + 20)} color="#2F6E8C" />
               </>
             )}
@@ -320,7 +320,7 @@ function BlockPreview({ type }: { type: string }) {
   }
 }
 
-function MetricCard({ label, value, series, color = "#0E7A5F" }: { label: string; value: string; series: number[]; color?: string }) {
+function MetricCard({ label, value, series, color = "#0E6B4E" }: { label: string; value: string; series: number[]; color?: string }) {
   return (
     <div className="rounded-xl border border-line bg-card p-4">
       <p className="text-[10px] font-bold uppercase tracking-wider text-mute">{label}</p>

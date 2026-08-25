@@ -6,7 +6,7 @@ import { useApp } from "../store";
 import { propertyById } from "../lib/data";
 
 const PLATFORMS = ["airbnb", "booking", "trip", "google", "direct"] as const;
-const P_COLOR: Record<string, string> = { airbnb: "#E8485F", booking: "#2557D6", trip: "#3E9BFF", google: "#C07F14", direct: "#0E7A5F" };
+const P_COLOR: Record<string, string> = { airbnb: "#E8485F", booking: "#2557D6", trip: "#3E9BFF", google: "#9A6A0B", direct: "#0E6B4E" };
 
 export default function Reviews() {
   const { route, reviews, replyReview, useAiDraft, toast } = useApp();
@@ -53,7 +53,7 @@ export default function Reviews() {
         </div>
         <div className="rounded-xl border border-line bg-card p-4">
           <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-mute">Rating distribution (normalised /10)</p>
-          <Hist data={dist} labels={dist.map((_, i) => String(i + 1))} h={92} color="#0E7A5F" />
+          <Hist data={dist} labels={dist.map((_, i) => String(i + 1))} h={92} color="#0E6B4E" />
         </div>
         <div className="rounded-xl border border-line bg-card p-4">
           <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-mute">Per-platform</p>

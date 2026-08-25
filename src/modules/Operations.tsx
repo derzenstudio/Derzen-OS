@@ -155,7 +155,7 @@ function Board({ overdue }: { overdue: number }) {
             </svg>
             {useApp.getState().properties.filter((p) => !p.archived).map((p) => {
               const open = tasks.filter((t) => t.propertyId === p.id && (t.status === "open" || t.status === "in_progress"));
-              const worst = open.some((t) => t.priority === "urgent" || t.priority === "emergency") ? "#BB3A28" : open.some((t) => t.due < Date.now()) ? "#C07F14" : "#0E7A5F";
+              const worst = open.some((t) => t.priority === "urgent" || t.priority === "emergency") ? "#B42318" : open.some((t) => t.due < Date.now()) ? "#9A6A0B" : "#0E6B4E";
               return (
                 <button key={p.id} onClick={() => { setAssignee("all"); setState("active"); }} className="group absolute -translate-x-1/2 -translate-y-1/2" style={{ left: `${p.map.x}%`, top: `${p.map.y}%` }} aria-label={`${p.name}: ${open.length} open tasks`}>
                   <span className="flex items-center justify-center rounded-full border-2 border-white font-mono text-[10px] font-bold text-white shadow-md transition-transform group-hover:scale-110" style={{ width: 22 + open.length * 5, height: 22 + open.length * 5, background: worst }}>

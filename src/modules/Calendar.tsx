@@ -221,12 +221,12 @@ export default function CalendarModule() {
               </div>
               {properties.filter((p) => !p.archived).map((p) => (
                 <label key={p.id} className="flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-[12px] font-semibold hover:bg-paper">
-                  <input type="checkbox" checked={checked.includes(p.id)} onChange={() => setChecked((c) => c.includes(p.id) ? c.filter((x) => x !== p.id) : [...c, p.id])} className="accent-[#0E7A5F]" />
+                  <input type="checkbox" checked={checked.includes(p.id)} onChange={() => setChecked((c) => c.includes(p.id) ? c.filter((x) => x !== p.id) : [...c, p.id])} className="accent-[#0E6B4E]" />
                   {p.name}
                 </label>
               ))}
               <label className="mt-1 flex cursor-pointer items-center gap-2 border-t border-line px-1.5 pt-1.5 text-[11px] font-semibold text-mute">
-                <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} className="accent-[#0E7A5F]" /> Show archived
+                <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} className="accent-[#0E6B4E]" /> Show archived
               </label>
             </div>
           )}
@@ -311,7 +311,7 @@ export default function CalendarModule() {
                     >
                       <Ic name="grip" size={12} className="cursor-grab text-line2" />
                       {bulkMode && !p.isParent ? (
-                        <input type="checkbox" aria-label={`Select ${p.name}`} checked={checked.includes(p.id)} onChange={() => setChecked((c) => c.includes(p.id) ? c.filter((x) => x !== p.id) : [...c, p.id])} className="accent-[#0E7A5F]" />
+                        <input type="checkbox" aria-label={`Select ${p.name}`} checked={checked.includes(p.id)} onChange={() => setChecked((c) => c.includes(p.id) ? c.filter((x) => x !== p.id) : [...c, p.id])} className="accent-[#0E6B4E]" />
                       ) : (
                         <span className="h-6 w-6 shrink-0 overflow-hidden rounded-md border border-line">
                           <img src={p.image} alt="" className="h-full w-full object-cover" loading="lazy" onError={(e) => ((e.target as HTMLImageElement).style.display = "none")} />

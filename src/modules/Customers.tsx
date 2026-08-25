@@ -70,11 +70,11 @@ export default function Customers() {
               return (
                 <tr key={g.id} className={cx("cursor-pointer border-b border-line/60 transition-colors hover:bg-paper/70", sel.includes(g.id) && "bg-brand-soft/40")} onClick={() => setDetailId(g.id)}>
                   <td className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
-                    <input type="checkbox" aria-label={`Select ${g.name}`} checked={sel.includes(g.id)} onChange={() => setSel((s) => (s.includes(g.id) ? s.filter((x) => x !== g.id) : [...s, g.id]))} className="accent-[#0E7A5F]" />
+                    <input type="checkbox" aria-label={`Select ${g.name}`} checked={sel.includes(g.id)} onChange={() => setSel((s) => (s.includes(g.id) ? s.filter((x) => x !== g.id) : [...s, g.id]))} className="accent-[#0E6B4E]" />
                   </td>
                   <td className="px-2 py-2.5">
                     <div className="flex items-center gap-2.5">
-                      <Avatar name={g.name} size={30} color={g.status === "vip" ? "#C07F14" : "#0E7A5F"} />
+                      <Avatar name={g.name} size={30} color={g.status === "vip" ? "#9A6A0B" : "#0E6B4E"} />
                       <div>
                         <p className="flex items-center gap-1.5 text-[12.5px] font-bold text-ink">{g.name} {g.status === "vip" && <Badge tone="warn">VIP</Badge>} {g.verifiedId && <Ic name="shield" size={11} className="text-brand" aria-label="ID verified" />}</p>
                         {g.aliases.length > 0 && <p className="text-[9.5px] font-semibold text-faint">{g.aliases.length} OTA alias{g.aliases.length > 1 ? "es" : ""} merged</p>}
@@ -106,7 +106,7 @@ export default function Customers() {
         {detail && (
           <div className="space-y-4">
             <div className="flex flex-wrap items-center gap-3 rounded-lg bg-paper p-3">
-              <Avatar name={detail.name} size={40} color="#0E7A5F" />
+              <Avatar name={detail.name} size={40} color="#0E6B4E" />
               <div className="flex-1">
                 <p className="text-[13.5px] font-bold text-ink">{detail.name} <span className="font-semibold text-mute">· {detail.country}</span></p>
                 <p className="text-[11px] text-mute">{detail.emails.join(" · ")}</p>

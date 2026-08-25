@@ -59,7 +59,7 @@ export function PublicSite() {
             field operations, direct-booking commerce and financials that reconcile to the cent.
           </p>
           <div className="mt-7 flex flex-wrap items-center gap-3">
-            <button onClick={demo} className="group flex items-center gap-2 rounded-md bg-brand px-5 py-3 text-[14px] font-bold text-white shadow-[0_8px_24px_-8px_rgba(178,34,34,0.5)] transition-transform hover:-translate-y-0.5">
+            <button onClick={demo} className="group flex items-center gap-2 rounded-md bg-brand px-5 py-3 text-[14px] font-bold text-white shadow-[0_8px_24px_-8px_rgba(14,107,78,0.55)] transition-transform hover:-translate-y-0.5">
               Open the demo workspace <Ic name="arrowR" size={15} className="transition-transform group-hover:translate-x-0.5" />
             </button>
             <button onClick={() => go("pricing")} className="rounded-md border border-line2 bg-card px-5 py-3 text-[14px] font-bold text-ink transition-colors hover:border-ink">
@@ -102,7 +102,7 @@ export function PublicSite() {
                     <span className="flex h-5 w-8 items-center justify-center rounded text-[7.5px] font-bold text-white" style={{ background: def.color }}>{def.short}</span>
                     <span className="w-[86px] text-[11px] font-semibold text-white/80">{def.name}</span>
                     <div className="h-1 flex-1 overflow-hidden rounded-full bg-white/10">
-                      <div key={`${c}-${tick}`} className="h-full rounded-full" style={{ width: "100%", background: phase === 4 ? "#D92B2B" : "#4CC38A", transformOrigin: "left", animation: "barGrowX 1.2s ease both" }} />
+                      <div key={`${c}-${tick}`} className="h-full rounded-full" style={{ width: "100%", background: phase === 4 ? "#B42318" : "#2E9E77", transformOrigin: "left", animation: "barGrowX 1.2s ease both" }} />
                     </div>
                     <span className="w-[64px] text-right font-mono text-[9.5px] text-white/45">{phase === 4 ? "retry 2/5" : `${6 + ((tick * 7 + i * 13) % 40)}s ago`}</span>
                   </div>
@@ -236,7 +236,7 @@ export function PublicSite() {
 function Wordmark({ light }: { light?: boolean }) {
   return (
     <span className="flex items-center gap-2">
-      <svg width="24" height="24" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="6" fill={light ? "#ffffff" : "#0E0E0C"} /><path d="M8 10h16M16 10v13" stroke={light ? "#0E0E0C" : "#F5F5F2"} strokeWidth="3" /><rect x="8" y="21" width="6" height="3" fill="#B22222" /></svg>
+      <svg width="24" height="24" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="6" fill={light ? "#ffffff" : "#141811"} /><path d="M8 10h16M16 10v13" stroke={light ? "#141811" : "#F4F5F0"} strokeWidth="3" /><rect x="8" y="21" width="6" height="3" fill="#0E6B4E" /></svg>
       <span className={cx("font-display text-[17px] font-extrabold tracking-tight", light ? "text-white" : "text-ink")}>trellis</span>
     </span>
   );
@@ -316,7 +316,7 @@ export function LoginPage() {
       <aside className="relative hidden flex-col justify-between overflow-hidden bg-ink p-10 text-white lg:flex">
         <div className="absolute inset-0 opacity-[0.13]" style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cpath d='M0 60h120M60 0v120' stroke='%23ffffff' stroke-width='0.6'/%3E%3C/svg%3E\")" }} aria-hidden="true" />
         <div className="relative flex items-center gap-2">
-          <svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="6" fill="#fff" /><path d="M8 10h16M16 10v13" stroke="#0E0E0C" strokeWidth="3" /><rect x="8" y="21" width="6" height="3" fill="#B22222" /></svg>
+          <svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="6" fill="#fff" /><path d="M8 10h16M16 10v13" stroke="#141811" strokeWidth="3" /><rect x="8" y="21" width="6" height="3" fill="#0E6B4E" /></svg>
           <span className="font-display text-[19px] font-extrabold">trellis</span>
         </div>
         <div className="relative">

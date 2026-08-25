@@ -81,7 +81,7 @@ export default function Listings() {
                     className={cx("cursor-pointer border-b border-line/60 transition-colors hover:bg-paper/70", p.archived && "opacity-55", dragId === p.id && "opacity-40")}
                     onClick={() => navigate(`/listings?property=${p.id}`)}>
                     <td className="px-3 py-2.5" onClick={(e) => e.stopPropagation()}>
-                      <input type="checkbox" aria-label={`Select ${p.name}`} checked={sel.includes(p.id)} onChange={() => setSel((s) => (s.includes(p.id) ? s.filter((x) => x !== p.id) : [...s, p.id]))} className="accent-[#0E7A5F]" />
+                      <input type="checkbox" aria-label={`Select ${p.name}`} checked={sel.includes(p.id)} onChange={() => setSel((s) => (s.includes(p.id) ? s.filter((x) => x !== p.id) : [...s, p.id]))} className="accent-[#0E6B4E]" />
                     </td>
                     <td className="px-1 py-2.5 text-line2"><Ic name="grip" size={13} className="cursor-grab" /></td>
                     <td className="px-2 py-2.5">

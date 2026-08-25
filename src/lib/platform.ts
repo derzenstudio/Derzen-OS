@@ -155,7 +155,7 @@ export const MRR_WATERFALL = [
   { label: "New", value: 1_240, color: "#4CC38A" },
   { label: "Expansion", value: 860, color: "#8fd6b4" },
   { label: "Contraction", value: -320, color: "#e2a33c" },
-  { label: "Churn", value: -540, color: "#D92B2B" },
+  { label: "Churn", value: -540, color: "#B42318" },
   { label: "Reactivation", value: 210, color: "#5b8bd9" },
 ];
 

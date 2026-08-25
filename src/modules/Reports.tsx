@@ -74,12 +74,12 @@ export default function Reports() {
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
             <div className="rounded-xl border border-line bg-card p-4 lg:col-span-2">
               <h3 className="mb-1 font-display text-[13.5px] font-bold text-ink">Profit trend — 12 months (EUR, reporting currency)</h3>
-              <TrendLines series={[revSeries, expSeries, netSeries]} colors={["#0E7A5F", "#BB3A28", "#2557D6"]} labels={["Revenue", "Expenses", "Net"]} h={200} />
+              <TrendLines series={[revSeries, expSeries, netSeries]} colors={["#0E6B4E", "#B42318", "#38708A"]} labels={["Revenue", "Expenses", "Net"]} h={200} />
             </div>
             <div className="rounded-xl border border-line bg-card p-4">
               <h3 className="mb-2 font-display text-[13.5px] font-bold text-ink">This month</h3>
               <div className="mb-3 flex items-center gap-4">
-                <Donut slices={[{ value: nightsBooked, color: "#0E7A5F", label: "booked" }, { value: nightsAvailable - nightsBooked, color: "#E3E7DB", label: "available" }]} size={110} />
+                <Donut slices={[{ value: nightsBooked, color: "#0E6B4E", label: "booked" }, { value: nightsAvailable - nightsBooked, color: "#E2E4DD", label: "available" }]} size={110} />
                 <div>
                   <p className="font-display text-[22px] font-bold text-ink">{pct(occupancy)}</p>
                   <p className="text-[10.5px] font-bold uppercase text-mute">occupancy</p>
@@ -96,8 +96,8 @@ export default function Reports() {
             </div>
           </div>
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-            <Breakdown title="Revenue breakdown" items={[["OTA channels", 0.61, "#2557D6"], ["Direct website", 0.21, "#0E7A5F"], ["Services & upsells", 0.11, "#A63DBF"], ["Other", 0.07, "#8A978A"]]} />
-            <Breakdown title="Cost breakdown" items={[["Salaries & staff", 0.42, "#BB3A28"], ["OTA commissions", 0.24, "#D98E04"], ["Utilities & supplies", 0.16, "#2F6E8C"], ["Maintenance", 0.11, "#A63DBF"], ["Software", 0.07, "#8A978A"]]} />
+            <Breakdown title="Revenue breakdown" items={[["OTA channels", 0.61, "#141811"], ["Direct website", 0.21, "#0E6B4E"], ["Services & upsells", 0.11, "#9A6A0B"], ["Other", 0.07, "#8B9184"]]} />
+            <Breakdown title="Cost breakdown" items={[["Salaries & staff", 0.42, "#B42318"], ["OTA commissions", 0.24, "#9A6A0B"], ["Utilities & supplies", 0.16, "#38708A"], ["Maintenance", 0.11, "#5C6357"], ["Software", 0.07, "#8B9184"]]} />
           </div>
         </div>
       )}
@@ -110,11 +110,11 @@ export default function Reports() {
             <div className="rounded-xl border border-line bg-card p-4">
               <h3 className="mb-2 font-display text-[13.5px] font-bold text-ink">OTA vs Direct split</h3>
               <div className="flex items-center gap-4">
-                <Donut slices={CHANNEL_SPLIT.map((c, i) => ({ value: c.share, color: ["#E8485F", "#2557D6", "#0E7A5F", "#A63DBF", "#3E9BFF", "#8A978A"][i], label: c.channel }))} size={140} />
+                <Donut slices={CHANNEL_SPLIT.map((c, i) => ({ value: c.share, color: ["#E8485F", "#2557D6", "#0E6B4E", "#9A6A0B", "#3E9BFF", "#8B9184"][i], label: c.channel }))} size={140} />
                 <div className="flex-1 space-y-1">
                   {CHANNEL_SPLIT.map((c, i) => (
                     <p key={c.channel} className="flex items-center gap-2 text-[11.5px]">
-                      <span className="h-2 w-2 rounded-sm" style={{ background: ["#E8485F", "#2557D6", "#0E7A5F", "#A63DBF", "#3E9BFF", "#8A978A"][i] }} />
+                      <span className="h-2 w-2 rounded-sm" style={{ background: ["#E8485F", "#2557D6", "#0E6B4E", "#9A6A0B", "#3E9BFF", "#8B9184"][i] }} />
                       <span className="flex-1 font-bold">{c.channel}</span>
                       <span className="font-mono text-mute">{pct(c.share)}</span>
                       <span className="font-mono font-bold">{money(c.amount, "EUR", { compact: true })}</span>
@@ -126,7 +126,7 @@ export default function Reports() {
             </div>
             <div className="rounded-xl border border-line bg-card p-4">
               <h3 className="mb-1 font-display text-[13.5px] font-bold text-ink">Gross vs net · monthly</h3>
-              <TrendLines series={[revSeries, netSeries]} colors={["#0E7A5F", "#C07F14"]} labels={["Gross", "Net (after commissions)"]} h={190} />
+              <TrendLines series={[revSeries, netSeries]} colors={["#0E6B4E", "#9A6A0B"]} labels={["Gross", "Net (after commissions)"]} h={190} />
             </div>
           </div>
           <div className="overflow-x-auto rounded-xl border border-line bg-card">
@@ -172,7 +172,7 @@ export default function Reports() {
           <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
             <div className="rounded-xl border border-line bg-card p-4 lg:col-span-2">
               <h3 className="mb-1 font-display text-[13.5px] font-bold text-ink">Expense trend vs revenue</h3>
-              <TrendLines series={[expSeries, revSeries]} colors={["#BB3A28", "#0E7A5F"]} labels={["Expenses", "Revenue"]} h={180} />
+              <TrendLines series={[expSeries, revSeries]} colors={["#B42318", "#0E6B4E"]} labels={["Expenses", "Revenue"]} h={180} />
             </div>
             <div className="rounded-xl border border-line bg-card p-4">
               <h3 className="mb-2 font-display text-[13.5px] font-bold text-ink">Category breakdown</h3>

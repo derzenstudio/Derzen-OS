@@ -90,7 +90,7 @@ function Sidebar() {
                     aria-current={isActive ? "page" : undefined}
                     className={cx(
                       "group mb-0.5 flex w-full items-center gap-2.5 rounded-md px-2 py-[7px] text-left text-[12.5px] font-semibold transition-all duration-150",
-                      isActive ? "bg-brand/25 text-white shadow-[inset_2px_0_0_#D92B2B]" : "text-pine-100/75 hover:bg-white/5 hover:text-white",
+                      isActive ? "bg-brand/25 text-white shadow-[inset_2px_0_0_#2E9E77]" : "text-pine-100/75 hover:bg-white/5 hover:text-white",
                     )}
                   >
                     <Ic name={it.icon} size={15} className={isActive ? "text-brand-bright" : "text-pine-200/60 group-hover:text-pine-100"} />

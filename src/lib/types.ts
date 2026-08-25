@@ -384,10 +384,29 @@ export interface WebhookEndpoint {
   deliveries: { id: string; ts: number; event: string; status: number; ms: number; response: string }[];
 }
 
+export interface BlockStyle {
+  width: "full" | "wide" | "mid" | "half";
+  py: number;   // vertical padding, px — 0 allowed
+  px: number;   // horizontal padding, px — 0 allowed
+  mt: number;   // margin-top — negatives allowed for flush stacking
+  mb: number;   // margin-bottom
+  bg: string;   // "" = transparent / inherit
+  color: string;// "" = inherit
+  scale: number;// font-size multiplier 0.8–1.4
+  align: "left" | "center" | "right";
+  radius: number;
+}
+export const DEFAULT_BLOCK_STYLE: BlockStyle = {
+  width: "full", py: 12, px: 12, mt: 0, mb: 10, bg: "", color: "", scale: 1, align: "left", radius: 3,
+};
+export const WIDTH_PCT: Record<BlockStyle["width"], number> = { full: 100, wide: 84, mid: 66, half: 50 };
+
 export interface Block {
   id: string;
   type: string;
   cols?: Block[][];
+  style?: BlockStyle;
+  content?: Record<string, string>;
 }
 export interface SitePage { id: string; name: string; slug: string; blocks: Block[]; home?: boolean; }
 export interface WebsiteState {

@@ -344,8 +344,8 @@ export function LoginPage() {
             <button onClick={() => { setMode("tenant"); setErr(null); }} className={cx("flex-1 rounded-md py-2 text-[12.5px] font-bold", mode === "tenant" ? "bg-ink text-white" : "text-mute")}>Operator workspace</button>
             <button onClick={() => { setMode("developer"); setErr(null); }} className={cx("flex-1 rounded-md py-2 text-[12.5px] font-bold", mode === "developer" ? "bg-brand text-white" : "text-mute")}>Developer</button>
           </div>
-          <h2 className="font-display text-[26px] font-extrabold tracking-tight text-ink">{mode === "tenant" ? "Sign in to your workspace" : "Developer console"}</h2>
-          <p className="mt-1 text-[13px] text-mute">{mode === "tenant" ? "Your data stays in your tenant — sealed at the database layer." : "Platform-wide controls: tenants, feature flags, integrations, AI."}</p>
+          <h2 className="font-display text-[26px] font-extrabold tracking-tight text-ink">{mode === "tenant" ? "Sign in to your workspace" : "Internal backoffice"}</h2>
+          <p className="mt-1 text-[13px] text-mute">{mode === "tenant" ? "Your data stays in your tenant — sealed at the database layer." : "Separate application, separate audit stream: ops queues, tenants, billing, flags, security."}</p>
 
           <form ref={formRef} onSubmit={submit} className="mt-6 space-y-3">
             <label className="block">
@@ -385,8 +385,8 @@ export function LoginPage() {
               <button onClick={() => quick("dev@trellis.site", "trellis-dev", true)} className="group flex w-full items-center gap-3 rounded-lg border border-brand/40 bg-brand-soft/50 px-3 py-2.5 text-left transition-all hover:-translate-y-px hover:border-brand hover:shadow-md">
                 <span className="flex h-8 w-8 items-center justify-center rounded-md bg-brand font-display text-[11px] font-extrabold text-white">D</span>
                 <span className="flex-1">
-                  <span className="block text-[13px] font-bold text-ink">Platform developer</span>
-                  <span className="block text-[10.5px] text-mute">feature flags · integration health · AI controls · tenants</span>
+                  <span className="block text-[13px] font-bold text-ink">Internal backoffice</span>
+                  <span className="block text-[10.5px] text-mute">ops queues · tenants · billing · flags · security · audit trail</span>
                 </span>
                 <Ic name="arrowR" size={14} className="text-brand transition-transform group-hover:translate-x-0.5" />
               </button>

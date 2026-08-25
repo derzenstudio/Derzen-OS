@@ -4,6 +4,9 @@ import { useApp } from "./store";
 import { refreshFx } from "./lib/fx";
 import { PublicSite, LoginPage } from "./modules/Public";
 import DevConsole from "./modules/DevConsole";
+import DevBackoffice from "./modules/DevBackoffice";
+import DevOps from "./modules/DevOps";
+import { Backoffice } from "./components/Backoffice";
 import Dashboard from "./modules/Dashboard";
 import Calendar from "./modules/Calendar";
 import Inbox from "./modules/Inbox";
@@ -81,9 +84,13 @@ export default function App() {
     return route.path[0] === "login" ? <LoginPage /> : <PublicSite />;
   }
 
-  // ── developer console ──
+  // ── internal backoffice (separate application: own shell, nav, audit) ──
   if (session.kind === "developer") {
-    return <DevConsole />;
+    const sub = route.path[1];
+    if (sub === "console") return <DevConsole />;
+    if (sub === "backoffice") return <DevBackoffice />;
+    if (sub === "substrate") return <DevOps />;
+    return <Backoffice />;
   }
 
   // ── tenant app ──

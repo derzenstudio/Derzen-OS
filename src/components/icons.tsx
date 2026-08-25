@@ -103,6 +103,8 @@ const P: Record<string, ReactNode> = {
   sun: <><circle cx="12" cy="12" r="4" /><path d="M12 2.5v2M12 19.5v2M2.5 12h2M19.5 12h2M5 5l1.4 1.4M17.6 17.6L19 19M19 5l-1.4 1.4M6.4 17.6L5 19" /></>,
   terminal: <><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M7 9l3 3-3 3M12.5 15H17" /></>,
   satellite: <><circle cx="12" cy="12" r="3" /><path d="M12 5V3M12 21v-2M5 12H3M21 12h-2" /><path d="M12 8.5a3.5 3.5 0 0 1 3.5 3.5" strokeOpacity=".6" /></>,
+  lifeBuoy: <><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="4" /><path d="M5.7 5.7l3.5 3.5M14.8 14.8l3.5 3.5M18.3 5.7l-3.5 3.5M9.2 14.8l-3.5 3.5" /></>,
+  toggle: <><rect x="2.5" y="7" width="19" height="10" rx="5" /><circle cx="16.5" cy="12" r="3.2" /></>,
 };
 
 export type IconName = keyof typeof P;

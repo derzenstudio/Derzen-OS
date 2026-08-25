@@ -645,6 +645,195 @@ export const NOT_BUILT = [
 ];
 export const DEFENSIBLE = ["Calendar & availability engine", "Operations automation", "AI concierge quality", "Sync-layer reliability"];
 
+// ── Technical reference · Service & repo topology ─────────────────────────
+export const APPS = [
+  { path: "apps/web-tenant", role: "Tenant application (authenticated SPA/SSR)", origin: "app.trellis.site", profile: "auth-heavy · tenant-scoped" },
+  { path: "apps/web-guest", role: "Guest surfaces: sites, guidebooks, checkout, embeds", origin: "stay.trellis.site", profile: "edge-cached · zero tenant code" },
+  { path: "apps/web-admin", role: "Internal operator console", origin: "admin.trellis.internal", profile: "SSO + device trust · separate audit" },
+  { path: "apps/api", role: "Public + internal REST/RPC", origin: "api.trellis.site", profile: "RLS on every route" },
+  { path: "apps/workers", role: "Job consumers — sync, messaging, reports, imports, AI", origin: "cluster", profile: "per-tenant fair-share queues" },
+  { path: "apps/scheduler", role: "Cron / temporal-style orchestration", origin: "cluster", profile: "idempotent by default" },
+];
+export const PACKAGES = [
+  { path: "packages/domain", rule: "Entities, value objects, invariants — zero I/O, zero framework", deps: [] as string[] },
+  { path: "packages/availability", rule: "Calendar + pricing + restriction engine — pure, exhaustively tested", deps: ["domain"] },
+  { path: "packages/ledger", rule: "Double-entry accounting primitives — balanced entries only", deps: ["domain"] },
+  { path: "packages/channels", rule: "Adapter SDK + per-provider adapters", deps: ["domain"] },
+  { path: "packages/ai", rule: "Prompt registry, model router, guardrails, eval harness", deps: ["domain", "events"] },
+  { path: "packages/entitlements", rule: "Plan / limit / flag resolution", deps: ["domain"] },
+  { path: "packages/events", rule: "Event catalogue + outbox client", deps: ["domain"] },
+  { path: "packages/ui", rule: "Design system + tokens — console, tenant and guest sets", deps: ["i18n"] },
+  { path: "packages/i18n", rule: "Message catalogues + formatters", deps: [] },
+  { path: "packages/sdk-js", rule: "Generated public API client", deps: ["openapi"] },
+];
+export const BOUNDARY_RULES = [
+  { rule: "domain, availability and ledger carry zero framework or I/O dependencies", why: "pure cores are unit-tested exhaustively and survive any app rewrite" },
+  { rule: "web-guest never imports tenant-app code and never shares an origin with it", why: "tenant content under tenant DNS stays isolated from the app origin" },
+  { rule: "Adapters may depend only on the SDK + normalised domain — never application services", why: "a new OTA never forces a core-service change; CI certification gates it" },
+  { rule: "Start with fewer services than you think you need", why: "these boundaries are the ones that genuinely differ in scaling and failure profile" },
+];
+
+// ── Technical reference · Core data model ─────────────────────────────────
+export const SCHEMA_GROUPS: { group: string; rls: boolean; tables: [string, string][] }[] = [
+  { group: "Tenancy", rls: true, tables: [["tenants", "slug · region · base_currency · status · plan_version_id · purged_at"], ["users", "email(unique) · mfa_enabled · last_login_at"], ["memberships", "tenant_id · role · scope_property_ids[]"], ["staff_users", "internal — separate table · sso_subject"]] },
+  { group: "Property & rates", rls: true, tables: [["properties", "timezone · currency · licence_number · parent_property_id · content_score"], ["unit_types", "occupancy_max · count_of_units"], ["units", "physical · hotel-style"], ["rate_plans", "derivation(jsonb) · cancellation_policy_id"], ["seasons", "date_ranges[] · priority"]] },
+  { group: "Availability", rls: true, tables: [["availability", "PK (unit_type_id, date) · units_available / units_total"], ["rates", "PK (rate_plan_id, date) · amount_minor · los_overrides"], ["restrictions", "min_stay · cta · ctd · stop_sell"], ["blocks", "date_range · reason(enum) · created_by"]] },
+  { group: "Reservations", rls: true, tables: [["reservations", "nights · total_minor · balance_minor · policy_snapshot · raw_payload_id"], ["reservation_nights", "UNIQUE (unit_type_id, unit_id, date) WHERE confirmed"], ["reservation_lines", "kind · unit_amount_minor · collected_by(host|channel|platform)"]] },
+  { group: "Guests", rls: true, tables: [["guests", "emails[] · phones[] · marketing_consent · merged_into_id"], ["guest_documents", "field-encrypted blob ref · expires_on"]] },
+  { group: "Messaging", rls: true, tables: [["conversations", "autopilot_mode · unread_count · assignee"], ["messages", "sent_by(guest|staff|ai|system) · ai_generation_id · delivery_state"]] },
+  { group: "Channels", rls: true, tables: [["channel_connections", "credential_ref · capabilities · structure(hotel|unit)"], ["channel_mappings", "state · confidence"], ["sync_jobs", "payload_hash · idempotency_key · attempt"], ["provider_payloads", "body_redacted · retention-limited — the key support artefact"]] },
+  { group: "Operations", rls: true, tables: [["tasks", "template_version · due_at_local + due_at_utc · photos[] · time_entries[]"], ["task_templates", "version · trigger · lead_time · specialty"], ["providers", "specialty[] · rate_card · has_app_access"], ["expenses", "category · receipt_ref · billable_to"], ["automations", "trigger · conditions · actions"], ["message_templates", "version · variables_schema · schedule"]] },
+  { group: "Guest experience", rls: true, tables: [["guidebooks", "slug · theme · locales · published_at"], ["store_items", "availability_rules · fulfilment"], ["store_orders", "payment_state · fulfilment_state"], ["websites", "custom_domain · domain_state"], ["quotes", "public_token · expires_at"], ["reviews", "subratings · sentiment · responded_at"]] },
+  { group: "Money", rls: true, tables: [["ledger_accounts", "code · type · currency"], ["journal_entries", "source · reversal_of_id"], ["journal_lines", "debit_minor · credit_minor · fx_rate + fx_rate_at · CHECK balanced"], ["payouts", "statement(jsonb) · state"]] },
+  { group: "Platform", rls: true, tables: [["usage_events", "append-only metering stream"], ["subscriptions", "plan_version_id · trial_ends_at"], ["audit_log", "append-only · before/after(jsonb) · ip"], ["ai_generations", "prompt_version · context_refs · verdict · cost_minor"]] },
+];
+export const DB_INVARIANTS = [
+  { invariant: "No double-selling — ever", mechanism: "UNIQUE (unit_type_id, unit_id, date) WHERE status = 'confirmed'", protects: "the race loser gets a clean “no longer available”, never a 500" },
+  { invariant: "Books always balance", mechanism: "CHECK sum(debit) = sum(credit) per journal entry", protects: "the ledger can never disagree with itself" },
+  { invariant: "Half-open night intervals", mechanism: "CHECK check_out_date > check_in_date", protects: "zero-night and inverted stays rejected at the database" },
+  { invariant: "Acyclic multi-unit trees", mechanism: "exclusion trigger on parent_property_id", protects: "parent/child inventory can never loop" },
+  { invariant: "Cross-tenant references structurally impossible", mechanism: "every FK includes tenant_id in composite form", protects: "isolation enforced below the application layer" },
+];
+export const SCHEMA_CONVENTIONS = ["tenant_id on every tenant-scoped table + RLS", "timestamps stored UTC — local semantics derived from property timezone", "money = integer minor units + ISO-4217 code — never floats"];
+
+// ── Technical reference · State machines ──────────────────────────────────
+export interface MachineTransition { from: string; to: string; actor: string; effect?: string; }
+export interface StateMachine { id: string; name: string; note: string; states: { name: string; kind: "initial" | "normal" | "terminal" | "alert" }[]; transitions: MachineTransition[]; }
+export const STATE_MACHINES: StateMachine[] = [
+  {
+    id: "reservation", name: "Reservation", note: "modified is a versioned amendment, not a state · only confirmed, in_stay and checked_out consume inventory",
+    states: [{ name: "inquiry", kind: "initial" }, { name: "pending", kind: "normal" }, { name: "confirmed", kind: "normal" }, { name: "in_stay", kind: "normal" }, { name: "checked_out", kind: "normal" }, { name: "closed", kind: "terminal" }, { name: "cancelled", kind: "alert" }, { name: "no_show", kind: "alert" }],
+    transitions: [
+      { from: "inquiry", to: "pending", actor: "guest / staff", effect: "quote accepted · hold placed" },
+      { from: "pending", to: "confirmed", actor: "system / staff", effect: "deposit rules met · inventory consumed" },
+      { from: "confirmed", to: "in_stay", actor: "staff / automation", effect: "check-in · access codes live" },
+      { from: "in_stay", to: "checked_out", actor: "staff / automation", effect: "checkout cleaning task fires" },
+      { from: "checked_out", to: "closed", actor: "system", effect: "ledger posted · owner statement line final" },
+      { from: "pending", to: "cancelled", actor: "guest / staff / channel", effect: "inventory released" },
+      { from: "confirmed", to: "cancelled", actor: "guest / staff / channel", effect: "policy-driven refund arithmetic" },
+      { from: "in_stay", to: "cancelled", actor: "staff", effect: "mid-stay — relocation workflow" },
+      { from: "pending", to: "no_show", actor: "staff", effect: "inventory released" },
+      { from: "confirmed", to: "no_show", actor: "staff", effect: "policy charged per terms" },
+    ],
+  },
+  {
+    id: "payment", name: "Payment", note: "independent of reservation status — both states must always be displayed together",
+    states: [{ name: "unpaid", kind: "initial" }, { name: "authorised", kind: "normal" }, { name: "partially_paid", kind: "normal" }, { name: "paid", kind: "normal" }, { name: "refunded", kind: "terminal" }, { name: "partially_refunded", kind: "terminal" }, { name: "disputed", kind: "alert" }, { name: "resolved", kind: "terminal" }],
+    transitions: [
+      { from: "unpaid", to: "authorised", actor: "gateway", effect: "hold placed" },
+      { from: "authorised", to: "partially_paid", actor: "gateway", effect: "deposit captured" },
+      { from: "authorised", to: "paid", actor: "gateway", effect: "full capture" },
+      { from: "partially_paid", to: "paid", actor: "gateway", effect: "balance captured" },
+      { from: "paid", to: "refunded", actor: "finance / staff", effect: "reversing journal entries posted" },
+      { from: "paid", to: "partially_refunded", actor: "finance / staff", effect: "partial reversal" },
+      { from: "paid", to: "disputed", actor: "gateway", effect: "chargeback — funds frozen, case opened" },
+      { from: "disputed", to: "resolved", actor: "finance", effect: "evidence sent / loss absorbed" },
+    ],
+  },
+  {
+    id: "connection", name: "Channel connection", note: "degraded means live-but-failing and must be visible to tenant and operator — a connection may never sit in degraded silently",
+    states: [{ name: "draft", kind: "initial" }, { name: "credentials_pending", kind: "normal" }, { name: "mapping_required", kind: "normal" }, { name: "syncing", kind: "normal" }, { name: "live", kind: "normal" }, { name: "degraded", kind: "alert" }, { name: "suspended", kind: "alert" }, { name: "disconnected", kind: "terminal" }],
+    transitions: [
+      { from: "draft", to: "credentials_pending", actor: "operator", effect: "wizard step 2 started" },
+      { from: "credentials_pending", to: "mapping_required", actor: "system", effect: "auth OK — rooms/listings unmapped" },
+      { from: "mapping_required", to: "syncing", actor: "operator", effect: "maps approved · first push queued" },
+      { from: "syncing", to: "live", actor: "system", effect: "round-trip green" },
+      { from: "live", to: "degraded", actor: "monitor", effect: "failure threshold crossed — alert + tenant banner" },
+      { from: "degraded", to: "live", actor: "system", effect: "recovered · full re-push" },
+      { from: "degraded", to: "suspended", actor: "operator / tenant", effect: "pushes paused" },
+      { from: "live", to: "suspended", actor: "operator / tenant", effect: "pushes paused" },
+      { from: "suspended", to: "syncing", actor: "operator", effect: "resume · full state re-push" },
+      { from: "suspended", to: "disconnected", actor: "operator", effect: "credentials revoked from vault" },
+    ],
+  },
+  {
+    id: "sync_job", name: "Sync job", note: "an idempotency key is required to enter running — killing a worker mid-push duplicates nothing",
+    states: [{ name: "queued", kind: "initial" }, { name: "running", kind: "normal" }, { name: "succeeded", kind: "terminal" }, { name: "failed", kind: "alert" }, { name: "retry_scheduled", kind: "normal" }, { name: "dead_letter", kind: "alert" }],
+    transitions: [
+      { from: "queued", to: "running", actor: "worker", effect: "idempotency key claimed" },
+      { from: "running", to: "succeeded", actor: "worker", effect: "provider ack stored" },
+      { from: "running", to: "failed", actor: "worker / timeout", effect: "error taxonomy classified" },
+      { from: "failed", to: "retry_scheduled", actor: "scheduler", effect: "exp backoff + jitter" },
+      { from: "retry_scheduled", to: "running", actor: "worker", effect: "same idempotency key" },
+      { from: "failed", to: "dead_letter", actor: "scheduler", effect: "attempt cap — operator queue + alert" },
+    ],
+  },
+  {
+    id: "task", name: "Task", note: "blocked and cancelled are states · template_mismatch is a flag, cleared by re-applying the current template version",
+    states: [{ name: "scheduled", kind: "initial" }, { name: "assigned", kind: "normal" }, { name: "accepted", kind: "normal" }, { name: "in_progress", kind: "normal" }, { name: "completed", kind: "normal" }, { name: "verified", kind: "terminal" }, { name: "blocked", kind: "alert" }, { name: "cancelled", kind: "terminal" }],
+    transitions: [
+      { from: "scheduled", to: "assigned", actor: "automation / staff", effect: "round-robin by workload" },
+      { from: "assigned", to: "accepted", actor: "staff app", effect: "offline-capable ack" },
+      { from: "accepted", to: "in_progress", actor: "staff", effect: "first checklist tick" },
+      { from: "in_progress", to: "completed", actor: "staff", effect: "all items + required photos" },
+      { from: "completed", to: "verified", actor: "manager", effect: "sign-off · expense link allowed" },
+      { from: "assigned", to: "blocked", actor: "staff / provider", effect: "reassignment alert to both assignees" },
+      { from: "blocked", to: "assigned", actor: "staff", effect: "unblocked · re-round-robin" },
+      { from: "scheduled", to: "cancelled", actor: "staff", effect: "linked reservation cancelled" },
+    ],
+  },
+  {
+    id: "tenant", name: "Tenant", note: "suspended still serves inbound reservations and live guest surfaces for the grace period — a billing problem never becomes a guest-experience incident",
+    states: [{ name: "trialing", kind: "initial" }, { name: "active", kind: "normal" }, { name: "past_due", kind: "alert" }, { name: "suspended", kind: "alert" }, { name: "cancelled", kind: "terminal" }, { name: "purged", kind: "terminal" }],
+    transitions: [
+      { from: "trialing", to: "active", actor: "billing", effect: "payment method added" },
+      { from: "active", to: "past_due", actor: "billing", effect: "charge failed · dunning sequence starts" },
+      { from: "past_due", to: "active", actor: "billing", effect: "self-serve recovery" },
+      { from: "past_due", to: "suspended", actor: "billing", effect: "grace period — guest surfaces stay up" },
+      { from: "suspended", to: "active", actor: "billing", effect: "payment recovered · full restore" },
+      { from: "suspended", to: "cancelled", actor: "billing / operator", effect: "export generated · retention window opens" },
+      { from: "cancelled", to: "purged", actor: "system", effect: "verified hard-delete across all stores" },
+    ],
+  },
+  {
+    id: "conversation", name: "Conversation", note: "escalated is created only by the AI guardrail or a staff action — never auto-cleared",
+    states: [{ name: "open", kind: "initial" }, { name: "awaiting_guest", kind: "normal" }, { name: "awaiting_staff", kind: "normal" }, { name: "escalated", kind: "alert" }, { name: "resolved", kind: "terminal" }],
+    transitions: [
+      { from: "open", to: "awaiting_guest", actor: "staff / AI", effect: "first reply sent" },
+      { from: "awaiting_guest", to: "awaiting_staff", actor: "guest", effect: "reply received · unread++" },
+      { from: "awaiting_staff", to: "awaiting_guest", actor: "staff / AI", effect: "reply sent" },
+      { from: "awaiting_staff", to: "escalated", actor: "AI guardrail / staff", effect: "keywords, sentiment or payment topic" },
+      { from: "escalated", to: "awaiting_staff", actor: "staff", effect: "human takes over · audit entry" },
+      { from: "awaiting_guest", to: "resolved", actor: "system / staff", effect: "post-stay auto-close" },
+      { from: "escalated", to: "resolved", actor: "staff", effect: "outcome recorded as training signal" },
+    ],
+  },
+  {
+    id: "domain", name: "Custom domain", note: "tenant content on tenant DNS — hosted isolated from the app origin entirely",
+    states: [{ name: "unverified", kind: "initial" }, { name: "dns_pending", kind: "normal" }, { name: "verifying", kind: "normal" }, { name: "issued", kind: "normal" }, { name: "active", kind: "terminal" }, { name: "renewal_failed", kind: "alert" }],
+    transitions: [
+      { from: "unverified", to: "dns_pending", actor: "tenant", effect: "CNAME instructions issued" },
+      { from: "dns_pending", to: "verifying", actor: "system", effect: "DNS observed · cert ordered" },
+      { from: "verifying", to: "issued", actor: "system", effect: "certificate issued" },
+      { from: "issued", to: "active", actor: "system", effect: "TLS live · site served" },
+      { from: "active", to: "renewal_failed", actor: "system", effect: "alert · 14-day grace" },
+      { from: "renewal_failed", to: "active", actor: "system", effect: "renewed" },
+    ],
+  },
+];
+
+// ── Technical reference · Availability & pricing resolution ───────────────
+export const RESOLUTION_STEPS = [
+  { n: 1, name: "Inventory", detail: "units_total − confirmed reservations − blocks · parent/child share inventory · closing a parent closes children", tables: "availability · blocks · reservation_nights" },
+  { n: 2, name: "Base rate", detail: "rate-plan calendar value for the date, else season rule, else plan default · derived plans compute from parent with floor/ceiling", tables: "rates · seasons · rate_plans" },
+  { n: 3, name: "LOS & occupancy", detail: "length-of-stay pricing tables and extra-guest fees", tables: "rates.los_overrides · rate_plans" },
+  { n: 4, name: "Restrictions", detail: "stop_sell · min/max stay against the whole stay · CTA first night · CTD last night · never silently softens — a Reason per failure", tables: "restrictions" },
+  { n: 5, name: "Channel constraints", detail: "capability-matrix filtering — a channel that can't express a restriction gets a conservative equivalent — plus parity rules", tables: "channel_connections.capabilities" },
+  { n: 6, name: "Fees & taxes", detail: "ordered application · per stay / night / guest / percentage · each flagged collected_by", tables: "reservation_lines" },
+  { n: 7, name: "Discounts & promos", detail: "applied last · stacking rules explicit", tables: "reservation_lines(kind=discount)" },
+];
+export const RESOLVER_CHANNELS: Record<string, { caps: { cta: boolean; ctd: boolean; minStay: boolean }; note: string }> = {
+  direct: { caps: { cta: true, ctd: true, minStay: true }, note: "full restriction fidelity" },
+  airbnb: { caps: { cta: true, ctd: true, minStay: true }, note: "full restriction fidelity" },
+  booking: { caps: { cta: true, ctd: true, minStay: true }, note: "full restriction fidelity" },
+  agoda: { caps: { cta: true, ctd: false, minStay: true }, note: "no CTD — conservative equivalent applied" },
+  traveloka: { caps: { cta: false, ctd: false, minStay: false }, note: "min-stay expressed via rate-plan only" },
+};
+export const CONCURRENCY_RULES = [
+  { rule: "Booking is a serialisable transaction", detail: "inserts reservation_nights rows and lets the unique index reject the loser — which then re-resolves and returns a clean “no longer available”" },
+  { rule: "Bulk edits take an advisory lock per unit-type", detail: "serialises writers, then coalesces into a minimal change set before enqueueing channel pushes — 20×30 becomes one batch, not 600 calls" },
+];
+
 export interface AuditEvent { id: string; ts: number; actor: string; action: string; target: string; severity: "info" | "sensitive" | "destructive"; }
 export const AUDIT_STREAM: AuditEvent[] = [
   { id: "a1", ts: now - 4 * 60_000, actor: "mira@trellis", action: "read tenant snapshot", target: "Kite & Palm Co.", severity: "info" },

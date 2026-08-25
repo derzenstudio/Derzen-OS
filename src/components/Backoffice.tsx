@@ -8,6 +8,7 @@ import { OpsDashboard, TenantsView, CommercialsView } from "../modules/bo/Sectio
 import { EntitlementsView, IntegrationsView, MessagingView } from "../modules/bo/Sections2";
 import { AIPlatformView, DataPlatformView, SupportView } from "../modules/bo/Sections3";
 import { EngineeringView, SecurityView, EcosystemView, AccessView } from "../modules/bo/Sections4";
+import { ArchitectureView, SchemaView, StateMachinesView, ResolverView } from "../modules/bo/Sections6";
 
 // ── Internal audit context (append-only, staff cannot mutate) ─────────────
 interface AuditCtx {
@@ -19,7 +20,8 @@ export const useAudit = () => useContext(AuditContext);
 
 export type BoSection =
   | "ops" | "tenants" | "commercials" | "entitlements" | "integrations"
-  | "messaging" | "ai" | "data" | "support" | "engineering" | "security" | "ecosystem" | "access";
+  | "messaging" | "ai" | "data" | "support" | "engineering" | "security" | "ecosystem" | "access"
+  | "topology" | "schema" | "machines" | "resolver";
 
 const NAV: { group: string; items: { id: BoSection; label: string; icon: IconName }[] }[] = [
   { group: "Operate", items: [
@@ -45,6 +47,12 @@ const NAV: { group: string; items: { id: BoSection; label: string; icon: IconNam
     { id: "ecosystem", label: "Developer ecosystem", icon: "code" },
     { id: "access", label: "Internal access", icon: "key" },
   ]},
+  { group: "Technical reference", items: [
+    { id: "topology", label: "Service topology", icon: "map" },
+    { id: "schema", label: "Data model & invariants", icon: "book" },
+    { id: "machines", label: "State machines", icon: "refresh" },
+    { id: "resolver", label: "Availability resolver", icon: "calc" },
+  ]},
 ];
 
 const TITLES: Record<BoSection, { title: string; sub: string }> = {
@@ -61,6 +69,10 @@ const TITLES: Record<BoSection, { title: string; sub: string }> = {
   security: { title: "Security & compliance", sub: "Threat model, controls, payments scope, compliance, abuse" },
   ecosystem: { title: "Developer ecosystem", sub: "Public API, OAuth, webhooks, SDKs, marketplace, release train" },
   access: { title: "Internal access control", sub: "Staff roles, separation of duties, and the immutable audit stream" },
+  topology: { title: "Service & repo topology", sub: "Independently deployable services · pure-core packages · CI-enforced boundaries" },
+  schema: { title: "Core data model", sub: "40 tenant-scoped tables · conventions · invariants enforced in the database" },
+  machines: { title: "State machines", sub: "Explicit transition tables — undefined transitions are rejected loudly" },
+  resolver: { title: "Availability resolver", sub: "resolve() — the pure function at the heart of the product, running live" },
 };
 
 export function Backoffice() {
@@ -175,6 +187,10 @@ export function Backoffice() {
             {section === "security" && <SecurityView />}
             {section === "ecosystem" && <EcosystemView />}
             {section === "access" && <AccessView />}
+            {section === "topology" && <ArchitectureView />}
+            {section === "schema" && <SchemaView />}
+            {section === "machines" && <StateMachinesView />}
+            {section === "resolver" && <ResolverView />}
           </div>
         </main>
       </div>

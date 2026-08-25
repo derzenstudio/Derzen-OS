@@ -4,6 +4,7 @@ import { Ic, type IconName } from "../components/icons";
 import { Badge, Btn, Dot, Field, Input, Modal, Select, Tabs, Toggle } from "../components/ui";
 import { useApp } from "../store";
 import { WORKSPACE } from "../lib/data";
+import { EVENT_CATALOGUE, API_CONVENTIONS } from "../lib/reference";
 
 export default function Integrations() {
   const [tab, setTab] = useState("apps");
@@ -121,13 +122,41 @@ function Webhooks() {
         footer={<><Btn variant="ghost" onClick={() => setAddOpen(false)}>Cancel</Btn><Btn variant="solid" icon="webhook" onClick={() => { setAddOpen(false); toast("ok", "Endpoint registered", "Signing secret generated — a test delivery is on its way."); }}>Register</Btn></>}>
         <div className="space-y-3">
           <Field label="HTTPS URL"><Input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://yourapp.com/hooks/trellis" /></Field>
-          <Field label="Events">
-            <div className="flex flex-wrap gap-1.5">
-              {["reservation.created", "reservation.modified", "reservation.cancelled", "payment.received", "message.received", "review.created"].map((e) => <Badge key={e} tone="info">{e}</Badge>)}
-            </div>
+          <Field label="Events — from the versioned catalogue" hint="subscription filtering · at-least-once delivery · HMAC-signed">
+            <EventPicker />
           </Field>
         </div>
       </Modal>
+    </div>
+  );
+}
+
+function EventPicker() {
+  const [subs, setSubs] = useState<Set<string>>(() => new Set(["reservation.created", "reservation.modified", "reservation.cancelled", "payment.captured", "review.received"]));
+  const toggle = (name: string) => {
+    const next = new Set(subs);
+    if (next.has(name)) next.delete(name); else next.add(name);
+    setSubs(next);
+  };
+  return (
+    <div className="max-h-[220px] space-y-2 overflow-y-auto rounded-md border border-line bg-paper/50 p-2.5">
+      {EVENT_CATALOGUE.map((g) => (
+        <div key={g.resource}>
+          <p className="mb-1 font-mono text-[9.5px] font-bold uppercase tracking-widest text-faint">{g.resource}</p>
+          <div className="flex flex-wrap gap-1">
+            {g.events.map((e) => {
+              const on = subs.has(e.name);
+              return (
+                <button key={e.name} type="button" onClick={() => toggle(e.name)} aria-pressed={on}
+                  className={cx("rounded border px-1.5 py-0.5 font-mono text-[9.5px] font-semibold transition-colors", on ? "border-brand bg-brand-soft text-brand-deep" : "border-line bg-card text-mute hover:border-line2")}>
+                  {on ? "✓ " : ""}{e.name}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ))}
+      <p className="pt-1 font-mono text-[9.5px] font-bold text-mute">{subs.size} subscribed · naming is resource.past_tense · versions are additive-only</p>
     </div>
   );
 }
@@ -154,7 +183,12 @@ function Api() {
             <p className="mt-1 text-[10.5px] font-semibold text-mute">scopes: {k.scopes} · tenant rate limit 120 req/min</p>
           </div>
         ))}
-        <p className="mt-2 rounded-md bg-paper px-3 py-2 text-[10.5px] text-mute">Cursor pagination on all lists · idempotency keys required on writes · OpenAPI + GraphQL introspection published per tenant.</p>
+        <div className="mt-2 space-y-1 rounded-md bg-paper px-3 py-2">
+          {API_CONVENTIONS.slice(0, 4).map((c) => (
+            <p key={c.rule} className="flex items-baseline gap-2 text-[10.5px]"><code className="shrink-0 font-mono font-bold text-brand-deep">{c.rule}</code><span className="text-mute">{c.detail}</span></p>
+          ))}
+          <p className="pt-1 font-mono text-[9.5px] text-faint">OpenAPI generated from the implementation — never maintained by hand</p>
+        </div>
       </div>
       <div className="rounded-xl border border-line bg-card p-4">
         <h3 className="mb-2 font-display text-[13.5px] font-bold text-ink">Try it</h3>

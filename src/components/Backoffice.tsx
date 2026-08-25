@@ -8,6 +8,10 @@ import { OpsDashboard, TenantsView, CommercialsView } from "../modules/bo/Sectio
 import { EntitlementsView, IntegrationsView, MessagingView } from "../modules/bo/Sections2";
 import { AIPlatformView, DataPlatformView, SupportView } from "../modules/bo/Sections3";
 import { EngineeringView, SecurityView, EcosystemView, AccessView } from "../modules/bo/Sections4";
+import {
+  AdapterView, EventsView, ApiReferenceView, PermissionsView, AiTasksView,
+  JobsView, ConfigSecretsView, CalculationsView, ChecklistView,
+} from "../modules/bo/Sections7";
 import { ArchitectureView, SchemaView, StateMachinesView, ResolverView } from "../modules/bo/Sections6";
 
 // ── Internal audit context (append-only, staff cannot mutate) ─────────────
@@ -21,7 +25,8 @@ export const useAudit = () => useContext(AuditContext);
 export type BoSection =
   | "ops" | "tenants" | "commercials" | "entitlements" | "integrations"
   | "messaging" | "ai" | "data" | "support" | "engineering" | "security" | "ecosystem" | "access"
-  | "topology" | "schema" | "machines" | "resolver";
+  | "topology" | "schema" | "machines" | "resolver"
+  | "adapter" | "events" | "api" | "permissions" | "aitasks" | "jobs" | "config" | "calcs" | "checklist";
 
 const NAV: { group: string; items: { id: BoSection; label: string; icon: IconName }[] }[] = [
   { group: "Operate", items: [
@@ -53,6 +58,19 @@ const NAV: { group: string; items: { id: BoSection; label: string; icon: IconNam
     { id: "machines", label: "State machines", icon: "refresh" },
     { id: "resolver", label: "Availability resolver", icon: "calc" },
   ]},
+  { group: "Contracts", items: [
+    { id: "adapter", label: "Adapter contract", icon: "plug" },
+    { id: "events", label: "Event catalogue", icon: "send" },
+    { id: "api", label: "Public API", icon: "code" },
+    { id: "permissions", label: "Permission matrix", icon: "shield" },
+  ]},
+  { group: "Runtime & math", items: [
+    { id: "aitasks", label: "AI task inventory", icon: "sparkle" },
+    { id: "jobs", label: "Job inventory", icon: "terminal" },
+    { id: "config", label: "Config & secrets", icon: "lock" },
+    { id: "calcs", label: "Derived calculations", icon: "chart" },
+    { id: "checklist", label: "Ready-to-code", icon: "checkCircle" },
+  ]},
 ];
 
 const TITLES: Record<BoSection, { title: string; sub: string }> = {
@@ -73,6 +91,15 @@ const TITLES: Record<BoSection, { title: string; sub: string }> = {
   schema: { title: "Core data model", sub: "40 tenant-scoped tables · conventions · invariants enforced in the database" },
   machines: { title: "State machines", sub: "Explicit transition tables — undefined transitions are rejected loudly" },
   resolver: { title: "Availability resolver", sub: "resolve() — the pure function at the heart of the product, running live" },
+  adapter: { title: "Channel adapter contract", sub: "One interface every OTA sits behind · capability flags · error taxonomy" },
+  events: { title: "Event catalogue & envelope", sub: "Transactional outbox · resource.past_tense · additive versions" },
+  api: { title: "Public API surface", sub: "/v1 conventions · route inventory · the separate guest surface" },
+  permissions: { title: "Role & permission matrix", sub: "resource:action triples · sealed classes · CI-asserted fixture" },
+  aitasks: { title: "AI task inventory", sub: "Registered tasks with fixed contracts · guardrails · kill switches" },
+  jobs: { title: "Background job inventory", sub: "Cadence, idempotency and priority for every job on the platform" },
+  config: { title: "Configuration & secrets", sub: "Config by environment · KMS-backed secrets with rotation" },
+  calcs: { title: "Derived calculations", sub: "Meter, owner statement, occupancy math and task generation — live" },
+  checklist: { title: "Ready-to-code checklist", sub: "The artefacts that must exist before implementation starts" },
 };
 
 export function Backoffice() {
@@ -191,6 +218,15 @@ export function Backoffice() {
             {section === "schema" && <SchemaView />}
             {section === "machines" && <StateMachinesView />}
             {section === "resolver" && <ResolverView />}
+            {section === "adapter" && <AdapterView />}
+            {section === "events" && <EventsView />}
+            {section === "api" && <ApiReferenceView />}
+            {section === "permissions" && <PermissionsView />}
+            {section === "aitasks" && <AiTasksView />}
+            {section === "jobs" && <JobsView />}
+            {section === "config" && <ConfigSecretsView />}
+            {section === "calcs" && <CalculationsView />}
+            {section === "checklist" && <ChecklistView />}
           </div>
         </main>
       </div>

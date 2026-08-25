@@ -86,6 +86,9 @@ export default function Reports() {
                   <p className="mt-1 text-[11px] text-mute">{nightsBooked} of {nightsAvailable} nights booked</p>
                 </div>
               </div>
+              <p className="rounded-md border border-line bg-paper px-3 py-2 text-[10px] leading-snug text-mute" title="Every operator computes occupancy differently — we publish ours so you can check our math">
+                <b className="text-ink">How we count:</b> available unit-nights <b>exclude</b> owner & maintenance blocks and <b>include</b> channel stop-sells. Same denominator in ADR, RevPAR and owner statements.
+              </p>
               <div className="rounded-lg bg-gold-soft/60 px-3 py-2">
                 <p className="text-[10.5px] font-bold uppercase text-[#8a5c07]">AR outstanding</p>
                 <p className="font-mono text-[16px] font-bold text-ink">{money(arOutstanding.reduce((s, r) => s + Math.round((r.total - Math.max(0, r.payments.reduce((a, p) => a + p.amount, 0))) * r.fxRate), 0), "EUR")} <span className="text-[10.5px] text-mute">· {arOutstanding.length} reservations</span></p>

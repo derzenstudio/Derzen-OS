@@ -285,13 +285,17 @@ function PriceCard({ name, price, per, units, feats, cta, featured, badge }: { n
 
 // ── Login ──────────────────────────────────────────────────────────────────
 export function LoginPage() {
-  const { navigate, loginTenant, loginDeveloper } = useApp();
+  const { navigate, loginTenant, loginDeveloper, route } = useApp();
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [mode, setMode] = useState<"tenant" | "developer">("tenant");
+  // ?mode=developer (sent by dev.* subdomains) opens the Developer tab
+  const [mode, setMode] = useState<"tenant" | "developer">(route.query.get("mode") === "developer" ? "developer" : "tenant");
+  useEffect(() => {
+    if (route.query.get("mode") === "developer") setMode("developer");
+  }, [route.query]);
   const formRef = useRef<HTMLFormElement>(null);
 
   const submit = (e?: React.FormEvent) => {

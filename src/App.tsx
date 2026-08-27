@@ -75,11 +75,28 @@ export default function App() {
   const theme = useApp((s) => s.theme);
 
   useEffect(() => {
-    const onHash = () => useApp.setState({ route: parseHashSafe() });
-    window.addEventListener("hashchange", onHash);
-    if (!window.location.hash) window.location.hash = "/en";
+    // The /dev surface is guarded: anyone without a developer session is sent
+    // to the login screen's Developer tab — never the marketing site.
+    const routeForHash = () => {
+      const r = parseHashSafe();
+      if (r.path[0] === "dev" && useApp.getState().session?.kind !== "developer") {
+        window.location.hash = `/${r.locale}/login?mode=developer`;
+        return;
+      }
+      useApp.setState({ route: r });
+    };
+    window.addEventListener("hashchange", routeForHash);
+    if (!window.location.hash) {
+      // Hostname-aware boot: a dev.* subdomain (e.g. dev.alvianpermana.art)
+      // lands directly on the developer console; app.* / apex land on the site.
+      const host = window.location.hostname.toLowerCase();
+      const isDevHost = host === "dev" || host.startsWith("dev.") || /(^|\.)dev\./.test(host);
+      window.location.hash = isDevHost ? "/en/dev" : "/en";
+    } else {
+      routeForHash();
+    }
     void refreshFx(); // best-effort live rates; falls back to the dated snapshot
-    return () => window.removeEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", routeForHash);
   }, []);
 
   // apply theme attribute (light/dark) — tokens re-value under [data-theme="dark"]

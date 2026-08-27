@@ -249,7 +249,7 @@ export function Backoffice() {
             {section === "providers" && <ProvidersView />}
             {section === "runbooks" && <RunbooksView />}
             {section === "slos" && <SlosView />}
-            {section === "golive" && <GoLiveView />}
+            {section === "golive" && <GoLiveView go={(s) => setSection(s as BoSection)} />}
             {section === "metrics" && <MetricsView />}
             {section === "team" && <TeamView />}
           </div>

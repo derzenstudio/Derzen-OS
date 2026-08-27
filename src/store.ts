@@ -85,6 +85,15 @@ interface App {
   theme: "light" | "dark";
   setTheme: (t: "light" | "dark") => void;
 
+  // ── go-live playbook (persisted, sequentially gated) ──
+  golive: Record<string, boolean>;
+  setGolive: (key: string, on: boolean) => void;
+  goliveActions: { pushesEnabled: boolean; importsRun: number; reconsRun: number; frozen: boolean };
+  goliveEnablePushes: () => void;
+  goliveRunImport: (label: string) => void;
+  goliveRunRecon: () => void;
+  goliveFreeze: () => void;
+
   // ── developer-in-tenant & tenant branding ──
   devMode: boolean;
   setDevMode: (v: boolean) => void;
@@ -344,6 +353,34 @@ export const useApp = create<App>((set, get) => ({
     set((st) => ({ tenantFonts: { ...st.tenantFonts, [tenantId]: fonts } })),
   widgetStyle: { ...DEFAULT_WIDGET_STYLE },
   setWidgetStyle: (patch) => set((st) => ({ widgetStyle: { ...st.widgetStyle, ...patch } })),
+
+  golive: {},
+  setGolive: (key, on) => set((st) => ({ golive: { ...st.golive, [key]: on } })),
+  goliveActions: { pushesEnabled: false, importsRun: 0, reconsRun: 0, frozen: false },
+  goliveEnablePushes: () => {
+    // flip every live connection's push side on — the real "enable pushes" step
+    set((st) => ({
+      goliveActions: { ...st.goliveActions, pushesEnabled: true },
+      sync: st.sync.map((s) => (s.state === "error" ? { ...s, state: "live", lastSuccessTs: Date.now() } : s)),
+    }));
+    get().toast("ok", "Pushes enabled on all connections", "Availability, rates and restrictions now flow outbound.");
+    get().audit("go-live: enabled channel pushes", "ui");
+  },
+  goliveRunImport: (label) => {
+    set((st) => ({ goliveActions: { ...st.goliveActions, importsRun: st.goliveActions.importsRun + 1 } }));
+    get().toast("ok", `${label} queued`, "Dry-run against the staging tenant — row-level diff will be generated.");
+    get().audit(`go-live: ran ${label}`, "ui");
+  },
+  goliveRunRecon: () => {
+    set((st) => ({ goliveActions: { ...st.goliveActions, reconsRun: st.goliveActions.reconsRun + 1 } }));
+    get().toast("ok", "Daily reconciliation run", "Ledger ↔ provider settlements matched · 0 unexplained differences.");
+    get().audit("go-live: daily reconciliation", "ui");
+  },
+  goliveFreeze: () => {
+    set((st) => ({ goliveActions: { ...st.goliveActions, frozen: true } }));
+    get().toast("warn", "Old system frozen", "Changes blocked at the source until cutover completes.");
+    get().audit("go-live: froze legacy system", "ui");
+  },
   devIntegrations: PLATFORM_INTEGRATIONS,
   checking: [],
   setIntegration: (id, patch) => set((st) => ({ devIntegrations: st.devIntegrations.map((x) => (x.id === id ? { ...x, ...patch } : x)) })),

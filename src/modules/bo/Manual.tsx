@@ -3,6 +3,7 @@ import { cx, timeAgo } from "../../lib/format";
 import { Ic, type IconName } from "../../components/icons";
 import { Badge, Btn } from "../../components/ui";
 import { Card, Pill, Stat, useAudit } from "../../components/Backoffice";
+import { useApp } from "../../store";
 import {
   BUDGET_POLICY, GOLIVE_PHASES, GUARDRAIL_METRICS, INSPECT_SAMPLE, METRIC_DEFS, MIN_TEAM,
   PROVIDER_HEALTH, QUEUES, RISK_REGISTER, RUNBOOKS, SEVERITY_LADDER, SLOS, UNIT_ECONOMICS,
@@ -308,54 +309,163 @@ export function SlosView() {
   );
 }
 
-// ── 5.4 Go-live playbook ──────────────────────────────────────────────────
-export function GoLiveView() {
+// ── 5.4 Go-live playbook — operational, sequentially gated ───────────────
+// Which items carry a real action, keyed by "phase-item". Actions either run a
+// store mutation (enable pushes, run import/recon, freeze) or deep-link to the
+// surface where the work happens. Everything else is a manual confirmation.
+const GOLIVE_ACTION: Record<string, { label: string; kind: "run" | "open"; to?: string }> = {
+  "1-0": { label: "Run dry-run", kind: "run" },
+  "2-2": { label: "Open queue", kind: "open", to: "queues" },
+  "2-3": { label: "Enable now", kind: "run" },
+  "3-0": { label: "Freeze now", kind: "run" },
+  "3-1": { label: "Run import", kind: "run" },
+  "3-2": { label: "Enable now", kind: "run" },
+  "3-3": { label: "Open board", kind: "open", to: "ops" },
+  "4-1": { label: "Run recon", kind: "run" },
+  "4-3": { label: "Open metrics", kind: "open", to: "metrics" },
+};
+
+export function GoLiveView({ go }: { go: (section: string) => void }) {
   const { record } = useAudit();
-  const [done, setDone] = useState<Set<string>>(new Set());
-  const toggle = (k: string) => setDone((d) => { const n = new Set(d); if (n.has(k)) n.delete(k); else { n.add(k); } return n; });
+  const { golive, setGolive, goliveActions, goliveEnablePushes, goliveRunImport, goliveRunRecon, goliveFreeze } = useApp();
+  const [justRan, setJustRan] = useState<string | null>(null);
+
+  // Sequential gating: a phase unlocks only when every prior phase is complete.
+  const phaseComplete = (i: number) => GOLIVE_PHASES[i].items.every((_, j) => golive[`${i}-${j}`]);
+  const unlocked = (i: number) => i === 0 || phaseComplete(i - 1);
+
+  const total = GOLIVE_PHASES.reduce((s, p) => s + p.items.length, 0);
+  const doneCount = Object.values(golive).filter(Boolean).length;
+  const overall = Math.round((doneCount / total) * 100);
+  const constraintMet = !!golive["0-4"]; // hard cutover constraint acknowledged
+
+  const fire = (i: number, j: number, it: string) => {
+    const a = GOLIVE_ACTION[`${i}-${j}`];
+    if (!a) return;
+    setJustRan(`${i}-${j}`);
+    setTimeout(() => setJustRan(null), 900);
+    if (a.kind === "open") {
+      if (a.to) go(a.to);
+      return;
+    }
+    if (it.includes("Enable pushes")) goliveEnablePushes();
+    else if (it.toLowerCase().includes("delta import")) goliveRunImport("Final delta import");
+    else if (it.toLowerCase().includes("dry-run")) goliveRunImport("Dry-run import");
+    else if (it.toLowerCase().includes("reconciliation")) goliveRunRecon();
+    else if (it.toLowerCase().includes("freeze")) goliveFreeze();
+  };
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-5">
+      {/* Overall rail + the hard constraint */}
+      <section className={cx("rounded-xl border px-5 py-4", constraintMet ? "border-white/10 bg-[#0d0d0b]" : "border-[#e2a33c]/60 bg-[#2a2113]")}>
+        <div className="flex flex-wrap items-center gap-5">
+          <div className="min-w-0 flex-1">
+            <h3 className="font-display text-[15px] font-bold text-white">Migration progress</h3>
+            <p className="text-[11px] text-white/50">A signed customer only activates if this runs clean. Phases unlock in order — no skipping the cutover guard.</p>
+          </div>
+          <div className="w-full sm:w-[260px]">
+            <div className="mb-1 flex justify-between font-mono text-[10px] text-white/60"><span>{doneCount}/{total} steps</span><span>{overall}%</span></div>
+            <div className="h-2 overflow-hidden rounded-full bg-white/10">
+              <div className="h-full rounded-full bg-gradient-to-r from-brand-bright to-[#4CC38A] transition-all duration-500" style={{ width: `${overall}%` }} />
+            </div>
+          </div>
+          <div className={cx("flex items-center gap-2 rounded-lg border px-3 py-2", constraintMet ? "border-[#4CC38A]/40 bg-[#4CC38A]/10" : "border-[#e2a33c]/50 bg-[#e2a33c]/10")}>
+            <Ic name="shield" size={16} className={constraintMet ? "text-[#4CC38A]" : "text-[#e2a33c]"} />
+            <div>
+              <p className={cx("text-[11px] font-bold", constraintMet ? "text-[#4CC38A]" : "text-[#e2a33c]")}>{constraintMet ? "Cutover guard acknowledged" : "Cutover guard not acknowledged"}</p>
+              <p className="text-[9.5px] text-white/45">No lost or double-sold future bookings</p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Phase cards — sequential */}
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-5">
         {GOLIVE_PHASES.map((ph, i) => {
           const keys = ph.items.map((_, j) => `${i}-${j}`);
-          const n = keys.filter((k) => done.has(k)).length;
+          const n = keys.filter((k) => golive[k]).length;
           const complete = n === keys.length;
+          const isOpen = unlocked(i);
           return (
-            <div key={ph.phase} className={cx("rounded-xl border px-3.5 py-3.5", complete ? "border-[#4CC38A]/50 bg-[#4CC38A]/5" : "border-white/10 bg-[#0d0d0b]")}>
-              <div className="mb-2 flex items-center gap-2">
-                <span className={cx("flex h-6 w-6 items-center justify-center rounded-full font-mono text-[11px] font-bold", complete ? "bg-[#4CC38A] text-black" : "bg-brand text-white")}>{i + 1}</span>
-                <p className="font-display text-[13px] font-bold text-white">{ph.phase}</p>
+            <div key={ph.phase} className={cx("relative rounded-xl border px-3.5 py-3.5 transition-opacity", complete ? "border-[#4CC38A]/50 bg-[#4CC38A]/5" : "border-white/10 bg-[#0d0d0b]", !isOpen && "opacity-45")}>
+              {!isOpen && (
+                <span className="absolute right-3 top-3 flex items-center gap-1 rounded-full bg-white/5 px-2 py-0.5 font-mono text-[9px] font-bold text-white/50">
+                  <Ic name="lock" size={10} /> locked
+                </span>
+              )}
+              <div className="mb-2.5 flex items-center gap-2">
+                <span className={cx("flex h-6 w-6 items-center justify-center rounded-full font-mono text-[11px] font-bold", complete ? "bg-[#4CC38A] text-black" : "bg-brand text-white")}>
+                  {complete ? <Ic name="check" size={11} sw={3} /> : i + 1}
+                </span>
+                <p className="font-display text-[13px] font-bold leading-tight text-white">{ph.phase}</p>
               </div>
-              <ul className="space-y-1.5">
+              <ul className="space-y-2">
                 {ph.items.map((it, j) => {
                   const k = `${i}-${j}`;
-                  const on = done.has(k);
+                  const on = !!golive[k];
+                  const action = GOLIVE_ACTION[k];
+                  const ran = justRan === k;
+                  const isGuard = k === "0-4";
                   return (
-                    <li key={k}>
-                      <button onClick={() => toggle(k)} className="flex w-full items-start gap-2 text-left">
-                        <span className={cx("mt-0.5 flex h-[15px] w-[15px] shrink-0 items-center justify-center rounded border", on ? "border-[#4CC38A] bg-[#4CC38A]" : "border-white/25")}>{on && <Ic name="check" size={9} sw={3} className="text-black" />}</span>
-                        <span className={cx("text-[10.5px] leading-snug", on ? "text-white/40 line-through" : "text-white/75")}>{it}</span>
+                    <li key={k} className="rounded-lg border border-white/5 bg-white/[0.02] px-2 py-1.5">
+                      <button onClick={() => isOpen && setGolive(k, !on)} disabled={!isOpen} className="flex w-full items-start gap-2 text-left">
+                        <span className={cx("mt-0.5 flex h-[15px] w-[15px] shrink-0 items-center justify-center rounded border transition-colors", on ? "border-[#4CC38A] bg-[#4CC38A]" : "border-white/25")}>{on && <Ic name="check" size={9} sw={3} className="text-black" />}</span>
+                        <span className={cx("text-[10.5px] leading-snug", on ? "text-white/40 line-through" : isGuard ? "font-bold text-[#e2a33c]" : "text-white/75")}>{it}</span>
                       </button>
+                      {action && isOpen && !on && (
+                        <button onClick={() => fire(i, j, it)} className={cx("mt-1.5 ml-[23px] flex items-center gap-1 rounded px-2 py-1 font-mono text-[9px] font-bold transition-all", ran ? "bg-[#4CC38A] text-black" : "bg-brand/20 text-brand-bright hover:bg-brand/30")}>
+                          <Ic name={ran ? "check" : action.kind === "run" ? "play" : "arrowR"} size={9} sw={3} />
+                          {ran ? "done" : action.label}
+                        </button>
+                      )}
                     </li>
                   );
                 })}
               </ul>
-              <p className="mt-2 font-mono text-[9px] text-white/35">{n}/{keys.length}</p>
+              <div className="mt-2.5 flex items-center justify-between">
+                <span className="font-mono text-[9px] text-white/35">{n}/{keys.length}</span>
+                {complete && <span className="flex items-center gap-1 font-mono text-[9px] font-bold text-[#4CC38A]"><Ic name="check" size={9} sw={3} /> complete</span>}
+              </div>
             </div>
           );
         })}
       </div>
-      <section className="rounded-xl border border-white/10 bg-[#0d0d0b] px-5 py-4">
-        <div className="flex flex-wrap items-center gap-4">
-          <div className="min-w-0 flex-1">
-            <h3 className="font-display text-[14px] font-bold text-white">Activation metrics</h3>
-            <p className="text-[11px] text-white/50">The work that decides whether a signed customer ever activates — treated as a product, not heroics.</p>
+
+      {/* Live state + activation metrics */}
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_1.2fr]">
+        <Card title="Cutover state" sub="flipped by the actions above — persisted and audited">
+          <div className="space-y-2">
+            <div className="flex items-center justify-between rounded-lg border border-white/10 px-3 py-2">
+              <span className="text-[11.5px] text-white/75">Channel pushes</span>
+              <Badge tone={goliveActions.pushesEnabled ? "ok" : "mute"}>{goliveActions.pushesEnabled ? "enabled" : "disabled (pull-only)"}</Badge>
+            </div>
+            <div className="flex items-center justify-between rounded-lg border border-white/10 px-3 py-2">
+              <span className="text-[11.5px] text-white/75">Legacy system</span>
+              <Badge tone={goliveActions.frozen ? "warn" : "mute"}>{goliveActions.frozen ? "frozen" : "writable"}</Badge>
+            </div>
+            <div className="flex items-center justify-between rounded-lg border border-white/10 px-3 py-2">
+              <span className="text-[11.5px] text-white/75">Imports run</span>
+              <span className="font-mono text-[12px] font-bold text-white">{goliveActions.importsRun}</span>
+            </div>
+            <div className="flex items-center justify-between rounded-lg border border-white/10 px-3 py-2">
+              <span className="text-[11.5px] text-white/75">Reconciliations run</span>
+              <span className="font-mono text-[12px] font-bold text-white">{goliveActions.reconsRun}</span>
+            </div>
           </div>
-          <Stat label="Time-to-first-synced-channel" value="3.2 days" tone="ok" />
-          <Stat label="Time-to-first-direct-booking" value="9 days" tone="warn" />
-          <Btn variant="ghost" className="!text-white/60" onClick={() => record("exported go-live checklist", "migration playbook")}>Export checklist</Btn>
-        </div>
-      </section>
+        </Card>
+        <section className="rounded-xl border border-white/10 bg-[#0d0d0b] px-5 py-4">
+          <div className="flex flex-wrap items-center gap-4">
+            <div className="min-w-0 flex-1">
+              <h3 className="font-display text-[14px] font-bold text-white">Activation metrics</h3>
+              <p className="text-[11px] text-white/50">The work that decides whether a signed customer ever activates — treated as a product, not heroics.</p>
+            </div>
+            <Stat label="Time-to-first-synced-channel" value="3.2 days" tone="ok" />
+            <Stat label="Time-to-first-direct-booking" value="9 days" tone="warn" />
+            <Btn variant="ghost" className="!text-white/60" onClick={() => record("exported go-live checklist", "migration playbook")}>Export checklist</Btn>
+          </div>
+        </section>
+      </div>
     </div>
   );
 }

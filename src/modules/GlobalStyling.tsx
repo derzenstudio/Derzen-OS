@@ -16,7 +16,7 @@ const SCOPES = [
 ];
 
 export default function GlobalStyling() {
-  const { brand, setBrand, toast } = useApp();
+  const { brand, setBrand, toast, navigate } = useApp();
   const [scopes, setScopes] = useState<Record<string, boolean>>({ websites: true, widgets: true, quotes: true, emails: true, guidebooks: true });
   const [headingFile, setHeadingFile] = useState(brand.headingWoff2);
   const [bodyFile, setBodyFile] = useState(brand.bodyWoff2);
@@ -44,7 +44,10 @@ export default function GlobalStyling() {
             emails and guidebooks. Individual blocks and widgets can still override anything later.
           </p>
         </div>
-        <Btn variant="ghost" icon="undo" onClick={() => { setBrand({ ...DEFAULT_BRAND }); toast("info", "Brand reset to defaults"); }}>Reset</Btn>
+        <div className="flex gap-2">
+          <Btn variant="ghost" icon="doc" onClick={() => navigate("/quotes?tab=design")}>Design invoices & emails</Btn>
+          <Btn variant="ghost" icon="undo" onClick={() => { setBrand({ ...DEFAULT_BRAND }); toast("info", "Brand reset to defaults"); }}>Reset</Btn>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-[400px_1fr]">

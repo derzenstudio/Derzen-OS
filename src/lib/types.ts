@@ -435,6 +435,23 @@ export interface SiteChrome {
   footerBlocks: Block[];
 }
 export interface SavedAsset { id: string; name: string; url: string; kind: "image" | "copy"; note?: string; }
+
+export interface InvoiceTemplate {
+  brandSync: boolean;
+  accent: string; ink: string; paper: string; radius: number;
+  headingFamily: string; bodyFamily: string;
+  businessName: string; businessAddr: string; businessMeta: string;
+  invoiceWord: string; note: string; termsText: string; footerText: string;
+  showLogo: boolean;
+  align: "left" | "center" | "right";
+  sections: string[]; // ordered: brand · billto · items · totals · terms · footer
+}
+export interface EmailTemplate {
+  brandSync: boolean;
+  accent: string; bandInk: string;
+  headingFamily: string; bodyFamily: string; radius: number;
+  footerNote: string;
+}
 export interface WebsiteState {
   id: string;
   subdomain: string;

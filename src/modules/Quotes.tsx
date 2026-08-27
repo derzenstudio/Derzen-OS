@@ -5,11 +5,13 @@ import { Badge, Btn, Empty, Field, Input, Modal, Select, Textarea, Toggle } from
 import { useApp } from "../store";
 import { guestById, propertyById, serviceById } from "../lib/data";
 import type { Quote, QuoteStatus } from "../lib/types";
+import InvoiceDesigner from "./InvoiceDesigner";
 
 const TONE: Record<QuoteStatus, string> = { draft: "mute", sent: "info", viewed: "plum", accepted: "ok", expired: "danger", converted: "ok", declined: "danger" };
 
 export default function Quotes() {
-  const { navigate, quotes, setQuoteStatus, convertQuote, editQuoteItem, addQuoteItem, removeQuoteItem, toast, brand } = useApp();
+  const { navigate, quotes, setQuoteStatus, convertQuote, editQuoteItem, addQuoteItem, removeQuoteItem, toast, brand, route } = useApp();
+  const [view, setView] = useState<"quotes" | "design">(route.query.get("tab") === "design" ? "design" : "quotes");
   const [filter, setFilter] = useState("all");
   const [openId, setOpenId] = useState<string | null>(null);
   const [pdfOpen, setPdfOpen] = useState(false);
@@ -21,6 +23,18 @@ export default function Quotes() {
 
   return (
     <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex items-center rounded-lg border border-line bg-card p-0.5">
+          <button onClick={() => setView("quotes")} className={cx("rounded-md px-3.5 py-1.5 text-[12px] font-bold", view === "quotes" ? "bg-brand text-white" : "text-mute")}>Quotes</button>
+          <button onClick={() => setView("design")} className={cx("flex items-center gap-1.5 rounded-md px-3.5 py-1.5 text-[12px] font-bold", view === "design" ? "bg-brand text-white" : "text-mute")}><Ic name="pencil" size={12} /> Invoice & email design</button>
+        </div>
+        <p className="hidden text-[10.5px] font-semibold text-faint md:block">Canva-style editor — style every PDF & email once</p>
+      </div>
+
+      {view === "design" ? (
+        <InvoiceDesigner />
+      ) : (
+      <>
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex items-center rounded-lg border border-line bg-card p-0.5">
           {["all", "draft", "sent", "viewed", "accepted", "converted", "expired", "declined"].map((s) => (
@@ -160,6 +174,8 @@ export default function Quotes() {
           </div>
         )}
       </Modal>
+      </>
+      )}
     </div>
   );
 }

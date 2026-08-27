@@ -8,6 +8,8 @@ import type {
 } from "./lib/types";
 import { DEFAULT_WIDGET_STYLE, type WidgetStyle } from "./lib/widgetTheme";
 import { DEFAULT_BRAND, applyBrand, type BrandState } from "./lib/brand";
+import { defaultBlockContent } from "./lib/blockContent";
+import type { InvoiceTemplate, EmailTemplate } from "./lib/types";
 
 export const DEFAULT_BLOCK_STYLE: BlockStyle = {
   width: "full", py: 28, px: 24, mt: 0, mb: 0, bg: "", color: "", scale: 1, align: "left", radius: 3,
@@ -238,6 +240,10 @@ interface App {
   removeChromeBlock: (target: "header" | "footer", id: string) => void;
   moveChromeBlock: (target: "header" | "footer", id: string, dir: "up" | "down") => void;
   duplicateChromeBlock: (target: "header" | "footer", id: string) => void;
+  invoiceTemplate: InvoiceTemplate;
+  setInvoiceTemplate: (patch: Partial<InvoiceTemplate>) => void;
+  emailTemplate: EmailTemplate;
+  setEmailTemplate: (patch: Partial<EmailTemplate>) => void;
 
   // global brand styling + reusable asset library
   brand: BrandState;
@@ -865,8 +871,69 @@ export const useApp = create<App>((set, get) => ({
     ],
     headerBg: "#161a12", headerColor: "#f4f5f0", footerBg: "#0e110c", footerColor: "#9aa394",
     align: "left",
+    logoText: "Sanggraha", logoUrl: "", tagline: "Boutique Bali, run properly.",
+    showCta: true, ctaLabel: "Book direct", ctaUrl: "/search",
+    headerBlocks: [],
+    footerBlocks: [{ id: "fb-copy", type: "rich_text", content: { text: "Hand-run boutique stays across Bali. Butlers, chefs, honest pricing." } }],
   },
   setSiteChrome: (patch) => set((st) => ({ siteChrome: { ...st.siteChrome, ...patch } })),
+  addChromeBlock: (target, type) => {
+    const key = target === "header" ? "headerBlocks" : "footerBlocks";
+    const block: Block = { id: uid("cb"), type, content: defaultBlockContent(type) };
+    set((st) => ({ siteChrome: { ...st.siteChrome, [key]: [...st.siteChrome[key], block] } }));
+    get().toast("ok", "Block added to " + target, "Click its text to edit in place.");
+  },
+  updateChromeBlock: (target, id, patch) => {
+    const key = target === "header" ? "headerBlocks" : "footerBlocks";
+    set((st) => ({
+      siteChrome: {
+        ...st.siteChrome,
+        [key]: st.siteChrome[key].map((b) => (b.id === id ? { ...b, ...patch, content: { ...b.content, ...patch.content }, style: { ...DEFAULT_BLOCK_STYLE, ...b.style, ...patch.style } } : b)),
+      },
+    }));
+  },
+  removeChromeBlock: (target, id) => {
+    const key = target === "header" ? "headerBlocks" : "footerBlocks";
+    set((st) => ({ siteChrome: { ...st.siteChrome, [key]: st.siteChrome[key].filter((b) => b.id !== id) } }));
+  },
+  moveChromeBlock: (target, id, dir) => {
+    const key = target === "header" ? "headerBlocks" : "footerBlocks";
+    set((st) => {
+      const list = [...st.siteChrome[key]];
+      const i = list.findIndex((b) => b.id === id);
+      const j = dir === "up" ? i - 1 : i + 1;
+      if (i < 0 || j < 0 || j >= list.length) return st;
+      const [b] = list.splice(i, 1);
+      list.splice(j, 0, b);
+      return { siteChrome: { ...st.siteChrome, [key]: list } };
+    });
+  },
+  duplicateChromeBlock: (target, id) => {
+    const key = target === "header" ? "headerBlocks" : "footerBlocks";
+    set((st) => {
+      const list = [...st.siteChrome[key]];
+      const i = list.findIndex((b) => b.id === id);
+      if (i < 0) return st;
+      list.splice(i + 1, 0, { ...list[i], id: uid("cb"), style: { ...DEFAULT_BLOCK_STYLE, ...list[i].style }, content: JSON.parse(JSON.stringify(list[i].content ?? {})) });
+      return { siteChrome: { ...st.siteChrome, [key]: list } };
+    });
+  },
+
+  invoiceTemplate: {
+    brandSync: true,
+    accent: "#0e6b4e", ink: "#141811", paper: "#ffffff", radius: 3,
+    headingFamily: "Big Shoulders Display", bodyFamily: "Atkinson Hyperlegible",
+    businessName: "PT Sanggraha Hospitality", businessAddr: "Jl. Pantai Berawa No. 12, Canggu, Bali 80361",
+    businessMeta: "NPWP 84.221.773.8-903.000 · hello@sanggraha.co",
+    invoiceWord: "INVOICE", note: "Thank you for staying with us.",
+    termsText: "Deposit 30% at booking · balance due 14 days before arrival · all amounts in IDR.",
+    footerText: "PT Sanggraha Hospitality · stay.sanggraha.co",
+    showLogo: true, align: "left" as "left" | "center" | "right",
+    sections: ["brand", "billto", "items", "totals", "terms", "footer"],
+  },
+  setInvoiceTemplate: (patch) => set((st) => ({ invoiceTemplate: { ...st.invoiceTemplate, ...patch } })),
+  emailTemplate: { accent: "#0e6b4e", bandInk: "#141811", bodyFamily: "Atkinson Hyperlegible", headingFamily: "Big Shoulders Display", radius: 3, brandSync: true, footerNote: "You're receiving this because you booked with Sanggraha Villas." },
+  setEmailTemplate: (patch) => set((st) => ({ emailTemplate: { ...st.emailTemplate, ...patch } })),
 
   brand: { ...DEFAULT_BRAND },
   setBrand: (patch) => {

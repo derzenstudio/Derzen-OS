@@ -2,10 +2,13 @@ import { useState } from "react";
 import { cx, money, copyText, toCSV, download, dayKey, addDays, today } from "../lib/format";
 import { Ic, type IconName } from "../components/icons";
 import { Badge, Btn, Dot, Field, Input, Modal, Select, Spark, Tabs, Toggle } from "../components/ui";
+import { EditableText, EditableImage, FloatingToolbar, ToolBtn, InspectorPanel, Ifield, TextInput, SegBtns } from "../components/editor";
+import { NumStepper, ColorField } from "../components/controls";
 import { useApp, DEFAULT_BLOCK_STYLE } from "../store";
 import { COLLECTIONS, PROPERTIES, propertyById, SERVICES } from "../lib/data";
 import { embedJsSnippet, embedIframeSnippet, widgetCssVars } from "../lib/widgetTheme";
-import type { Block, BlockStyle } from "../lib/types";
+import { defaultBlockContent, parseQA, parseCSV, parseLines, CONTENT_SCHEMA, type ContentField } from "../lib/blockContent";
+import type { Block, BlockStyle, SiteLink } from "../lib/types";
 
 const BLOCK_LIB: { group: string; items: { type: string; label: string; icon: IconName }[] }[] = [
   { group: "Content", items: [
@@ -88,18 +91,17 @@ export default function Websites() {
             <button className="flex w-full items-center gap-2 rounded-sm border border-dashed border-line2 px-3 py-2 text-[12px] font-bold text-mute hover:text-ink" onClick={() => toast("info", "New page or folder", "Per-page slug, SEO title/description, social image, visibility.")}><Ic name="plus" size={13} /> Page / folder</button>
             <button className="flex w-full items-center gap-2 rounded-sm border border-dashed border-line2 px-3 py-2 text-[12px] font-bold text-mute hover:text-ink" onClick={() => setPageSettings(true)}><Ic name="gear" size={13} /> Page settings</button>
             <div className="rounded-sm border border-line bg-card p-3">
-              <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-mute">Global header & footer</p>
-              <Field label="Header">
-                <Input value={siteChrome.header} onChange={(e) => setSiteChrome({ header: e.target.value })} className="!text-[11px]" />
-              </Field>
-              <Field label="Footer">
-                <Input value={siteChrome.footer} onChange={(e) => setSiteChrome({ footer: e.target.value })} className="!text-[11px]" />
-              </Field>
-              <p className="mt-1 text-[10px] text-faint">Rendered on every page. Edit once, appears everywhere.</p>
+              <p className="mb-1.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-mute"><Ic name="globe" size={11} /> Global header & footer</p>
+              <p className="text-[10px] leading-relaxed text-faint">Edited directly on the canvas above and below your blocks — click the logo, any menu link, the CTA button or footer text to change it. Appears on every page instantly.</p>
+              <div className="mt-2 grid grid-cols-2 gap-1.5">
+                <Field label="Header bg"><input type="color" value={siteChrome.headerBg} onChange={(e) => setSiteChrome({ headerBg: e.target.value })} className="h-7 w-full cursor-pointer rounded-sm border border-line bg-card" aria-label="Header background" /></Field>
+                <Field label="Footer bg"><input type="color" value={siteChrome.footerBg} onChange={(e) => setSiteChrome({ footerBg: e.target.value })} className="h-7 w-full cursor-pointer rounded-sm border border-line bg-card" aria-label="Footer background" /></Field>
+              </div>
+              <label className="mt-1.5 flex items-center justify-between text-[10.5px] font-bold text-mute"><span>Show CTA button</span><Toggle checked={siteChrome.showCta} onChange={(v) => setSiteChrome({ showCta: v })} label="Show header CTA" /></label>
             </div>
           </div>
 
-          {/* Canvas */}
+          {/* Canvas — WYSIWYG, click text to type, click image to swap */}
           <div className="rounded-lg border border-line bg-card p-4">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <p className="font-display text-[14px] font-bold text-ink">Page: {page.name} <span className="font-mono text-[10px] font-semibold text-faint">{page.slug}</span></p>
@@ -109,20 +111,14 @@ export default function Websites() {
               </div>
             </div>
 
-            {/* Header strip */}
-            <div className="mb-2 rounded-sm bg-pine-900 px-4 py-2.5">
-              <p className="text-[11px] font-bold tracking-wide text-white/85">{siteChrome.header}</p>
-            </div>
+            {/* Editable header — logo, menu links, CTA */}
+            <ChromeStrip target="header" selected={selected} onSelect={setSelected} />
 
-            <div
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={onDrop}
-              className="space-y-0"
-            >
+            <div onDragOver={(e) => e.preventDefault()} onDrop={onDrop} className="space-y-0">
               {page.blocks.map((b, idx) => (
                 <div key={b.id} onDragOver={(e) => { e.preventDefault(); const r = (e.currentTarget as HTMLElement).getBoundingClientRect(); setDropAt(e.clientY < r.top + r.height / 2 ? idx : idx + 1); }}>
                   <div className={cx("h-1 rounded-full transition-all", dropAt === idx && dragId ? "my-1 bg-brand" : "bg-transparent")} aria-hidden="true" />
-                  <BlockCard
+                  <InlineBlock
                     b={b} idx={idx} total={page.blocks.length}
                     selected={selected === b.id}
                     dragging={dragId === b.id}
@@ -132,11 +128,11 @@ export default function Websites() {
                     onMove={(dir) => moveBlock(page.id, b.id, dir)}
                     onDuplicate={() => { duplicateBlock(page.id, b.id); toast("ok", "Block duplicated", BLOCK_LABEL[b.type]); }}
                     onRemove={() => { if (page.home && b.type === "hero") { toast("warn", "Home hero is protected", "Every page needs a first impression."); return; } removeBlock(page.id, b.id); if (selected === b.id) setSelected(null); }}
+                    onContent={(patch) => updateBlock(page.id, b.id, { content: { ...b.content, ...patch } })}
                   />
                 </div>
               ))}
               <div className={cx("h-1 rounded-full transition-all", dropAt === page.blocks.length && dragId ? "my-1 bg-brand" : "bg-transparent")} aria-hidden="true" />
-              {/* Trailing drop zone */}
               <button
                 onDragOver={(e) => { e.preventDefault(); setDropAt(page.blocks.length); }}
                 onClick={() => setLibOpen(true)}
@@ -145,35 +141,42 @@ export default function Websites() {
                 <Ic name="plus" size={14} /> Drop a block here, or click to browse the library
               </button>
             </div>
+
+            {/* Editable footer */}
+            <div className="mt-2">
+              <ChromeStrip target="footer" selected={selected} onSelect={setSelected} />
+            </div>
+
             <p className="mt-3 rounded-sm bg-paper px-3 py-2 text-[10.5px] leading-relaxed text-mute">
-              <b className="text-ink">Drag the handle</b> to reorder — or use the keyboard arrows in the block toolbar. Click a block to open its
-              <b className="text-ink"> style panel</b>: width, padding, margins (zero or negative for flush stacking), background, text colour, type scale, alignment and corner radius.
+              <b className="text-ink">Click any text to type directly.</b> Click an image to swap it from your asset library. Select a block for its
+              <b className="text-ink"> content &amp; style inspector</b>. Drag the handle to reorder — edits autosave and appear on every page instantly.
             </p>
           </div>
 
-          {/* Style panel */}
+          {/* Inspector — content & style for the selected block, else theme */}
           <div className="space-y-3">
             {sel ? (
-              <BlockStylePanel key={sel.id} b={sel} onChange={(patch) => updateBlock(page.id, sel.id, { style: { ...DEFAULT_BLOCK_STYLE, ...sel.style, ...patch } })} />
+              <InspectorPanel key={sel.id} title={`${BLOCK_LABEL[sel.type] ?? sel.type}`} icon="pencil" onClose={() => setSelected(null)}>
+                <InspectorTabs
+                  b={sel}
+                  onContent={(patch) => updateBlock(page.id, sel.id, { content: { ...sel.content, ...patch } })}
+                  onStyle={(patch) => updateBlock(page.id, sel.id, { style: { ...DEFAULT_BLOCK_STYLE, ...sel.style, ...patch } })}
+                />
+              </InspectorPanel>
             ) : (
               <div className="rounded-lg border border-line bg-card p-4">
                 <p className="mb-2 text-[10.5px] font-bold uppercase tracking-wider text-mute">Site theme</p>
-                <Field label="Palette">
+                <Ifield label="Palette">
                   <div className="grid grid-cols-3 gap-1.5">
                     {["Palm & Sand", "Ocean Light", "Volcanic"].map((p) => (
                       <button key={p} onClick={() => setSiteTheme({ palette: p })} className={cx("rounded-sm border px-2 py-1.5 text-[10px] font-bold", website.theme.palette === p ? "border-brand bg-brand-soft text-brand-deep" : "border-line text-mute")}>{p}</button>
                     ))}
                   </div>
-                </Field>
-                <Field label="Typography">
-                  <Select value={website.theme.font} onChange={(e) => setSiteTheme({ font: e.target.value })}>
-                    {["Big Shoulders / Schibsted", "Fraunces / Public Sans", "Space Grotesk / Source Sans"].map((f) => <option key={f}>{f}</option>)}
-                  </Select>
-                </Field>
-                <Field label={`Corner radius · ${website.theme.radius}px`}>
-                  <input type="range" min={0} max={20} value={website.theme.radius} onChange={(e) => setSiteTheme({ radius: Number(e.target.value) })} className="w-full" aria-label="Corner radius" />
-                </Field>
-                <p className="mt-2 rounded-sm bg-paper px-3 py-2 text-[10.5px] leading-relaxed text-mute">Select any block on the canvas to edit its individual layout, spacing and styling.</p>
+                </Ifield>
+                <Ifield label="Corner radius">
+                  <NumStepper value={website.theme.radius} onChange={(v) => setSiteTheme({ radius: v })} min={0} max={20} suffix="px" label="radius" w={110} />
+                </Ifield>
+                <p className="mt-2 rounded-sm bg-paper px-3 py-2 text-[10.5px] leading-relaxed text-mute">Select any block on the canvas to edit its content and styling. Everything you type is saved live.</p>
               </div>
             )}
             <div className="rounded-lg border border-line bg-card p-4">
@@ -310,15 +313,26 @@ export default function Websites() {
       <Modal open={previewOpen} onClose={() => setPreviewOpen(false)} title={`Live preview — ${website.subdomain}/${page.slug}`} w={980}
         footer={<><Btn variant="ghost" onClick={() => setPreviewOpen(false)}>Close</Btn><Btn variant="solid" icon="external" onClick={() => toast("ok", "Opening published site", `https://${website.subdomain}/${page.slug}`)}>Open guest view</Btn></>}>
         <div className="max-h-[70vh] overflow-y-auto rounded-sm border border-line bg-[#f4f5f0]">
-          <div className="sticky top-0 z-10 bg-pine-900 px-6 py-3">
-            <p className="text-[12px] font-bold tracking-wide text-white/85">{siteChrome.header}</p>
+          <div className="sticky top-0 z-10 px-6 py-3" style={{ background: siteChrome.headerBg, color: siteChrome.headerColor }}>
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
+              <span className="flex items-baseline gap-2">
+                {siteChrome.logoUrl ? <img src={siteChrome.logoUrl} alt="Logo" className="h-6 w-6 rounded-sm object-cover" /> : <span className="font-display text-[15px] font-bold uppercase tracking-wide">{siteChrome.logoText}</span>}
+                <span className="hidden text-[9.5px] opacity-70 sm:inline">{siteChrome.tagline}</span>
+              </span>
+              <span className="flex flex-wrap items-center gap-2.5">
+                {siteChrome.headerLinks.map((l) => <span key={l.id} className="text-[10.5px] font-bold opacity-85">{l.label}</span>)}
+              </span>
+              {siteChrome.showCta && <span className="ml-auto rounded-sm bg-brand px-3 py-1 text-[10px] font-bold text-white">{siteChrome.ctaLabel}</span>}
+            </div>
           </div>
           <div className="min-h-[300px] py-2">
+            {siteChrome.headerBlocks.map((b) => <BlockView key={b.id} b={b} />)}
             {page.blocks.map((b) => <BlockView key={b.id} b={b} />)}
             {page.blocks.length === 0 && <p className="p-10 text-center text-[12px] font-bold text-mute">Empty page — add blocks to see them here.</p>}
           </div>
-          <div className="bg-pine-950 px-6 py-4">
-            <p className="text-[10.5px] text-white/55">{siteChrome.footer}</p>
+          <div className="px-6 py-4" style={{ background: siteChrome.footerBg, color: siteChrome.footerColor }}>
+            {siteChrome.footerBlocks.map((b) => <BlockView key={b.id} b={b} />)}
+            <p className="text-[10.5px] opacity-70">{siteChrome.footer}</p>
           </div>
         </div>
       </Modal>
@@ -338,67 +352,283 @@ export default function Websites() {
   );
 }
 
-// ── Block card (canvas chrome + drag) ─────────────────────────────────────
-function BlockCard({ b, idx, total, selected, dragging, onSelect, onDragStart, onDragEnd, onMove, onDuplicate, onRemove }: {
+// ── Inline block: renders editable content + a floating toolbar on select ──
+function InlineBlock({ b, idx, total, selected, dragging, onSelect, onDragStart, onDragEnd, onMove, onDuplicate, onRemove, onContent }: {
   b: Block; idx: number; total: number; selected: boolean; dragging: boolean;
   onSelect: () => void; onDragStart: () => void; onDragEnd: () => void;
   onMove: (d: "up" | "down") => void; onDuplicate: () => void; onRemove: () => void;
+  onContent: (patch: Record<string, string>) => void;
 }) {
   return (
     <div
       onClick={onSelect}
       className={cx(
         "group relative cursor-pointer rounded-sm border transition-all",
-        selected ? "border-brand shadow-[0_0_0_1px_var(--color-brand)]" : "border-line hover:border-line2",
+        selected ? "border-brand shadow-[0_0_0_1px_var(--color-brand)]" : "border-transparent hover:border-line2",
         dragging && "opacity-40",
       )}
       aria-label={`Block: ${BLOCK_LABEL[b.type] ?? b.type}${selected ? " (selected)" : ""}`}
     >
-      <BlockView b={b} />
-      <div className="flex items-center gap-1.5 border-t border-line bg-paper/80 px-2.5 py-1.5">
-        <button
-          draggable
-          onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; onDragStart(); }}
-          onDragEnd={onDragEnd}
-          aria-label={`Drag to move ${BLOCK_LABEL[b.type] ?? b.type}`}
-          className="cursor-grab rounded-sm p-0.5 text-line2 transition-colors hover:text-brand active:cursor-grabbing"
-        >
-          <Ic name="grip" size={13} />
-        </button>
-        <span className="text-[11.5px] font-bold text-ink">{BLOCK_LABEL[b.type] ?? b.type}</span>
-        {b.style && (b.style.mt !== 0 || b.style.mb !== 0 || b.style.bg) && <Badge tone="info">styled</Badge>}
-        <span className="ml-auto flex items-center gap-0.5">
-          <button aria-label="Move block up" title="Move up" disabled={idx === 0} onClick={(e) => { e.stopPropagation(); onMove("up"); }} className="rounded-sm p-1 text-mute hover:bg-black/5 hover:text-ink disabled:opacity-30"><Ic name="chevU" size={13} /></button>
-          <button aria-label="Move block down" title="Move down" disabled={idx === total - 1} onClick={(e) => { e.stopPropagation(); onMove("down"); }} className="rounded-sm p-1 text-mute hover:bg-black/5 hover:text-ink disabled:opacity-30"><Ic name="chevD" size={13} /></button>
-          <button aria-label="Duplicate block" title="Duplicate" onClick={(e) => { e.stopPropagation(); onDuplicate(); }} className="rounded-sm p-1 text-mute hover:bg-black/5 hover:text-ink"><Ic name="copy" size={13} /></button>
-          <button aria-label="Edit block style" title="Style" onClick={(e) => { e.stopPropagation(); onSelect(); }} className={cx("rounded-sm p-1 hover:bg-black/5", selected ? "text-brand" : "text-mute hover:text-ink")}><Ic name="pencil" size={13} /></button>
-          <button aria-label="Remove block" title="Remove" onClick={(e) => { e.stopPropagation(); onRemove(); }} className="rounded-sm p-1 text-mute hover:bg-danger-soft hover:text-danger"><Ic name="trash" size={13} /></button>
-        </span>
-      </div>
+      {selected && (
+        <FloatingToolbar>
+          <span className="cursor-grab px-0.5 text-line2 active:cursor-grabbing" draggable onDragStart={(e) => { e.dataTransfer.effectAllowed = "move"; onDragStart(); }} onDragEnd={onDragEnd} aria-label={`Drag to move ${BLOCK_LABEL[b.type] ?? b.type}`}><Ic name="grip" size={13} /></span>
+          <span className="max-w-[110px] truncate px-1 text-[10px] font-bold uppercase tracking-wide text-mute">{BLOCK_LABEL[b.type] ?? b.type}</span>
+          <ToolBtn icon="chevU" label="Move up" onClick={() => onMove("up")} />
+          <ToolBtn icon="chevD" label="Move down" onClick={() => onMove("down")} />
+          <ToolBtn icon="copy" label="Duplicate" onClick={onDuplicate} />
+          <ToolBtn icon="trash" label="Delete block" onClick={onRemove} danger />
+        </FloatingToolbar>
+      )}
+      <BlockView b={b} edit onContent={onContent} />
+      <span className="pointer-events-none absolute inset-x-0 bottom-0 hidden text-[9px] font-bold uppercase tracking-widest text-faint group-hover:block">{idx + 1} / {total}</span>
     </div>
   );
 }
 
-// ── Styled block renderer (canvas + preview share this) ───────────────────
-function BlockView({ b }: { b: Block }) {
+// ── Editable header / footer strip ─────────────────────────────────────────
+function ChromeStrip({ target, selected, onSelect }: { target: "header" | "footer"; selected: string | null; onSelect: (id: string | null) => void }) {
+  const { siteChrome, setSiteChrome, addChromeBlock, updateChromeBlock, removeChromeBlock, moveChromeBlock, duplicateChromeBlock } = useApp();
+  const isHeader = target === "header";
+  const links = isHeader ? siteChrome.headerLinks : siteChrome.footerLinks;
+  const blocks = isHeader ? siteChrome.headerBlocks : siteChrome.footerBlocks;
+  const bg = isHeader ? siteChrome.headerBg : siteChrome.footerBg;
+  const fg = isHeader ? siteChrome.headerColor : siteChrome.footerColor;
+  const setLinks = (next: SiteLink[]) => setSiteChrome(isHeader ? { headerLinks: next } : { footerLinks: next });
+
+  const [editingLink, setEditingLink] = useState<string | null>(null);
+
+  return (
+    <div className="rounded-sm px-4 py-3" style={{ background: bg, color: fg, textAlign: siteChrome.align }}>
+      <div className={cx("flex flex-wrap items-center gap-x-4 gap-y-2", siteChrome.align === "center" && "justify-center", siteChrome.align === "right" && "justify-end")}>
+        {isHeader && (
+          <div className="flex items-baseline gap-2">
+            {siteChrome.logoUrl
+              ? <EditableImage src={siteChrome.logoUrl} onCommit={(v) => setSiteChrome({ logoUrl: v })} className="h-7 w-7 rounded-sm" alt="Logo" />
+              : <EditableText as="span" value={siteChrome.logoText} onCommit={(v) => setSiteChrome({ logoText: v })} className="font-display text-[17px] font-bold uppercase tracking-wide" placeholder="Logo" />}
+            <EditableText as="span" value={siteChrome.tagline} onCommit={(v) => setSiteChrome({ tagline: v })} className="hidden text-[10.5px] opacity-70 sm:inline" placeholder="Tagline" />
+          </div>
+        )}
+        <nav className="flex flex-wrap items-center gap-1" aria-label={`${target} menu`}>
+          {links.map((l) => (
+            <span key={l.id} className="group/link relative inline-flex items-center gap-0.5 rounded-sm px-1.5 py-1 text-[11px] font-bold transition-colors hover:bg-white/10">
+              {editingLink === l.id ? (
+                <input
+                  autoFocus defaultValue={l.url}
+                  onBlur={(e) => { setLinks(links.map((x) => (x.id === l.id ? { ...x, url: e.target.value } : x))); setEditingLink(null); }}
+                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === "Escape") (e.target as HTMLInputElement).blur(); e.stopPropagation(); }}
+                  onClick={(e) => e.stopPropagation()}
+                  className="w-36 rounded-sm border border-brand bg-card px-1 py-0.5 font-mono text-[9.5px] text-ink outline-none"
+                  placeholder="https://…"
+                  aria-label={`Link URL for ${l.label}`}
+                />
+              ) : (
+                <>
+                  <EditableText as="span" value={l.label} onCommit={(v) => setLinks(links.map((x) => (x.id === l.id ? { ...x, label: v } : x)))} placeholder="Link" />
+                  <button onClick={(e) => { e.stopPropagation(); setEditingLink(l.id); }} aria-label={`Edit URL for ${l.label}`} className="opacity-0 transition-opacity group-hover/link:opacity-70 hover:!opacity-100"><Ic name="link" size={10} /></button>
+                  <button onClick={(e) => { e.stopPropagation(); setLinks(links.filter((x) => x.id !== l.id)); }} aria-label={`Remove ${l.label}`} className="opacity-0 transition-opacity group-hover/link:opacity-70 hover:!opacity-100"><Ic name="x" size={10} /></button>
+                </>
+              )}
+            </span>
+          ))}
+          <button onClick={(e) => { e.stopPropagation(); setLinks([...links, { id: `lnk${Date.now()}`, label: "New link", url: "/" }]); }} className="rounded-sm border border-dashed border-current/40 px-1.5 py-1 text-[10px] font-bold opacity-60 transition-opacity hover:opacity-100">+ link</button>
+        </nav>
+        {isHeader && siteChrome.showCta && (
+          <EditableText as="span" value={siteChrome.ctaLabel} onCommit={(v) => setSiteChrome({ ctaLabel: v })} placeholder="CTA"
+            className="ml-auto rounded-sm bg-brand px-3 py-1.5 text-[11px] font-bold text-white" />
+        )}
+      </div>
+      {blocks.map((b, i) => (
+        <div key={b.id} className={cx("relative mt-2 rounded-sm border transition-colors", selected === b.id ? "border-brand" : "border-transparent hover:border-current/30")} onClick={(e) => { e.stopPropagation(); onSelect(b.id); }}>
+          {selected === b.id && (
+            <FloatingToolbar>
+              <ToolBtn icon="chevU" label="Move up" onClick={() => moveChromeBlock(target, b.id, "up")} />
+              <ToolBtn icon="chevD" label="Move down" onClick={() => moveChromeBlock(target, b.id, "down")} />
+              <ToolBtn icon="copy" label="Duplicate" onClick={() => duplicateChromeBlock(target, b.id)} />
+              <ToolBtn icon="trash" label="Remove" onClick={() => removeChromeBlock(target, b.id)} danger />
+            </FloatingToolbar>
+          )}
+          <BlockView b={b} edit onContent={(patch) => updateChromeBlock(target, b.id, { content: patch })} />
+          <span className="pointer-events-none absolute right-1 top-1 text-[8px] font-bold uppercase tracking-widest opacity-40">{i + 1}</span>
+        </div>
+      ))}
+      <button onClick={(e) => { e.stopPropagation(); addChromeBlock(target, "rich_text"); }} className="mt-2 w-full rounded-sm border border-dashed border-current/30 py-1.5 text-[10px] font-bold opacity-50 transition-opacity hover:opacity-100">+ add block to {target}</button>
+    </div>
+  );
+}
+
+// ── Content-driven, inline-editable block renderer (canvas + preview) ──────
+function BlockView({ b, edit = false, onContent }: { b: Block; edit?: boolean; onContent?: (patch: Record<string, string>) => void }) {
   const s: BlockStyle = { ...DEFAULT_BLOCK_STYLE, ...b.style };
+  const c: Record<string, string> = { ...defaultBlockContent(b.type), ...b.content };
+  const set = (k: string) => (v: string) => onContent?.({ [k]: v });
+  // Function-call helpers (not JSX components) so the underlying EditableText /
+  // EditableImage keep a stable component identity and never remount mid-typing.
+  const t = (p: { k: string; as?: "span" | "p" | "h1" | "h2" | "h3" | "div"; className?: string; style?: React.CSSProperties; multiline?: boolean; placeholder?: string }) =>
+    edit
+      ? <EditableText as={p.as} value={c[p.k] ?? ""} onCommit={set(p.k)} className={p.className} style={p.style} multiline={p.multiline} placeholder={p.placeholder ?? p.k} />
+      : <Tag as={p.as} className={p.className} style={p.style}>{c[p.k]}</Tag>;
+  const im = (p: { k: string; className?: string; style?: React.CSSProperties }) =>
+    edit
+      ? <EditableImage src={c[p.k] ?? ""} onCommit={set(p.k)} className={p.className} style={p.style} />
+      : <img src={c[p.k] || PROPERTIES[0].image} alt="" className={cx("object-cover", p.className)} style={p.style} onError={(e) => ((e.target as HTMLImageElement).src = PROPERTIES[0].image)} />;
+
   const inner = (() => {
-    const img = PROPERTIES[0].image;
     switch (b.type) {
-      case "hero": return <div className="relative overflow-hidden" style={{ borderRadius: s.radius }}><img src={img} alt="" className="h-44 w-full object-cover" /><div className="absolute inset-0 bg-gradient-to-r from-pine-950/75 to-transparent" /><p className="absolute bottom-3 left-4 font-display text-[22px] font-bold text-white">Boutique Bali, run properly.</p><p className="absolute bottom-3 right-4 hidden rounded-sm bg-white/95 px-3 py-1.5 text-[11px] font-bold text-ink sm:block">From Rp 3.6M / night</p></div>;
-      case "search_bar": return <div className="flex flex-wrap items-center gap-1.5 rounded-sm border border-line2 bg-white p-1.5" style={{ borderRadius: s.radius }}><span className="flex-1 rounded-sm bg-paper px-2 py-1.5 text-[10px] font-bold text-faint">Dates</span><span className="flex-1 rounded-sm bg-paper px-2 py-1.5 text-[10px] font-bold text-faint">Guests</span><span className="rounded-sm bg-brand px-3 py-1.5 text-[10px] font-bold text-white" style={{ borderRadius: s.radius }}>Search</span></div>;
-      case "collection_grid": case "offerings_grid": return <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">{[0, 1, 2].map((i) => <img key={i} src={PROPERTIES[i].image} alt={PROPERTIES[i].name} className="h-20 w-full rounded-sm object-cover" style={{ borderRadius: s.radius }} />)}</div>;
-      case "collection_list": return <div className="space-y-1.5">{[0, 1].map((i) => <div key={i} className="flex items-center gap-2.5"><img src={PROPERTIES[i].image} alt={PROPERTIES[i].name} className="h-12 w-20 rounded-sm object-cover" style={{ borderRadius: s.radius }} /><div className="flex-1"><p className="text-[12px] font-bold text-ink">{PROPERTIES[i].name}</p><p className="text-[10px] text-mute">{PROPERTIES[i].city} · {PROPERTIES[i].maxGuests} guests</p></div><span className="font-mono text-[11px] font-bold text-brand-deep">{money(PROPERTIES[i].pricing.plans[0].nightly, "IDR", { compact: true })}</span></div>)}</div>;
-      case "guest_reviews": return <div><p className="text-[12px] font-bold text-gold">★★★★★</p><p className="mt-0.5 text-[12px] italic text-ink/80">“Absolutely flawless — Kadek thought of everything.”</p><p className="mt-0.5 text-[10px] font-bold text-faint">Yuki · Villa Anggrek</p></div>;
-      case "faq": return <div className="space-y-1">{["Check-in times?", "Is the pool heated?", "Airport transfers?"].map((q) => <div key={q} className="flex items-center justify-between rounded-sm bg-paper px-2.5 py-2 text-[11px] font-bold text-ink" style={{ borderRadius: s.radius }}>{q}<Ic name="chevD" size={10} /></div>)}</div>;
-      case "cta_banner": return <div className="flex flex-wrap items-center justify-between gap-2 rounded-sm bg-pine-900 px-4 py-3" style={{ borderRadius: s.radius }}><p className="text-[12.5px] font-bold text-white">Direct bookings save ~15% — always.</p><span className="rounded-sm bg-brand px-3 py-1.5 text-[10.5px] font-bold text-white" style={{ borderRadius: s.radius }}>Book direct</span></div>;
-      case "contact_form": return <div className="space-y-1.5"><div className="h-7 rounded-sm border border-line2 bg-white" style={{ borderRadius: s.radius }} /><div className="h-14 rounded-sm border border-line2 bg-white" style={{ borderRadius: s.radius }} /><div className="h-7 w-28 rounded-sm bg-brand" style={{ borderRadius: s.radius }} /></div>;
-      case "icon_highlights": return <div className="flex flex-wrap justify-around gap-2">{["Butlers", "Chefs", "Drivers", "Daily spa"].map((x) => <div key={x} className="text-center"><span className="mx-auto mb-1 flex h-8 w-8 items-center justify-center rounded-full bg-brand-soft text-brand-deep"><Ic name="sparkle" size={13} /></span><p className="text-[10px] font-bold text-ink">{x}</p></div>)}</div>;
-      case "featured_offering": return <div className="flex gap-3"><img src={SERVICES[0].image} alt="" className="h-20 w-28 rounded-sm object-cover" style={{ borderRadius: s.radius }} /><div><p className="text-[12.5px] font-bold text-ink">{SERVICES[0].name}</p><p className="text-[10px] text-mute">Up to {SERVICES[0].capacity} guests · {SERVICES[0].durationMin} min</p><p className="mt-1 font-mono text-[12px] font-bold text-brand-deep">{money(SERVICES[0].price, SERVICES[0].currency)}</p></div></div>;
-      case "gallery": return <div className="grid grid-cols-2 gap-1 sm:grid-cols-4">{[0, 1, 2, 3].map((i) => <img key={i} src={PROPERTIES[i % 4].image} alt="" className="h-16 w-full rounded-sm object-cover" style={{ borderRadius: s.radius }} />)}</div>;
-      case "table": return <div className="rounded-sm border border-line2 text-[10.5px] font-bold" style={{ borderRadius: s.radius }}><div className="flex border-b border-line2 bg-paper px-2.5 py-1.5"><span className="flex-1">Villa</span><span>From / night</span></div>{[["Anggrek", "Rp 4.2M"], ["Cemara", "Rp 3.6M"], ["Senja", "Rp 1.9M"]].map(([a, c]) => <div key={a} className="flex px-2.5 py-1.5"><span className="flex-1">{a}</span><span className="font-mono">{c}</span></div>)}</div>;
-      case "image": return <img src={img} alt="" className="h-32 w-full rounded-sm object-cover" style={{ borderRadius: s.radius }} />;
-      default: return <div className="space-y-1.5"><div className="h-3 w-1/2 rounded-sm bg-line" /><div className="h-2.5 w-full rounded-sm bg-line" /><div className="h-2.5 w-5/6 rounded-sm bg-line" /></div>;
+      case "hero": return (
+        <div className="relative overflow-hidden" style={{ borderRadius: s.radius }}>
+          {im({ k: "image", className: "h-44 w-full" })}
+          <div className="absolute inset-0 bg-gradient-to-r from-pine-950/75 to-transparent" />
+          <div className="absolute bottom-3 left-4 right-4 flex items-end justify-between gap-2">
+            {t({ k: "headline", as: "h2", className: "font-display text-[22px] font-bold leading-tight text-white", placeholder: "Headline" })}
+            {t({ k: "badge", className: "hidden shrink-0 rounded-sm bg-white/95 px-3 py-1.5 text-[11px] font-bold text-ink sm:block", placeholder: "Price" })}
+          </div>
+        </div>
+      );
+      case "rich_text": return (
+        <div>
+          {t({ k: "title", as: "h3", className: "font-display text-[16px] font-bold text-ink", placeholder: "Title" })}
+          {t({ k: "text", as: "p", className: "mt-1 text-[12px] leading-relaxed text-mute", multiline: true, placeholder: "Body text" })}
+        </div>
+      );
+      case "image": return (
+        <figure>
+          {im({ k: "src", className: "h-32 w-full rounded-sm", style: { borderRadius: s.radius } })}
+          {t({ k: "caption", as: "p", className: "mt-1 text-[10px] italic text-faint", placeholder: "Caption" })}
+        </figure>
+      );
+      case "gallery": {
+        const imgs = (c.images ?? "").split(",").map((x) => x.trim()).filter(Boolean);
+        const list = imgs.length ? imgs : PROPERTIES.slice(0, 4).map((p) => p.image);
+        return (
+          <div>
+            {t({ k: "title", as: "h3", className: "mb-1.5 font-display text-[15px] font-bold text-ink", placeholder: "Gallery title" })}
+            <div className="grid grid-cols-2 gap-1 sm:grid-cols-4">
+              {list.map((src, i) => edit
+                ? <EditableImage key={i} src={src} onCommit={(v) => { const arr = [...list]; arr[i] = v; set("images")(arr.join(", ")); }} className="h-16 w-full rounded-sm" style={{ borderRadius: s.radius }} />
+                : <img key={i} src={src} alt="" className="h-16 w-full rounded-sm object-cover" style={{ borderRadius: s.radius }} />)}
+            </div>
+          </div>
+        );
+      }
+      case "faq": {
+        const items = parseQA(c.items ?? "");
+        return (
+          <div>
+            {t({ k: "title", as: "h3", className: "mb-1.5 font-display text-[15px] font-bold text-ink", placeholder: "FAQ title" })}
+            <div className="space-y-1">
+              {items.map((it, i) => (
+                <details key={i} className="group rounded-sm bg-paper px-2.5 py-2" style={{ borderRadius: s.radius }}>
+                  <summary className="flex cursor-pointer list-none items-center justify-between text-[11px] font-bold text-ink">
+                    {edit ? <EditableText as="span" value={it.q} onCommit={(v) => { const arr = [...items]; arr[i] = { ...arr[i], q: v }; set("items")(arr.map((x) => `${x.q} | ${x.a}`).join("\n")); }} placeholder="Question" /> : <span>{it.q}</span>}
+                    <Ic name="chevD" size={10} className="transition-transform group-open:rotate-180" />
+                  </summary>
+                  {edit ? <EditableText as="p" value={it.a} onCommit={(v) => { const arr = [...items]; arr[i] = { ...arr[i], a: v }; set("items")(arr.map((x) => `${x.q} | ${x.a}`).join("\n")); }} className="mt-1 text-[10.5px] leading-relaxed text-mute" multiline placeholder="Answer" /> : <p className="mt-1 text-[10.5px] leading-relaxed text-mute">{it.a}</p>}
+                </details>
+              ))}
+            </div>
+          </div>
+        );
+      }
+      case "guest_reviews": return (
+        <div>
+          {t({ k: "rating", as: "p", className: "text-[12px] font-bold text-gold", placeholder: "★★★★★" })}
+          {t({ k: "quote", as: "p", className: "mt-0.5 text-[12px] italic text-ink/80", multiline: true, placeholder: "Review quote" })}
+          {t({ k: "author", as: "p", className: "mt-0.5 text-[10px] font-bold text-faint", placeholder: "Guest · stay" })}
+        </div>
+      );
+      case "table": {
+        const rows = parseCSV(c.rows ?? "");
+        return (
+          <div>
+            {t({ k: "title", as: "h3", className: "mb-1.5 font-display text-[15px] font-bold text-ink", placeholder: "Table title" })}
+            <div className="rounded-sm border border-line2 text-[10.5px] font-bold" style={{ borderRadius: s.radius }}>
+              {rows.map((r, i) => (
+                <div key={i} className={cx("flex px-2.5 py-1.5", i === 0 && "border-b border-line2 bg-paper")}>
+                  {r.map((cell, j) => (
+                    <span key={j} className={cx(j === 0 ? "flex-1" : "font-mono", "px-1")}>
+                      {edit ? <EditableText as="span" value={cell} onCommit={(v) => { const arr = rows.map((x) => [...x]); arr[i][j] = v; set("rows")(arr.map((x) => x.join(",")).join("\n")); }} placeholder="cell" /> : cell}
+                    </span>
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      }
+      case "search_bar": return (
+        <div className="flex flex-wrap items-center gap-1.5 rounded-sm border border-line2 bg-white p-1.5" style={{ borderRadius: s.radius }}>
+          <span className="flex-1 rounded-sm bg-paper px-2 py-1.5 text-[10px] font-bold text-faint">{c.placeholder || "Dates · guests · area"}</span>
+          {t({ k: "button", className: "rounded-sm bg-brand px-3 py-1.5 text-[10px] font-bold text-white", style: { borderRadius: s.radius }, placeholder: "Search" })}
+        </div>
+      );
+      case "collection_grid": case "offerings_grid": return (
+        <div>
+          <div className="mb-1.5 flex items-center justify-between">
+            {t({ k: "title", as: "h3", className: "font-display text-[15px] font-bold text-ink", placeholder: "Heading" })}
+            {b.type === "collection_grid" && t({ k: "cta", className: "text-[10px] font-bold text-brand-deep", placeholder: "View all" })}
+          </div>
+          <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
+            {[0, 1, 2].map((i) => <img key={i} src={PROPERTIES[i].image} alt={PROPERTIES[i].name} className="h-20 w-full rounded-sm object-cover" style={{ borderRadius: s.radius }} />)}
+          </div>
+        </div>
+      );
+      case "collection_list": return (
+        <div>
+          {t({ k: "title", as: "h3", className: "mb-1.5 font-display text-[15px] font-bold text-ink", placeholder: "Heading" })}
+          <div className="space-y-1.5">
+            {[0, 1].map((i) => (
+              <div key={i} className="flex items-center gap-2.5">
+                <img src={PROPERTIES[i].image} alt={PROPERTIES[i].name} className="h-12 w-20 rounded-sm object-cover" style={{ borderRadius: s.radius }} />
+                <div className="flex-1"><p className="text-[12px] font-bold text-ink">{PROPERTIES[i].name}</p><p className="text-[10px] text-mute">{PROPERTIES[i].city} · {PROPERTIES[i].maxGuests} guests</p></div>
+                <span className="font-mono text-[11px] font-bold text-brand-deep">{money(PROPERTIES[i].pricing.plans[0].nightly, "IDR", { compact: true })}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+      case "cta_banner": return (
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-sm bg-pine-900 px-4 py-3" style={{ borderRadius: s.radius }}>
+          {t({ k: "headline", as: "p", className: "text-[12.5px] font-bold text-white", placeholder: "Headline" })}
+          {t({ k: "button", className: "rounded-sm bg-brand px-3 py-1.5 text-[10.5px] font-bold text-white", style: { borderRadius: s.radius }, placeholder: "Button" })}
+        </div>
+      );
+      case "contact_form": return (
+        <div>
+          {t({ k: "title", as: "h3", className: "mb-1.5 font-display text-[15px] font-bold text-ink", placeholder: "Form title" })}
+          <div className="space-y-1.5">
+            <div className="h-7 rounded-sm border border-line2 bg-white" style={{ borderRadius: s.radius }} />
+            <div className="h-14 rounded-sm border border-line2 bg-white" style={{ borderRadius: s.radius }} />
+            {t({ k: "button", className: "inline-block rounded-sm bg-brand px-4 py-1.5 text-[10.5px] font-bold text-white", style: { borderRadius: s.radius }, placeholder: "Submit" })}
+          </div>
+        </div>
+      );
+      case "icon_highlights": {
+        const items = parseLines(c.items ?? "");
+        return (
+          <div>
+            {t({ k: "title", as: "h3", className: "mb-2 text-center font-display text-[15px] font-bold text-ink", placeholder: "Heading" })}
+            <div className="flex flex-wrap justify-around gap-2">
+              {items.map((x, i) => (
+                <div key={i} className="text-center">
+                  <span className="mx-auto mb-1 flex h-8 w-8 items-center justify-center rounded-full bg-brand-soft text-brand-deep"><Ic name="sparkle" size={13} /></span>
+                  {edit ? <EditableText as="p" value={x} onCommit={(v) => { const arr = [...items]; arr[i] = v; set("items")(arr.join("\n")); }} className="text-[10px] font-bold text-ink" placeholder="Item" /> : <p className="text-[10px] font-bold text-ink">{x}</p>}
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      }
+      case "featured_offering": return (
+        <div className="flex gap-3">
+          {im({ k: "image", className: "h-20 w-28 shrink-0 rounded-sm", style: { borderRadius: s.radius } })}
+          <div className="min-w-0">
+            {t({ k: "title", as: "p", className: "text-[12.5px] font-bold text-ink", placeholder: "Offering name" })}
+            {t({ k: "text", as: "p", className: "text-[10px] text-mute", multiline: true, placeholder: "Description" })}
+            {t({ k: "price", as: "p", className: "mt-1 font-mono text-[12px] font-bold text-brand-deep", placeholder: "from Rp …" })}
+          </div>
+        </div>
+      );
+      default: return t({ k: "text", as: "p", className: "text-[12px] text-mute", multiline: true, placeholder: "New block — click to edit" });
     }
   })();
 
@@ -410,6 +640,8 @@ function BlockView({ b }: { b: Block }) {
         marginTop: s.mt, marginBottom: s.mb,
         background: s.bg || undefined, color: s.color || undefined,
         fontSize: `${s.scale}em`, textAlign: s.align,
+        minHeight: s.heightVh ? `${s.heightVh}vh` : undefined,
+        mixBlendMode: (s.blend as React.CSSProperties["mixBlendMode"]) || undefined,
       }}
     >
       <div className={cx(!s.bg && "px-1")}>{inner}</div>
@@ -417,57 +649,79 @@ function BlockView({ b }: { b: Block }) {
   );
 }
 
-// ── Per-block style panel ─────────────────────────────────────────────────
-function BlockStylePanel({ b, onChange }: { b: Block; onChange: (patch: Partial<BlockStyle>) => void }) {
+// static tag helper for non-edit mode
+function Tag({ as: A = "span", className, style, children }: { as?: "span" | "p" | "h1" | "h2" | "h3" | "div"; className?: string; style?: React.CSSProperties; children?: React.ReactNode }) {
+  return <A className={className} style={style}>{children}</A>;
+}
+
+// ── Inspector: Content + Style tabs for the selected block ────────────────
+function InspectorTabs({ b, onContent, onStyle }: { b: Block; onContent: (patch: Record<string, string>) => void; onStyle: (patch: Partial<BlockStyle>) => void }) {
+  const [tab, setTab] = useState<"content" | "style">("content");
   const s: BlockStyle = { ...DEFAULT_BLOCK_STYLE, ...b.style };
-  const Slider = ({ label, k, min, max, unit }: { label: string; k: keyof BlockStyle; min: number; max: number; unit: string }) => (
-    <Field label={`${label} · ${s[k]}${unit}`}>
-      <input type="range" min={min} max={max} value={Number(s[k])} onChange={(e) => onChange({ [k]: Number(e.target.value) } as Partial<BlockStyle>)} className="w-full" aria-label={label} />
-    </Field>
+  const c: Record<string, string> = { ...defaultBlockContent(b.type), ...b.content };
+  const schema: ContentField[] = CONTENT_SCHEMA[b.type] ?? [{ key: "text", label: "Text", multiline: true }];
+
+  const Stepper = ({ label, k, min, max, suffix, allowNegative }: { label: string; k: "py" | "px" | "mt" | "mb" | "scale" | "radius" | "heightVh"; min: number; max: number; suffix: string; allowNegative?: boolean }) => (
+    <div className="flex items-center justify-between gap-2">
+      <span className="text-[10px] font-bold text-mute">{label}</span>
+      <NumStepper value={Number(s[k] ?? 0)} onChange={(v) => onStyle({ [k]: v } as Partial<BlockStyle>)} min={min} max={max} suffix={suffix} w={92} allowNegative={allowNegative} label={label} />
+    </div>
   );
+
   return (
-    <div className="anim-pop rounded-lg border border-brand/50 bg-card p-4">
-      <p className="mb-2 flex items-center gap-2 text-[10.5px] font-bold uppercase tracking-wider text-brand-deep">
-        <Ic name="pencil" size={12} /> Styling — {BLOCK_LABEL[b.type] ?? b.type}
-      </p>
-      <Field label="Width">
-        <div className="grid grid-cols-4 gap-1">
-          {(["full", "wide", "mid", "half"] as const).map((w) => (
-            <button key={w} onClick={() => onChange({ width: w })} className={cx("rounded-sm border px-1 py-1.5 text-[10px] font-bold capitalize", s.width === w ? "border-brand bg-brand-soft text-brand-deep" : "border-line text-mute")}>{w}</button>
-          ))}
-        </div>
-      </Field>
-      <Slider label="Vertical padding" k="py" min={0} max={96} unit="px" />
-      <Slider label="Horizontal padding" k="px" min={0} max={96} unit="px" />
-      <Slider label="Margin top (negative pulls up)" k="mt" min={-64} max={64} unit="px" />
-      <Slider label="Margin bottom" k="mb" min={-64} max={64} unit="px" />
-      <div className="grid grid-cols-2 gap-2.5">
-        <Field label="Background">
-          <div className="flex items-center gap-1.5">
-            <input type="color" value={s.bg || "#ffffff"} onChange={(e) => onChange({ bg: e.target.value })} className="h-8 w-10 cursor-pointer rounded-sm border border-line bg-card" aria-label="Block background colour" />
-            <button onClick={() => onChange({ bg: "" })} className={cx("rounded-sm border px-1.5 py-1 text-[9.5px] font-bold", !s.bg ? "border-brand text-brand-deep" : "border-line text-mute")}>none</button>
-          </div>
-        </Field>
-        <Field label="Text colour">
-          <div className="flex items-center gap-1.5">
-            <input type="color" value={s.color || "#141811"} onChange={(e) => onChange({ color: e.target.value })} className="h-8 w-10 cursor-pointer rounded-sm border border-line bg-card" aria-label="Block text colour" />
-            <button onClick={() => onChange({ color: "" })} className={cx("rounded-sm border px-1.5 py-1 text-[9.5px] font-bold", !s.color ? "border-brand text-brand-deep" : "border-line text-mute")}>inherit</button>
-          </div>
-        </Field>
+    <div>
+      <div className="mb-3 flex rounded-sm border border-line bg-paper p-0.5">
+        {(["content", "style"] as const).map((t) => (
+          <button key={t} onClick={() => setTab(t)} className={cx("flex-1 rounded-sm px-2 py-1.5 text-[10.5px] font-bold capitalize transition-colors", tab === t ? "bg-ink text-white" : "text-mute hover:text-ink")}>{t}</button>
+        ))}
       </div>
-      <Slider label="Type scale" k="scale" min={8} max={14} unit="/10" />
-      <Slider label="Corner radius" k="radius" min={0} max={24} unit="px" />
-      <Field label="Alignment">
-        <div className="grid grid-cols-3 gap-1">
-          {(["left", "center", "right"] as const).map((a) => (
-            <button key={a} onClick={() => onChange({ align: a })} className={cx("rounded-sm border px-1 py-1.5 text-[10px] font-bold capitalize", s.align === a ? "border-brand bg-brand-soft text-brand-deep" : "border-line text-mute")}>{a}</button>
-          ))}
+
+      {tab === "content" ? (
+        <div className="space-y-2.5">
+          <p className="rounded-sm bg-brand-soft/50 px-2 py-1.5 text-[9.5px] font-semibold leading-relaxed text-brand-deep">
+            <Ic name="pencil" size={10} className="mr-1 inline" />You can also click any text or image directly on the canvas to edit it in place.
+          </p>
+          {schema.map((f) =>
+            f.kind === "image" ? (
+              <Ifield key={f.key} label={f.label}>
+                <div className="flex items-center gap-2">
+                  <div className="h-10 w-16 shrink-0 overflow-hidden rounded-sm border border-line"><img src={c[f.key] || PROPERTIES[0].image} alt="" className="h-full w-full object-cover" /></div>
+                  <TextInput value={c[f.key] ?? ""} onChange={(v) => onContent({ [f.key]: v })} placeholder="https://… or click image on canvas" />
+                </div>
+              </Ifield>
+            ) : (
+              <Ifield key={f.key} label={f.label} hint={f.hint}>
+                <TextInput value={c[f.key] ?? ""} onChange={(v) => onContent({ [f.key]: v })} multiline={f.multiline} placeholder={f.label} />
+              </Ifield>
+            ),
+          )}
         </div>
-      </Field>
-      <div className="mt-2 flex gap-2">
-        <Btn size="xs" variant="ghost" icon="undo" onClick={() => onChange({ ...DEFAULT_BLOCK_STYLE })}>Reset</Btn>
-        <span className="ml-auto self-center font-mono text-[9.5px] text-faint">zero margins = flush stacking</span>
-      </div>
+      ) : (
+        <div className="space-y-2.5">
+          <Ifield label="Width">
+            <SegBtns options={[{ v: "full" as const, l: "Full" }, { v: "wide" as const, l: "Wide" }, { v: "mid" as const, l: "Mid" }, { v: "half" as const, l: "Half" }]} value={s.width} onChange={(v) => onStyle({ width: v })} />
+          </Ifield>
+          <Ifield label="Alignment">
+            <SegBtns options={[{ v: "left" as const, l: "L" }, { v: "center" as const, l: "C" }, { v: "right" as const, l: "R" }]} value={s.align} onChange={(v) => onStyle({ align: v })} />
+          </Ifield>
+          <div className="space-y-2 rounded-sm border border-line bg-paper/60 p-2.5">
+            <p className="text-[9px] font-bold uppercase tracking-wider text-faint">Spacing & size</p>
+            <Stepper label="Padding V" k="py" min={0} max={120} suffix="px" />
+            <Stepper label="Padding H" k="px" min={0} max={120} suffix="px" />
+            <Stepper label="Margin top" k="mt" min={-80} max={80} suffix="px" allowNegative />
+            <Stepper label="Margin bottom" k="mb" min={-80} max={80} suffix="px" allowNegative />
+            <Stepper label="Type scale" k="scale" min={0.7} max={1.6} suffix="×" />
+            <Stepper label="Corner radius" k="radius" min={0} max={32} suffix="px" />
+            <Stepper label="Height (vh)" k="heightVh" min={0} max={100} suffix="vh" />
+          </div>
+          <div className="space-y-2 rounded-sm border border-line bg-paper/60 p-2.5">
+            <p className="text-[9px] font-bold uppercase tracking-wider text-faint">Colour & blend</p>
+            <ColorField label="Background" value={s.bg} onChange={(v) => onStyle({ bg: v })} allowNone />
+            <ColorField label="Text colour" value={s.color} onChange={(v) => onStyle({ color: v })} allowNone />
+          </div>
+          <Btn size="xs" variant="ghost" icon="undo" onClick={() => onStyle({ ...DEFAULT_BLOCK_STYLE })}>Reset styling</Btn>
+        </div>
+      )}
     </div>
   );
 }

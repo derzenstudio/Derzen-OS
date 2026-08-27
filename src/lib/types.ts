@@ -423,6 +423,16 @@ export interface SiteChrome {
   footerBg: string;
   footerColor: string;
   align: "left" | "center" | "right";
+  // identity + actions
+  logoText: string;
+  logoUrl: string;   // image logo — takes precedence over text when set
+  tagline: string;
+  showCta: boolean;
+  ctaLabel: string;
+  ctaUrl: string;
+  // full content blocks living inside the universal header / footer
+  headerBlocks: Block[];
+  footerBlocks: Block[];
 }
 export interface SavedAsset { id: string; name: string; url: string; kind: "image" | "copy"; note?: string; }
 export interface WebsiteState {

@@ -233,6 +233,11 @@ interface App {
   setSiteActivePage: (id: string) => void;
   siteChrome: SiteChrome;
   setSiteChrome: (patch: Partial<SiteChrome>) => void;
+  addChromeBlock: (target: "header" | "footer", type: string) => void;
+  updateChromeBlock: (target: "header" | "footer", id: string, patch: Partial<Block>) => void;
+  removeChromeBlock: (target: "header" | "footer", id: string) => void;
+  moveChromeBlock: (target: "header" | "footer", id: string, dir: "up" | "down") => void;
+  duplicateChromeBlock: (target: "header" | "footer", id: string) => void;
 
   // global brand styling + reusable asset library
   brand: BrandState;

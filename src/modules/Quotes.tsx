@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { cx, money, moneyRaw, fmtDate, timeAgo, hoursLeft, relDay } from "../lib/format";
 import { Ic } from "../components/icons";
-import { Badge, Btn, Empty, Field, Input, Modal, Select, Textarea } from "../components/ui";
+import { Badge, Btn, Empty, Field, Input, Modal, Select, Textarea, Toggle } from "../components/ui";
 import { useApp } from "../store";
 import { guestById, propertyById, serviceById } from "../lib/data";
 import type { Quote, QuoteStatus } from "../lib/types";
@@ -9,10 +9,11 @@ import type { Quote, QuoteStatus } from "../lib/types";
 const TONE: Record<QuoteStatus, string> = { draft: "mute", sent: "info", viewed: "plum", accepted: "ok", expired: "danger", converted: "ok", declined: "danger" };
 
 export default function Quotes() {
-  const { navigate, quotes, setQuoteStatus, convertQuote, editQuoteItem, addQuoteItem, removeQuoteItem, toast } = useApp();
+  const { navigate, quotes, setQuoteStatus, convertQuote, editQuoteItem, addQuoteItem, removeQuoteItem, toast, brand } = useApp();
   const [filter, setFilter] = useState("all");
   const [openId, setOpenId] = useState<string | null>(null);
   const [pdfOpen, setPdfOpen] = useState(false);
+  const [brandSync, setBrandSync] = useState(true);
   const [addOpen, setAddOpen] = useState(false);
   const [newItem, setNewItem] = useState({ label: "", amount: "" });
   const q = quotes.find((x) => x.id === openId) ?? null;
@@ -113,16 +114,27 @@ export default function Quotes() {
 
       {/* PDF preview */}
       <Modal open={pdfOpen && !!q} onClose={() => setPdfOpen(false)} title="Branded PDF preview" w={560}
-        footer={<><Btn variant="ghost" onClick={() => setPdfOpen(false)}>Close</Btn><Btn variant="solid" icon="download" onClick={() => toast("ok", "PDF downloaded", `${q?.ref}-quote.pdf`)}>Download</Btn></>}>
+        footer={<>
+          <label className="mr-auto flex items-center gap-2 text-[11.5px] font-bold text-mute">
+            <Toggle checked={brandSync} onChange={setBrandSync} label="Sync invoice styling with Global Styling" /> Sync with Global Styling
+          </label>
+          <Btn variant="ghost" onClick={() => setPdfOpen(false)}>Close</Btn>
+          <Btn variant="solid" icon="download" onClick={() => toast("ok", "PDF downloaded", `${q?.ref}-quote.pdf · styling ${brandSync ? "from Global Styling" : "classic"}`)}>Download</Btn>
+        </>}>
         {q && (
-          <div className="rounded-lg border border-line bg-white p-6 shadow-inner">
-            <div className="mb-4 flex items-start justify-between border-b-2 border-pine-900 pb-3">
+          <div
+            className="rounded-lg border border-line bg-white p-6 shadow-inner"
+            style={brandSync ? { fontFamily: `'${brand.bodyFamily}', sans-serif`, borderRadius: Math.max(brand.radius, 2) } : undefined}
+          >
+            <div className="mb-4 flex items-start justify-between border-b-2 pb-3" style={brandSync ? { borderColor: brand.primary } : undefined}>
               <div>
-                <p className="font-display text-[18px] font-bold text-pine-900">Sanggraha Villas</p>
+                <p className="text-[18px] font-bold" style={brandSync ? { fontFamily: `'${brand.headingFamily}', sans-serif`, color: brand.ink } : undefined}>
+                  <span className={brandSync ? "" : "font-display text-pine-900"}>Sanggraha Villas</span>
+                </p>
                 <p className="text-[10px] text-mute">Boutique villa collection · Bali · stay.sanggraha.co</p>
               </div>
               <div className="text-right">
-                <p className="font-mono text-[14px] font-bold text-pine-900">{q.ref}</p>
+                <p className="font-mono text-[14px] font-bold" style={brandSync ? { color: brand.ink } : undefined}><span className={brandSync ? "" : "text-pine-900"}>{q.ref}</span></p>
                 <p className="text-[10px] text-mute">valid until {fmtDate(new Date(q.expiresAt))}</p>
               </div>
             </div>
@@ -136,7 +148,10 @@ export default function Quotes() {
                     <td className="py-1 text-right font-mono text-[11px]">{moneyRaw(it.amount, q.currency, { sign: true })}</td>
                   </tr>
                 ))}
-                <tr><td className="py-1.5 text-[12.5px] font-bold">Total</td><td className="py-1.5 text-right font-mono text-[13.5px] font-bold">{moneyRaw(q.total, q.currency)}</td></tr>
+                <tr>
+                  <td className="py-1.5 text-[12.5px] font-bold">Total</td>
+                  <td className="py-1.5 text-right font-mono text-[13.5px] font-bold" style={brandSync ? { color: brand.primary } : undefined}>{moneyRaw(q.total, q.currency)}</td>
+                </tr>
               </tbody>
             </table>
             <p className="mt-3 text-[10.5px] leading-relaxed text-mute"><b>Deposit:</b> {q.depositTerms}</p>

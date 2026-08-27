@@ -174,6 +174,7 @@ interface App {
   setConvNote: (id: string, note: string) => void;
 
   setCalendarCell: (propId: string, key: string, patch: CellOverride) => void;
+  manualBlock: (propId: string, keys: string[], patch: CellOverride) => void;
   bulkApply: (propIds: string[], keys: string[], patch: CellOverride) => void;
   rollbackBulk: () => void;
   retryPush: (id: string) => void;
@@ -492,6 +493,39 @@ export const useApp = create<App>((set, get) => ({
     set((st) => ({
       calendarOverrides: { ...st.calendarOverrides, [propId]: { ...st.calendarOverrides[propId], [key]: { ...st.calendarOverrides[propId]?.[key], ...patch } } },
     })),
+  manualBlock: (propId, keys, patch) => {
+    // Same path as bulk edit: local override first, then a durable per-channel
+    // push queue — so a manual block / custom price syncs with everything.
+    const st = get();
+    const next = { ...st.calendarOverrides, [propId]: { ...st.calendarOverrides[propId] } };
+    for (const k of keys) next[propId][k] = { ...next[propId][k], ...patch };
+    // Parent/child invariant: closing a parent closes children.
+    const prop = propertyById(propId);
+    if (prop.isParent && patch.closed) {
+      for (const child of st.properties.filter((x) => x.parentId === propId)) {
+        next[child.id] = { ...next[child.id] };
+        for (const k of keys) next[child.id][k] = { ...next[child.id][k], closed: true };
+      }
+    }
+    const channelsSeen = new Map<string, string>();
+    for (const [ch, status] of Object.entries(prop.channels)) {
+      if (status === "live") channelsSeen.set(ch, channelDef(ch as never).color);
+    }
+    const queue: PushItem[] = [...channelsSeen.entries()].map(([ch, color]) => ({ id: uid("push"), channel: ch, color, status: "queued" as const }));
+    set({ calendarOverrides: next, pushQueue: queue, bulkSnapshot: { overrides: st.calendarOverrides } });
+    queue.forEach((q, i) => {
+      later(() => set((s) => ({ pushQueue: s.pushQueue.map((x) => (x.id === q.id ? { ...x, status: "pushing" } : x)) })), 250 + i * 240);
+      later(() => set((s) => ({ pushQueue: s.pushQueue.map((x) => (x.id === q.id ? { ...x, status: "ok" } : x)) })), 900 + i * 300);
+    });
+    get().audit(
+      patch.blockType
+        ? `Manual block (${patch.blockType}) · ${prop.name} · ${keys.length} night${keys.length > 1 ? "s" : ""}${patch.blockPrice ? ` · custom rate` : ""}`
+        : `Calendar edit · ${prop.name} · ${keys.length} night${keys.length > 1 ? "s" : ""}`,
+      "ui",
+      undefined,
+      `queued pushes to ${queue.length} channels`,
+    );
+  },
 
   bulkApply: (propIds, keys, patch) => {
     const st = get();

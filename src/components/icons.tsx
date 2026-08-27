@@ -52,6 +52,7 @@ const P: Record<string, ReactNode> = {
   lock: <><rect x="5" y="10.5" width="14" height="10" rx="2" /><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5" /></>,
   image: <><rect x="3" y="4" width="18" height="16" rx="2" /><circle cx="9" cy="10" r="1.8" /><path d="M4 18l5.5-5 3.5 3 3-2.5L21 17" /></>,
   palette: <><path d="M12 3a9 9 0 1 0 0 18c1.5 0 2-.8 2-1.8 0-.8-.5-1.2-.5-2 0-1 .8-1.7 2-1.7H17a4 4 0 0 0 4-4c0-4.5-4-8.5-9-8.5z" /><circle cx="7.5" cy="11" r="1" fill="currentColor" stroke="none" /><circle cx="10.5" cy="7" r="1" fill="currentColor" stroke="none" /><circle cx="15" cy="7.5" r="1" fill="currentColor" stroke="none" /></>,
+  droplet: <path d="M12 3c3.5 4.2 6 7.4 6 10.5a6 6 0 0 1-12 0C6 10.4 8.5 7.2 12 3z" />,
   bag: <><path d="M6 8h12l1.2 12.5H4.8z" /><path d="M9 10V6.5a3 3 0 0 1 6 0V10" /></>,
   tag: <><path d="M3 11V4a1 1 0 0 1 1-1h7l10 10-8 8z" /><circle cx="8" cy="8" r="1.4" /></>,
   card: <><rect x="2.5" y="5" width="19" height="14" rx="2" /><path d="M2.5 9.5h19M6 14.5h4" /></>,

@@ -20,6 +20,7 @@ import Listings from "./modules/Listings";
 import Channels from "./modules/Channels";
 import Quotes from "./modules/Quotes";
 import Websites from "./modules/Websites";
+import GlobalStyling from "./modules/GlobalStyling";
 import Reports from "./modules/Reports";
 import SettingsModule from "./modules/Settings";
 import Integrations from "./modules/Integrations";
@@ -41,6 +42,7 @@ const MODULES: Record<string, { title: string; sub?: string; el: ComponentType }
   listings: { title: "nav.listings", sub: "Properties, pricing & services", el: Listings },
   channels: { title: "nav.channels", sub: "Distribution, mapping & the connect wizard", el: Channels },
   websites: { title: "nav.websites", sub: "Builder, widgets & site analytics", el: Websites },
+  styling: { title: "nav.styling", sub: "One brand across sites, widgets, invoices & emails", el: GlobalStyling },
   guidebooks: { title: "nav.guidebooks", sub: "Guest guides with an in-guide store", el: Guidebooks },
   reports: { title: "nav.reports", sub: "Revenue, costs & reconciliation", el: Reports },
   integrations: { title: "nav.integrations", sub: "Webhooks, API & connected apps", el: Integrations },

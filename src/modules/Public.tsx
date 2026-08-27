@@ -119,7 +119,7 @@ export function PublicSite() {
             </div>
             <div className="flex items-center gap-2 border-t border-white/10 bg-white/[0.03] px-4 py-2.5">
               <Ic name="alertTri" size={12} className="text-[#e2a33c]" />
-              <p className="truncate text-[10.5px] text-white/60"><b className="text-white/85">1 sync alert:</b> VRBO OAuth expired on Purnama — one-click re-auth queued</p>
+              <p className="truncate text-[10.5px] text-white/60"><b className="text-white/85">1 sync alert:</b> VRBO OAuth expired on Purnama, one-click re-auth queued</p>
             </div>
           </div>
           <style>{`@keyframes barGrowX { from { transform: scaleX(0); } to { transform: scaleX(1); } }`}</style>
@@ -134,15 +134,15 @@ export function PublicSite() {
               <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-brand">The switchboard</p>
               <h2 className="font-display text-[32px] font-extrabold tracking-tight sm:text-[40px]">Eighteen modules. Zero swivel-chair.</h2>
             </div>
-            <p className="max-w-[42ch] text-[13.5px] text-mute">Rates you edit once land on six OTAs. A guest message becomes a task becomes an invoice becomes an owner statement — one audit chain.</p>
+            <p className="max-w-[42ch] text-[13.5px] text-mute">Rates you edit once land on six OTAs. A guest message becomes a task becomes an invoice becomes an owner statement, all in one audit chain.</p>
           </div>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-6">
-            <BentoTile span="md:col-span-4" icon="calendar" title="Multi-calendar with bulk edit" body="Drag across 20 listings × 30 nights, apply rate + min-stay + CTA in one transaction. Pushes queue per channel; failures surface with rollback — never a silent double-sell." tag="Distribution" />
+            <BentoTile span="md:col-span-4" icon="calendar" title="Multi-calendar with bulk edit" body="Drag across 20 listings × 30 nights, apply rate + min-stay + CTA in one transaction. Pushes queue per channel; failures surface with rollback, never a silent double-sell." tag="Distribution" />
             <BentoTile span="md:col-span-2" icon="sparkle" title="AI concierge" body="Cites your knowledge base or escalates. Three autopilot modes; humans approve in Suggestion mode." tag="Engage" dark />
             <BentoTile span="md:col-span-2" icon="chat" title="Unified inbox" body="Airbnb, Booking, WhatsApp, email — threaded to the right reservation in under 10 seconds." tag="Engage" />
             <BentoTile span="md:col-span-2" icon="wrench" title="Command Center" body="Tasks, checklists with photo proof, provider escalation — offline-first for staff in dead spots." tag="Operate" />
             <BentoTile span="md:col-span-2" icon="web" title="Direct-booking sites" body="Visual builder, embeddable widgets, quotes that convert to reservations with a payment link." tag="Sell" dark />
-            <BentoTile span="md:col-span-3" icon="trendUp" title="Financials that reconcile" body="ADR, RevPAR, occupancy, owner statements — every total traces to the transaction ledger. IDR ⇄ USD at timestamped rates." tag="Business" />
+            <BentoTile span="md:col-span-3" icon="trendUp" title="Financials that reconcile" body="ADR, RevPAR, occupancy, owner statements, and every total traces to the transaction ledger. IDR ⇄ USD at timestamped rates." tag="Business" />
             <BentoTile span="md:col-span-3" icon="lock" title="Smart locks + ID checks" body="Door codes issue at verification, revoke at checkout. Nuki, TTLock, August, Igloohome." tag="Integrations" />
           </div>
         </div>
@@ -244,7 +244,7 @@ export function PublicSite() {
 function Wordmark({ light }: { light?: boolean }) {
   return (
     <span className="flex items-center gap-2">
-      <svg width="24" height="24" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="6" fill={light ? "#ffffff" : "#141811"} /><path d="M8 10h16M16 10v13" stroke={light ? "#141811" : "#F4F5F0"} strokeWidth="3" /><rect x="8" y="21" width="6" height="3" fill="#0E6B4E" /></svg>
+      <svg width="24" height="24" viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect width="32" height="32" rx="7" fill={light ? "#ffffff" : "#0E6B4E"} /><path d="M10 8h6a8 8 0 0 1 0 16h-6V8z" stroke={light ? "#0E6B4E" : "#F4F5F0"} strokeWidth="2.6" /><path d="M10 8v16" stroke={light ? "#9A6A0B" : "#8FE3BF"} strokeWidth="2.6" /></svg>
       <span className={cx("font-display text-[17px] font-extrabold uppercase tracking-[0.04em]", light ? "text-white" : "text-ink")}>derzen</span>
     </span>
   );
@@ -324,7 +324,7 @@ export function LoginPage() {
       <aside className="relative hidden flex-col justify-between overflow-hidden bg-ink p-10 text-white lg:flex">
         <div className="absolute inset-0 opacity-[0.13]" style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cpath d='M0 60h120M60 0v120' stroke='%23ffffff' stroke-width='0.6'/%3E%3C/svg%3E\")" }} aria-hidden="true" />
         <div className="relative flex items-center gap-2">
-          <svg width="28" height="28" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="6" fill="#fff" /><path d="M8 10h16M16 10v13" stroke="#141811" strokeWidth="3" /><rect x="8" y="21" width="6" height="3" fill="#0E6B4E" /></svg>
+          <svg width="28" height="28" viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#0E6B4E" /><path d="M10 8h6a8 8 0 0 1 0 16h-6V8z" stroke="#F4F5F0" strokeWidth="2.6" /><path d="M10 8v16" stroke="#8FE3BF" strokeWidth="2.6" /></svg>
           <span className="font-display text-[19px] font-extrabold uppercase tracking-[0.04em]">derzen</span>
         </div>
         <div className="relative">

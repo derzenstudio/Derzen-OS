@@ -26,6 +26,7 @@ const TABS: { id: BTab; label: string; icon: IconName }[] = [
 export default function DevBackoffice() {
   const { navigate } = useApp();
   const [tab, setTab] = useState<BTab>("ops");
+  const [navOpen, setNavOpen] = useState(false);
   const [tenantId, setTenantId] = useState<string | null>(null);
   const [q, setQ] = useState("");
 
@@ -33,14 +34,15 @@ export default function DevBackoffice() {
 
   return (
     <div className="flex min-h-screen bg-pine-950 text-white">
-      <aside className="sticky top-0 flex h-screen w-[228px] shrink-0 flex-col border-r border-white/10 bg-[#0a0a09]">
+      {navOpen && <div className="fixed inset-0 z-[84] bg-black/55 backdrop-blur-[2px] lg:hidden" onClick={() => setNavOpen(false)} aria-hidden="true" />}
+      <aside className={cx("fixed inset-y-0 left-0 z-[85] flex h-screen w-[248px] shrink-0 flex-col border-r border-white/10 bg-[#0a0a09] shadow-2xl transition-transform duration-300 lg:sticky lg:top-0 lg:z-auto lg:w-[228px] lg:translate-x-0 lg:shadow-none", navOpen ? "translate-x-0" : "-translate-x-full")}>
         <div className="border-b border-white/10 px-4 py-4">
           <p className="font-display text-[14px] font-extrabold leading-none">operations backoffice</p>
           <p className="mt-1 font-mono text-[9px] font-bold uppercase tracking-widest text-brand-bright">admin.derzen.internal · SSO + device trust</p>
         </div>
         <nav className="flex-1 space-y-0.5 overflow-y-auto p-2">
           {TABS.map((s) => (
-            <button key={s.id} onClick={() => { setTab(s.id); setTenantId(null); }} className={cx("flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-[12px] font-bold transition-colors", tab === s.id ? "bg-brand text-white" : "text-white/55 hover:bg-white/5 hover:text-white")}>
+            <button key={s.id} onClick={() => { setTab(s.id); setTenantId(null); setNavOpen(false); }} className={cx("flex w-full items-center gap-2.5 rounded-md px-3 py-2 text-left text-[12px] font-bold transition-colors", tab === s.id ? "bg-brand text-white" : "text-white/55 hover:bg-white/5 hover:text-white")}>
               <Ic name={s.icon} size={13} /> {s.label}
             </button>
           ))}
@@ -52,7 +54,8 @@ export default function DevBackoffice() {
       </aside>
 
       <main className="min-w-0 flex-1">
-        <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-white/10 bg-[#0a0a09]/90 px-6 py-3.5 backdrop-blur">
+        <header className="sticky top-0 z-30 flex items-center gap-3 border-b border-white/10 bg-[#0a0a09]/90 px-4 py-3.5 backdrop-blur md:px-6">
+          <button onClick={() => setNavOpen(true)} aria-label="Open backoffice navigation" className="flex h-8 w-8 items-center justify-center rounded-sm border border-white/15 text-white/70 lg:hidden"><Ic name="menu" size={15} /></button>
           <h1 className="font-display text-[17px] font-extrabold tracking-tight">{TABS.find((t) => t.id === tab)?.label}</h1>
           <p className="hidden font-mono text-[10px] text-white/30 sm:block">separate deploy · separate auth · separate audit stream — never a hidden tenant route</p>
           <span className="ml-auto rounded-full bg-white/5 px-2.5 py-1 font-mono text-[10px] font-bold text-white/50">session: mira.k@ · support · MFA ✓</span>

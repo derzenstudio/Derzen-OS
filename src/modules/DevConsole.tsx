@@ -19,16 +19,18 @@ const SECTIONS: { id: DevTab; label: string; icon: IconName }[] = [
 export default function DevConsole() {
   const { logout, devIntegrations, tenants } = useApp();
   const [tab, setTab] = useState<DevTab>("overview");
+  const [navOpen, setNavOpen] = useState(false);
   const live = devIntegrations.filter((i) => i.status === "live").length;
   const sandbox = devIntegrations.filter((i) => i.status === "sandbox").length;
   const missing = devIntegrations.filter((i) => i.status === "missing").length;
 
   return (
     <div className="flex min-h-screen bg-pine-950 text-white">
+      {navOpen && <div className="fixed inset-0 z-[84] bg-black/55 backdrop-blur-[2px] lg:hidden" onClick={() => setNavOpen(false)} aria-hidden="true" />}
       {/* Rail */}
-      <aside className="sticky top-0 flex h-screen w-[218px] shrink-0 flex-col border-r border-white/10 bg-[#0a0a09]">
+      <aside className={cx("fixed inset-y-0 left-0 z-[85] flex h-screen w-[232px] shrink-0 flex-col border-r border-white/10 bg-[#0a0a09] shadow-2xl transition-transform duration-300 lg:sticky lg:top-0 lg:z-auto lg:w-[218px] lg:translate-x-0 lg:shadow-none", navOpen ? "translate-x-0" : "-translate-x-full")}>
         <div className="flex items-center gap-2 border-b border-white/10 px-4 py-4">
-          <svg width="22" height="22" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="6" fill="#fff" /><path d="M8 10h16M16 10v13" stroke="#141811" strokeWidth="3" /><rect x="8" y="21" width="6" height="3" fill="#0E6B4E" /></svg>
+          <svg width="22" height="22" viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#0E6B4E" /><path d="M10 8h6a8 8 0 0 1 0 16h-6V8z" stroke="#F4F5F0" strokeWidth="2.6" /><path d="M10 8v16" stroke="#8FE3BF" strokeWidth="2.6" /></svg>
           <div>
             <p className="font-display text-[14px] font-extrabold uppercase leading-none tracking-[0.05em]">derzen</p>
             <p className="mt-0.5 font-mono text-[9px] font-bold uppercase tracking-widest text-brand-bright">dev console</p>
@@ -36,7 +38,7 @@ export default function DevConsole() {
         </div>
         <nav className="flex-1 space-y-0.5 p-2">
           {SECTIONS.map((s) => (
-            <button key={s.id} onClick={() => setTab(s.id)} className={cx("flex w-full items-center gap-2.5 rounded-md px-3 py-2.5 text-left text-[12.5px] font-bold transition-colors", tab === s.id ? "bg-brand text-white" : "text-white/55 hover:bg-white/5 hover:text-white")}>
+            <button key={s.id} onClick={() => { setTab(s.id); setNavOpen(false); }} className={cx("flex w-full items-center gap-2.5 rounded-md px-3 py-2.5 text-left text-[12.5px] font-bold transition-colors", tab === s.id ? "bg-brand text-white" : "text-white/55 hover:bg-white/5 hover:text-white")}>
               <Ic name={s.icon} size={14} /> {s.label}
             </button>
           ))}
@@ -51,7 +53,8 @@ export default function DevConsole() {
 
       {/* Main */}
       <main className="min-w-0 flex-1">
-        <header className="sticky top-0 z-30 flex flex-wrap items-center gap-3 border-b border-white/10 bg-[#0a0a09]/90 px-6 py-3.5 backdrop-blur">
+        <header className="sticky top-0 z-30 flex flex-wrap items-center gap-3 border-b border-white/10 bg-[#0a0a09]/90 px-4 py-3.5 backdrop-blur md:px-6">
+          <button onClick={() => setNavOpen(true)} aria-label="Open console navigation" className="flex h-8 w-8 items-center justify-center rounded-sm border border-white/15 text-white/70 lg:hidden"><Ic name="menu" size={15} /></button>
           <h1 className="font-display text-[17px] font-extrabold tracking-tight">{SECTIONS.find((s) => s.id === tab)?.label}</h1>
           <div className="ml-auto flex items-center gap-2 font-mono text-[10.5px]">
             <span className="rounded-full bg-[#1d3527] px-2.5 py-1 font-bold text-[#4CC38A]">{live} live</span>

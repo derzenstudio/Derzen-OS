@@ -95,7 +95,7 @@ export default function Websites() {
               <Field label="Footer">
                 <Input value={siteChrome.footer} onChange={(e) => setSiteChrome({ footer: e.target.value })} className="!text-[11px]" />
               </Field>
-              <p className="mt-1 text-[10px] text-faint">Rendered on every page — edit once, appears everywhere.</p>
+              <p className="mt-1 text-[10px] text-faint">Rendered on every page. Edit once, appears everywhere.</p>
             </div>
           </div>
 

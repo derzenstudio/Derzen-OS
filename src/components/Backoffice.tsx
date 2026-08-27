@@ -98,8 +98,8 @@ const TITLES: Record<BoSection, { title: string; sub: string }> = {
   access: { title: "Internal access control", sub: "Staff roles, separation of duties, and the immutable audit stream" },
   topology: { title: "Service & repo topology", sub: "Independently deployable services · pure-core packages · CI-enforced boundaries" },
   schema: { title: "Core data model", sub: "40 tenant-scoped tables · conventions · invariants enforced in the database" },
-  machines: { title: "State machines", sub: "Explicit transition tables — undefined transitions are rejected loudly" },
-  resolver: { title: "Availability resolver", sub: "resolve() — the pure function at the heart of the product, running live" },
+  machines: { title: "State machines", sub: "Explicit transition tables. Undefined transitions are rejected loudly" },
+  resolver: { title: "Availability resolver", sub: "resolve(), the pure function at the heart of the product, running live" },
   adapter: { title: "Channel adapter contract", sub: "One interface every OTA sits behind · capability flags · error taxonomy" },
   events: { title: "Event catalogue & envelope", sub: "Transactional outbox · resource.past_tense · additive versions" },
   api: { title: "Public API surface", sub: "/v1 conventions · route inventory · the separate guest surface" },
@@ -107,14 +107,14 @@ const TITLES: Record<BoSection, { title: string; sub: string }> = {
   aitasks: { title: "AI task inventory", sub: "Registered tasks with fixed contracts · guardrails · kill switches" },
   jobs: { title: "Background job inventory", sub: "Cadence, idempotency and priority for every job on the platform" },
   config: { title: "Configuration & secrets", sub: "Config by environment · KMS-backed secrets with rotation" },
-  calcs: { title: "Derived calculations", sub: "Meter, owner statement, occupancy math and task generation — live" },
+  calcs: { title: "Derived calculations", sub: "Meter, owner statement, occupancy math and task generation, computed live" },
   checklist: { title: "Ready-to-code checklist", sub: "The artefacts that must exist before implementation starts" },
-  queues: { title: "Work queues", sub: "Ten claimable daily surfaces with SLA timers — raw payload, fix, resolve-with-reason" },
-  inspector: { title: "Universal entity inspector", sub: "Record + mutation history + raw payload + permission trace — no production access" },
+  queues: { title: "Work queues", sub: "Ten claimable daily surfaces with SLA timers: raw payload, suggested fix, resolve-with-reason" },
+  inspector: { title: "Universal entity inspector", sub: "Record + mutation history + raw payload + permission trace, without touching production" },
   providers: { title: "Provider health", sub: "Per-channel success, latency, error taxonomy, certification and deprecation" },
-  runbooks: { title: "Incident runbooks", sub: "The ten incidents that will actually happen — detection, mitigation, comms, follow-up" },
-  slos: { title: "SLO targets", sub: "Put numbers on it or it isn't an SLO — with an error-budget policy that bites" },
-  golive: { title: "Go-live playbook", sub: "Migration as a product with a checklist — dry-run, read-only parity, cutover, hypercare" },
+  runbooks: { title: "Incident runbooks", sub: "The ten incidents that will actually happen: detection, mitigation, comms, follow-up" },
+  slos: { title: "SLO targets", sub: "Put numbers on it or it isn't an SLO, with an error-budget policy that bites" },
+  golive: { title: "Go-live playbook", sub: "Migration as a product with a checklist: dry-run, read-only parity, cutover, hypercare" },
   metrics: { title: "Metric definitions", sub: "Agreed once in the semantic layer so nobody argues in a meeting" },
   team: { title: "Team, cost & risk", sub: "Minimum viable team, per-tenant unit economics, and the quarterly risk register" },
 };
@@ -122,6 +122,7 @@ const TITLES: Record<BoSection, { title: string; sub: string }> = {
 export function Backoffice() {
   const { logout, navigate } = useApp();
   const [section, setSection] = useState<BoSection>("ops");
+  const [navOpen, setNavOpen] = useState(false);
   const [events, setEvents] = useState<AuditEvent[]>(AUDIT_STREAM);
   const [emergencyStop, setEmergencyStop] = useState(false);
 
@@ -136,8 +137,9 @@ export function Backoffice() {
   return (
     <AuditContext.Provider value={ctx}>
       <div className="flex min-h-screen bg-pine-950 text-pine-100">
+        {navOpen && <div className="fixed inset-0 z-[84] bg-black/55 backdrop-blur-[2px] lg:hidden" onClick={() => setNavOpen(false)} aria-hidden="true" />}
         {/* Rail */}
-        <aside className="sticky top-0 flex h-screen w-[228px] shrink-0 flex-col border-r border-white/10 bg-[#0a0a09]">
+        <aside className={cx("fixed inset-y-0 left-0 z-[85] flex h-screen w-[248px] shrink-0 flex-col border-r border-white/10 bg-[#0a0a09] shadow-2xl transition-transform duration-300 lg:sticky lg:top-0 lg:z-auto lg:w-[228px] lg:translate-x-0 lg:shadow-none", navOpen ? "translate-x-0" : "-translate-x-full")}>
           <div className="flex items-center gap-2.5 border-b border-white/10 px-4 py-4">
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand">
               <Ic name="server" size={16} className="text-white" sw={2.2} />
@@ -157,7 +159,7 @@ export function Backoffice() {
                   return (
                     <button
                       key={it.id}
-                      onClick={() => setSection(it.id)}
+                      onClick={() => { setSection(it.id); setNavOpen(false); }}
                       aria-current={active ? "page" : undefined}
                       className={cx(
                         "mb-0.5 flex w-full items-center gap-2.5 rounded-md px-2 py-[7px] text-left text-[12.5px] font-semibold transition-colors",
@@ -191,8 +193,9 @@ export function Backoffice() {
 
         {/* Main */}
         <main className="min-w-0 flex-1">
-          <header className="sticky top-0 z-30 border-b border-white/10 bg-pine-950/85 px-6 py-3.5 backdrop-blur">
+          <header className="sticky top-0 z-30 border-b border-white/10 bg-pine-950/85 px-4 py-3.5 backdrop-blur md:px-6">
             <div className="flex flex-wrap items-center gap-3">
+              <button onClick={() => setNavOpen(true)} aria-label="Open backoffice navigation" className="flex h-8 w-8 items-center justify-center rounded-sm border border-white/15 text-white/70 lg:hidden"><Ic name="menu" size={15} /></button>
               <div className="min-w-0">
                 <h1 className="font-display text-[17px] font-bold tracking-tight text-white">{TITLES[section].title}</h1>
                 <p className="text-[11px] text-white/45">{TITLES[section].sub}</p>

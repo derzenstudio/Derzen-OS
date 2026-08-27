@@ -8,8 +8,8 @@
    every utility that reads var(--color-*) switches automatically.       */
 
 @theme {
-  --font-display: "Big Shoulders Display", "Schibsted Grotesk", sans-serif;
-  --font-body: "Schibsted Grotesk", ui-sans-serif, sans-serif;
+  --font-display: "Big Shoulders Display", "IBM Plex Sans", sans-serif;
+  --font-body: "IBM Plex Sans", ui-sans-serif, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
 
   /* corner cap */
@@ -103,6 +103,29 @@ html,
 body,
 #root {
   height: 100%;
+}
+
+/* Accurate viewport on mobile browsers (iOS/Android URL chrome, foldables).
+   Unlayered, so it wins over the layered Tailwind utilities everywhere. */
+.h-screen {
+  height: 100vh;
+  height: 100dvh;
+}
+.min-h-screen {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+.max-h-screen {
+  max-height: 100vh;
+  max-height: 100dvh;
+}
+main {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+@media (max-width: 1023px) {
+  body {
+    overscroll-behavior-y: none;
+  }
 }
 
 body {

@@ -269,7 +269,7 @@ export default function CalendarModule() {
             ref={gridRef} tabIndex={0} role="grid" aria-label="Availability calendar. Use arrow keys to move."
             onKeyDown={onKeyDown} onMouseUp={stopDrag} onMouseLeave={stopDrag}
             className="relative overflow-auto rounded-xl border border-line bg-card outline-none focus-visible:border-brand"
-            style={{ maxHeight: "calc(100vh - 292px)" }}
+            style={{ maxHeight: "calc(100dvh - 292px)" }}
           >
             <div style={{ width: LABEL_W + windowN * COL_W, minWidth: "100%" }}>
               {/* Header */}

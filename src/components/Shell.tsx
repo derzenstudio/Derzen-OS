@@ -72,8 +72,8 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
       <button onClick={() => { onClose(); navigate("/dashboard"); }} className="flex items-center gap-2.5 px-4 pb-5 pt-6 text-left">
         <span className="flex h-8 w-8 items-center justify-center rounded-sm bg-brand shadow-[0_0_0_3px_rgba(14,107,78,0.2)]">
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M4 6h16M4 12h11M4 18h7" stroke="#fff" strokeWidth="2.6" strokeLinecap="square" />
-            <path d="M18 15.5v6" stroke="#8FE3BF" strokeWidth="2.6" strokeLinecap="square" />
+            <path d="M7.5 5.5h4.5a6.5 6.5 0 0 1 0 13H7.5V5.5z" stroke="#fff" strokeWidth="2.4" />
+            <path d="M7.5 5.5v13" stroke="#8FE3BF" strokeWidth="2.4" />
           </svg>
         </span>
         <span>
@@ -296,7 +296,7 @@ function ChatPanel() {
       </div>
       <div className="border-t border-line p-2.5">
         <div className="flex items-center gap-1.5 rounded-md border border-line2 bg-card px-2">
-          <input value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => e.key === "Enter" && submit()} placeholder={`Message ${chan.kind === "channel" ? "#" : ""}${chan.name} — @ to mention`} className="h-9 flex-1 bg-transparent text-[12.5px] outline-none placeholder:text-faint" />
+          <input value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => e.key === "Enter" && submit()} placeholder={`Message ${chan.kind === "channel" ? "#" : ""}${chan.name}, @ to mention`} className="h-9 flex-1 bg-transparent text-[12.5px] outline-none placeholder:text-faint" />
           <IconBtn label="Send message" name="send" onClick={submit} tone="text-brand" />
         </div>
       </div>
@@ -312,23 +312,23 @@ function copilotAnswer(q: string, props: Property[]): { text: string; confirm?: 
   const weekendStart = addDays(t, ((6 - t.getDay()) + 7) % 7 || 7);
   if (/(adr|average.*rate|revenue.*last year|last year)/.test(s)) {
     const adrNow = Math.round(MONTHLY.slice(-3).reduce((a, m) => a + m.adr, 0) / 3);
-    return { text: `Trailing-90-day ADR is €${adrNow} vs €${Math.round(adrNow / 1.12)} in the same window last year — up 12%. Villa Anggrek is pulling the average up (+18%); Rumah Senja is flat. I'd test a +4% mid-week overlay on Senja for next month.` };
+    return { text: `Trailing-90-day ADR is €${adrNow} vs €${Math.round(adrNow / 1.12)} in the same window last year, up 12%. Villa Anggrek is pulling the average up (+18%); Rumah Senja is flat. I'd test a +4% mid-week overlay on Senja for next month.` };
   }
   if (/(open|available|free).*(weekend|next)/.test(s)) {
     const open = props.filter((p) => !p.archived && !p.isParent && arrivalsOn(RESERVATIONS, ((6 - t.getDay()) + 7) % 7 || 7, p.id).length === 0);
     return { text: `For next weekend (${fmtShort(weekendStart)}–${fmtShort(addDays(weekendStart, 2))}) these are open: ${open.slice(0, 5).map((p) => p.name).join(", ") || "none — every villa has an arrival"}. Samudra Three is open but its direct checkout is disabled.` };
   }
   if (/(overdue|behind|late)/.test(s)) {
-    return { text: `3 tasks are overdue: the AC drip at Villa Purnama (urgent, 20h over), water heater descale at Kelapa, and nothing else critical. The AC one has a flagged ceiling stain — I'd escalate to Bali Pool & Plumbing today. Want me to create the provider task?`, confirm: { label: "Create provider task", taskId: "Fix: master suite ceiling (Bali Pool & Plumbing)" } };
+    return { text: `3 tasks are overdue: the AC drip at Villa Purnama (urgent, 20h over), water heater descale at Kelapa, and nothing else critical. The AC one has a flagged ceiling stain, so I'd escalate to Bali Pool & Plumbing today. Want me to create the provider task?`, confirm: { label: "Create provider task", taskId: "Fix: master suite ceiling (Bali Pool & Plumbing)" } };
   }
   if (/(draft|reply).*(jonas|weber|cottage|cot)/.test(s) || /draft.*reply/.test(s)) {
-    return { text: `Draft for Jonas Weber (Booking.com, Villa Cemara):\n\n"Hi Jonas — yes to both! We'll have a cot set up in the ground-floor bedroom, and while the pool isn't heated it sits at a lovely 29° this week. See you at 14:00 — Kadek"\n\nTone-checked against your brand rules. Send it from the Inbox, or I can queue it under Autopilot → Suggestion.` };
+    return { text: `Draft for Jonas Weber (Booking.com, Villa Cemara):\n\n"Hi Jonas, yes to both! We'll have a cot set up in the ground-floor bedroom, and while the pool isn't heated it sits at a lovely 29° this week. See you at 14:00. Kadek"\n\nTone-checked against your brand rules. Send it from the Inbox, or I can queue it under Autopilot → Suggestion.` };
   }
   if (/(automation|automate|sop)/.test(s)) {
     return { text: `Two automation gaps I can see:\n1. No "guest cancellation notice" template fires for VRBO cancellations (R-2432 was cancelled with no outbound message).\n2. Kelapa has no checkout-cleaning task generated because it's unmanaged — set a template anyway?\nI can wire both. Write actions need your confirm.` };
   }
   if (/(anomal|weird|unusual|issue)/.test(s)) {
-    return { text: `Anomalies right now:\n• Agoda rate pushes failing — base USD 322 is below their USD 348 floor (4th failure).\n• VRBO OAuth token expired 26h ago — 6 pushes queued behind it.\n• Rumah Senja knowledge scope is empty → concierge escalated 2 guest questions this week.\n• Samudra Two ↔ Booking.com room-type conflict is 2h old and holding an inbound reservation.` };
+    return { text: `Anomalies right now:\n• Agoda rate pushes failing: base USD 322 is below their USD 348 floor (4th failure).\n• VRBO OAuth token expired 26h ago, 6 pushes queued behind it.\n• Rumah Senja knowledge scope is empty → concierge escalated 2 guest questions this week.\n• Samudra Two ↔ Booking.com room-type conflict is 2h old and holding an inbound reservation.` };
   }
   if (/(occupancy|occup)/.test(s)) {
     return { text: `Occupancy next 30 days: 71% across 9 active units (83% if you include holds). Best week is the 21st–27th at 89%. Weakest is Kelapa mid-week — the Traveloka markup is your lowest (7%); a flash rate there would likely fill it.` };
@@ -336,14 +336,14 @@ function copilotAnswer(q: string, props: Property[]): { text: string; confirm?: 
   if (/create.*task|add.*task/.test(s)) {
     return { text: `Got it — I'll create a task from your request. Confirm below and I'll write it to the Command Center (logged to the audit trail as source: ai).`, confirm: { label: "Confirm & create task", taskId: "Copilot task: follow up on request" } };
   }
-  return { text: `I read your tenant data (properties, calendar, ledger, inbox). Try:\n• "Which villas are open next weekend?"\n• "What's my ADR vs last year?"\n• "Show anomalies"\n• "Draft a reply to Jonas"\n• "Create a task to …" — write actions always ask you first.` };
+  return { text: `I read your tenant data (properties, calendar, ledger, inbox). Try:\n• "Which villas are open next weekend?"\n• "What's my ADR vs last year?"\n• "Show anomalies"\n• "Draft a reply to Jonas"\n• "Create a task to …" (write actions always ask you first).` };
 }
 
 function CopilotPanel() {
   const { copilotOpen, setCopilotOpen, creditsUsed, spendCredit, toast, addTask, audit } = useApp();
   const properties = useApp((s) => s.properties);
   const [msgs, setMsgs] = useState<CoMsg[]>([
-    { role: "ai", text: "Hi Sarah — I'm wired into Sanggraha's live data: 9 units, 22 reservations, 6 channels. Ask me anything operational, or have me draft guest replies and review responses." },
+    { role: "ai", text: "Hi Sarah, I'm wired into Sanggraha's live data: 9 units, 22 reservations, 6 channels. Ask me anything operational, or have me draft guest replies and review responses." },
   ]);
   const [input, setInput] = useState("");
   const endRef = useRef<HTMLDivElement>(null);
@@ -370,7 +370,7 @@ function CopilotPanel() {
     });
     audit(`Task created via copilot: ${taskId}`, "ai");
     toast("ok", "Task created", "Logged to audit trail · source: ai");
-    setMsgs((m) => [...m, { role: "ai", text: "Done — task created and assigned to Wayan. It's in the Command Center under Active." }]);
+    setMsgs((m) => [...m, { role: "ai", text: "Done: task created and assigned to Wayan. It's in the Command Center under Active." }]);
   };
 
   const pctUsed = creditsUsed / WORKSPACE.credits.limit;

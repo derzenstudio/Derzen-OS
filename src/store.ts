@@ -220,6 +220,10 @@ interface App {
 
   sendChat: (channelId: string, body: string) => void;
   spendCredit: (n: number) => void;
+
+  // chatbot booking: creates a pending direct reservation, returns ref + total
+  chatBooking: (input: { propertyId: string; from: string; to: string; guests: number }) => { ref: string; total: number; currency: string };
+  completeChatPayment: (ref: string, method: string) => void;
 }
 
 let toastSeq = 1;
@@ -610,6 +614,50 @@ export const useApp = create<App>((set, get) => ({
     set((st) => ({ reservations: [res, ...st.reservations], quotes: st.quotes.map((x) => (x.id === id ? { ...x, status: "converted" } : x)) }));
     get().audit(`Quote ${q.ref} converted → ${ref}`, "ui");
     get().toast("ok", `${ref} created from ${q.ref}`, "Payment link sent to guest · all channels will be blocked on confirmation.");
+  },
+  chatBooking: (input) => {
+    const p = propertyById(input.propertyId);
+    const base = p.pricing.plans.find((pl) => pl.kind === "base")?.nightly ?? 3_500_000;
+    const nights = Math.max(1, Math.round((+new Date(input.to) - +new Date(input.from)) / 86_400_000));
+    const subtotal = base * nights;
+    const cleaning = p.pricing.cleaningFee ?? 0;
+    const service = Math.round(subtotal * ((p.pricing.serviceFeePct ?? 0) / 100));
+    const total = subtotal + cleaning + service;
+    const ref = `DC-${Math.floor(1000 + Math.random() * 9000)}`;
+    const res: Reservation = {
+      id: uid("r"), ref, propertyId: p.id, guestId: "g-chat", channel: "direct", kind: "stay",
+      checkIn: input.from, checkOut: input.to, checkInTime: p.checkInTime, adults: input.guests, children: 0, infants: 0,
+      status: "pending",
+      items: [
+        { label: `${p.name} × ${nights} night${nights > 1 ? "s" : ""}`, kind: "night", amount: subtotal },
+        ...(cleaning ? [{ label: "Cleaning fee", kind: "fee" as const, amount: cleaning }] : []),
+        ...(service ? [{ label: `Service fee ${p.pricing.serviceFeePct}%`, kind: "fee" as const, amount: service }] : []),
+      ],
+      total, currency: p.currency, fxRate: FX_TO_EUR[p.currency] ?? 1, fxTs: Date.now(),
+      depositHeld: 0, payments: [], notes: "Booked via embedded concierge chatbot", guidebookCode: `GB-${p.code}-CHAT`,
+      timeline: [
+        { ts: Date.now(), label: "Reservation created via chatbot widget", source: "ai" },
+        { ts: Date.now(), label: "Guest handed off to hosted payment page", source: "ui" },
+      ],
+      archived: false, createdAt: Date.now(), addOns: [],
+    };
+    set((st) => ({ reservations: [res, ...st.reservations] }));
+    get().audit(`Chatbot booking ${ref} · ${p.name} · ${input.from} → ${input.to}`, "ai");
+    return { ref, total, currency: p.currency };
+  },
+  completeChatPayment: (ref, method) => {
+    set((st) => ({
+      reservations: st.reservations.map((r) =>
+        r.ref === ref
+          ? {
+              ...r, status: "deposit_paid",
+              payments: [...r.payments, { id: uid("pay"), ts: Date.now(), amount: Math.round(r.total * 0.3), currency: r.currency, method, kind: "payment" }],
+              timeline: [...r.timeline, { ts: Date.now(), label: `Deposit received (${method}) via hosted payment page`, source: "ui" }],
+            }
+          : r,
+      ),
+    }));
+    get().audit(`Payment captured for ${ref} · ${method}`, "ui");
   },
   editQuoteItem: (id, idx, amount) =>
     set((st) => ({ quotes: st.quotes.map((q) => (q.id === id ? { ...q, items: q.items.map((it, i) => (i === idx ? { ...it, amount } : it)), total: q.items.reduce((s, it, i) => s + (i === idx ? amount : it.amount), 0) } : q)) })),

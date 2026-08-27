@@ -35,20 +35,25 @@ export function widgetCssVars(s: WidgetStyle): string {
   ].join(";");
 }
 
-export function embedJsSnippet(s: WidgetStyle, widget: "search" | "calendar", propId?: string): string {
+export function embedJsSnippet(s: WidgetStyle, widget: "search" | "calendar" | "chatbot", propId?: string): string {
   const data = `data-widget="${widget}"${propId ? ` data-property="${propId}"` : ""}`;
+  const note = widget === "chatbot"
+    ? `The concierge answers from your knowledge base + guidebook, pops an inline
+  calendar picker inside the chat, and hands off to a hosted payment page.
+  Escalations land in your Inbox; every auto-reply is audited.`
+    : `The widget reports its own height via postMessage — the iframe resizes
+  with its content (calendars, pickers), so nothing is ever clipped.`;
   return `<!-- DERZEN ${widget} widget · styled by you, sized by itself -->
-<link rel="stylesheet" href="${s.fontUrl || "https://fonts.googleapis.com/css2?family=Schibsted+Grotesk&display=swap"}">
+<link rel="stylesheet" href="${s.fontUrl || "https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap"}">
 <div class="derzen-embed" ${data} style="${widgetCssVars(s)}"></div>
 <script async src="https://cdn.derzen.site/embed.js"></script>
 <!--
-  The widget reports its own height via postMessage — the iframe resizes
-  with its content (calendars, pickers), so nothing is ever clipped.
+  ${note}
   Style it any way you like: every --dw-* variable above is yours.
 -->`;
 }
 
-export function embedIframeSnippet(s: WidgetStyle, widget: "search" | "calendar", propId?: string, subdomain = "sanggraha"): string {
+export function embedIframeSnippet(s: WidgetStyle, widget: "search" | "calendar" | "chatbot", propId?: string, subdomain = "sanggraha"): string {
   const q = [
     `widget=${widget}`, propId ? `property=${propId}` : "",
     `bg=${encodeURIComponent(s.bg)}`, `card=${encodeURIComponent(s.card)}`, `text=${encodeURIComponent(s.text)}`,

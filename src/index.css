@@ -8,8 +8,8 @@
    every utility that reads var(--color-*) switches automatically.       */
 
 @theme {
-  --font-display: "Big Shoulders Display", "IBM Plex Sans", sans-serif;
-  --font-body: "IBM Plex Sans", ui-sans-serif, sans-serif;
+  --font-display: "Big Shoulders Display", "Atkinson Hyperlegible", sans-serif;
+  --font-body: "Atkinson Hyperlegible", ui-sans-serif, sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, monospace;
 
   /* corner cap */
@@ -133,9 +133,15 @@ body {
   font-family: var(--tenant-body);
   background-color: var(--color-paper);
   color: var(--color-ink);
-  font-size: 14px;
+  font-size: 14.5px;
+  line-height: 1.62;
+  letter-spacing: 0.004em;
   -webkit-font-smoothing: antialiased;
   position: relative;
+}
+/* Atkinson Hyperlegible needs slightly more tracking at small sizes */
+.text-\[11px\], .text-\[11\.5px\], .text-\[12px\], .text-\[12\.5px\] {
+  letter-spacing: 0.008em;
 }
 
 .font-display {

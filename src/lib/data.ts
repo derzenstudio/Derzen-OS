@@ -863,6 +863,28 @@ export const WEBSITE: WebsiteState = {
   analytics: day30,
 };
 
+// ── Hotel-style listings: one property, many rentable rooms ───────────────
+export const HOTEL_ROOMS: Record<string, { id: string; name: string }[]> = {
+  "p-samudra": [
+    { id: "u-sam-1", name: "Garden Suite" }, { id: "u-sam-2", name: "Pool Suite" },
+    { id: "u-sam-3", name: "Ocean Suite" }, { id: "u-sam-4", name: "Cliff Suite" },
+    { id: "u-sam-5", name: "Family Loft" }, { id: "u-sam-6", name: "Honeymoon Villa" },
+  ],
+  "p-kelapa": [
+    { id: "u-kel-1", name: "Room 1 · Frangipani" }, { id: "u-kel-2", name: "Room 2 · Bougainville" },
+    { id: "u-kel-3", name: "Room 3 · Jasmine" }, { id: "u-kel-4", name: "Room 4 · Hibiscus" },
+  ],
+};
+
+// ── Asset library: uploaded media + saved copy tenants reuse in the builder ──
+export const SAVED_COPIES: { id: string; label: string; text: string }[] = [
+  { id: "copy-welcome", label: "Welcome paragraph", text: "Selamat datang! Our team lives ten minutes away and answers within the hour. The house manual lives in this guidebook — wifi, pool care, and our favourite warungs are all inside." },
+  { id: "copy-faq-pool", label: "FAQ · Is the pool heated?", text: "The pool is not heated, but Bali does the work for us — it sits at a natural 28–30°C year-round. Towels and floats are in the store room by the kitchen." },
+  { id: "copy-faq-checkin", label: "FAQ · Early check-in", text: "Check-in is from 14:00. Early arrival depends on the previous guest — message us the day before and we will do our best, or book the early check-in add-on to guarantee it." },
+  { id: "copy-faq-staff", label: "FAQ · Is staff included?", text: "Yes — daily housekeeping and a private chef on request are included in your stay. Drivers and spa therapists can be booked from the store." },
+  { id: "copy-cta", label: "Direct-booking CTA", text: "Book direct and save ~15% — plus late checkout when the calendar allows." },
+];
+
 export const EMBED_SNIPPET = `<script async src="https://cdn.derzen.site/embed.js"
   data-site="sanggraha" data-widget="search"
   data-currency="EUR" data-locale="en"></script>

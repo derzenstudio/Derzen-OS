@@ -54,7 +54,12 @@ export function parseHash(): Route {
 }
 
 // ── store ──────────────────────────────────────────────────────────────────
-export interface CellOverride { rate?: number; closed?: boolean; minStay?: number; cta?: boolean; ctd?: boolean; }
+export interface CellOverride {
+  rate?: number; closed?: boolean; minStay?: number; cta?: boolean; ctd?: boolean;
+  blockType?: "manual" | "owner" | "hold" | "maintenance";
+  blockLabel?: string; blockNote?: string; blockPrice?: number;
+  extraCharges?: { label: string; amount: number }[];
+}
 export interface PushItem { id: string; channel: string; color: string; status: "queued" | "pushing" | "ok" | "error"; note?: string; }
 
 interface ChatChannel { id: string; name: string; kind: "channel" | "dm" | "handoff"; refId?: string; unread: number; messages: { id: string; author: string; body: string; ts: number; mention?: boolean }[]; }

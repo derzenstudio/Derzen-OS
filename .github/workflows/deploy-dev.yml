@@ -43,6 +43,8 @@ jobs:
         run: npm ci || npm install --no-audit --no-fund
 
       - name: Build
+        env:
+          VITE_SURFACE: dev
         run: npm run build
 
       - name: SPA fallback + keep dev site out of search engines

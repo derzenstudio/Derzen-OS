@@ -25,6 +25,7 @@ import SettingsModule from "./modules/Settings";
 import Integrations from "./modules/Integrations";
 import { Btn } from "./components/ui";
 import { Ic } from "./components/icons";
+import { SURFACE, SURFACE_LABELS, SURFACE_URLS, type Surface } from "./lib/surface";
 
 const MODULES: Record<string, { title: string; sub?: string; el: ComponentType }> = {
   dashboard: { title: "nav.dashboard", sub: "What needs attention today", el: Dashboard },
@@ -115,7 +116,15 @@ export default function App() {
 
   // ── public surface ──
   if (!session) {
+    // dev.* is internal-only — no marketing site, straight to the sign-in wall
+    if (SURFACE === "dev") return <LoginPage />;
     return route.path[0] === "login" ? <LoginPage /> : <PublicSite />;
+  }
+
+  // ── surface guard: one audience per host ──
+  if (SURFACE !== "all") {
+    const audience: Surface = session.kind === "developer" ? "dev" : "app";
+    if (audience !== SURFACE) return <WrongSurface audience={audience} />;
   }
 
   // ── internal backoffice (separate application: own shell, nav, audit) ──
@@ -145,3 +154,29 @@ export default function App() {
 }
 
 import { parseHash as parseHashSafe } from "./store";
+
+
+// Each host serves exactly one audience. If a session lands on the wrong one,
+// point it at the right subdomain instead of quietly rendering the other app.
+function WrongSurface({ audience }: { audience: Surface }) {
+  const target = SURFACE_URLS[audience];
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-surface p-8">
+      <div className="max-w-[460px] rounded-xl border border-line bg-card p-8 text-center anim-pop">
+        <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-brand-soft text-brand"><Ic name="lock" size={22} /></span>
+        <h2 className="mt-4 font-display text-[20px] font-extrabold text-ink">Wrong door</h2>
+        <p className="mt-2 text-[13px] leading-relaxed text-mute">
+          This host does not serve the {SURFACE_LABELS[audience]}. Your session belongs there, and it lives
+          on its own subdomain — sessions are never shared between the two.
+        </p>
+        <p className="mt-3 rounded-md bg-paper px-3 py-2 font-mono text-[10.5px] text-faint">{target}</p>
+        <a
+          href={target}
+          className="mt-4 inline-flex items-center gap-2 rounded-md bg-brand px-5 py-3 text-[14px] font-bold text-white transition-transform hover:-translate-y-0.5"
+        >
+          Continue there <Ic name="arrowR" size={15} />
+        </a>
+      </div>
+    </div>
+  );
+}

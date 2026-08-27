@@ -24,8 +24,11 @@ on:
   workflow_dispatch: {}
 
 concurrency:
-  group: deploy-dev
-  cancel-in-progress: true
+    # Both deploy workflows push over FTP to the same Hostinger account, which
+  # tolerates only one session at a time — share the group so they queue
+  # instead of racing and timing out on the control socket.
+  group: hostinger-ftp
+  cancel-in-progress: false
 
 jobs:
   build-and-deploy:

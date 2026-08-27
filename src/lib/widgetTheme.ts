@@ -1,6 +1,8 @@
 // Embeddable widget theming — every visual property is tenant-controllable,
 // and the generated JS/iframe snippets carry the exact same values.
 
+export type WidgetField = "location" | "dates" | "guests" | "button";
+
 export interface WidgetStyle {
   bg: string;        // widget background
   card: string;      // field / cell background
@@ -17,12 +19,17 @@ export interface WidgetStyle {
   fontFamily: string;// optional family name
   btn: "solid" | "outline" | "soft";
   btnRadius: number;
+  fields: WidgetField[]; // render order of the interactive fields
+  fieldH: number;    // field height px
+  btnH: number;      // button height px
+  syncFonts: boolean; // pull heading/body fonts from the global brand settings
 }
 
 export const DEFAULT_WIDGET_STYLE: WidgetStyle = {
   bg: "#ffffff", card: "#f4f5f0", text: "#141811", sub: "#5c6357", accent: "#0e6b4e",
   borderW: 1, borderColor: "#d8dccd", radius: 3, gap: 8, pad: 14, fontSize: 13,
   fontUrl: "", fontFamily: "", btn: "solid", btnRadius: 3,
+  fields: ["location", "dates", "guests", "button"], fieldH: 40, btnH: 40, syncFonts: true,
 };
 
 export function widgetCssVars(s: WidgetStyle): string {
@@ -32,7 +39,15 @@ export function widgetCssVars(s: WidgetStyle): string {
     `--dw-r:${s.radius}px`, `--dw-gap:${s.gap}px`, `--dw-pad:${s.pad}px`,
     `--dw-fs:${s.fontSize}px`, `--dw-font:${s.fontFamily || "inherit"}`,
     `--dw-btn:${s.btn}`, `--dw-btn-r:${s.btnRadius}px`,
+    `--dw-fields:${s.fields.join(",")}`, `--dw-field-h:${s.fieldH}px`, `--dw-btn-h:${s.btnH}px`,
   ].join(";");
+}
+
+/** Resolve the effective font stack — honours the tenant's global brand fonts when syncFonts is on. */
+export function widgetFonts(s: WidgetStyle, brandHeading: string, brandBody: string): { heading: string; body: string } {
+  if (s.syncFonts) return { heading: `'${brandHeading}', sans-serif`, body: `'${brandBody}', sans-serif` };
+  const f = s.fontFamily ? `'${s.fontFamily}', sans-serif` : "inherit";
+  return { heading: f, body: f };
 }
 
 export function embedJsSnippet(s: WidgetStyle, widget: "search" | "calendar" | "chatbot", propId?: string): string {

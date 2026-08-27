@@ -395,6 +395,8 @@ export interface BlockStyle {
   scale: number;// font-size multiplier 0.8–1.4
   align: "left" | "center" | "right";
   radius: number;
+  heightVh?: number; // min-height in viewport units — 0/undefined = auto
+  blend?: string;    // CSS mix-blend-mode for the block
 }
 export const DEFAULT_BLOCK_STYLE: BlockStyle = {
   width: "full", py: 12, px: 12, mt: 0, mb: 10, bg: "", color: "", scale: 1, align: "left", radius: 3,
@@ -409,6 +411,20 @@ export interface Block {
   content?: Record<string, string>;
 }
 export interface SitePage { id: string; name: string; slug: string; blocks: Block[]; home?: boolean; }
+
+export interface SiteLink { id: string; label: string; url: string; }
+export interface SiteChrome {
+  header: string;
+  footer: string;
+  headerLinks: SiteLink[];
+  footerLinks: SiteLink[];
+  headerBg: string;
+  headerColor: string;
+  footerBg: string;
+  footerColor: string;
+  align: "left" | "center" | "right";
+}
+export interface SavedAsset { id: string; name: string; url: string; kind: "image" | "copy"; note?: string; }
 export interface WebsiteState {
   id: string;
   subdomain: string;

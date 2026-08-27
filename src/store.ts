@@ -4,9 +4,10 @@ import { t as tr } from "./lib/i18n";
 import { uid, addDays, dayKey, today, nightsBetween } from "./lib/format";
 import type {
   AuditEntry, Block, BlockStyle, Conversation, Expense, Guidebook, IssueReport, OnboardStep, Property,
-  QueuedMessage, Quote, Reservation, Review, SyncState, Task, Toast, WebsiteState, Message,
+  QueuedMessage, Quote, Reservation, Review, SavedAsset, SiteChrome, SyncState, Task, Toast, WebsiteState, Message,
 } from "./lib/types";
 import { DEFAULT_WIDGET_STYLE, type WidgetStyle } from "./lib/widgetTheme";
+import { DEFAULT_BRAND, applyBrand, type BrandState } from "./lib/brand";
 
 export const DEFAULT_BLOCK_STYLE: BlockStyle = {
   width: "full", py: 28, px: 24, mt: 0, mb: 0, bg: "", color: "", scale: 1, align: "left", radius: 3,
@@ -220,8 +221,15 @@ interface App {
   removeBlock: (pageId: string, blockId: string) => void;
   setSiteTheme: (patch: Partial<WebsiteState["theme"]>) => void;
   setSiteActivePage: (id: string) => void;
-  siteChrome: { header: string; footer: string };
-  setSiteChrome: (patch: Partial<{ header: string; footer: string }>) => void;
+  siteChrome: SiteChrome;
+  setSiteChrome: (patch: Partial<SiteChrome>) => void;
+
+  // global brand styling + reusable asset library
+  brand: BrandState;
+  setBrand: (patch: Partial<BrandState>) => void;
+  savedAssets: SavedAsset[];
+  addSavedAsset: (a: Omit<SavedAsset, "id">) => void;
+  removeSavedAsset: (id: string) => void;
 
   sendChat: (channelId: string, body: string) => void;
   spendCredit: (n: number) => void;
@@ -797,8 +805,40 @@ export const useApp = create<App>((set, get) => ({
     set((st) => ({
       website: { ...st.website, pages: st.website.pages.map((pg) => (pg.id === pageId ? { ...pg, blocks: pg.blocks.filter((b) => b.id !== blockId) } : pg)) },
     })),
-  siteChrome: { header: "Sanggraha Villas · Villas · Services · Journal · Contact", footer: "© Sanggraha Villas — Bali · hello@sanggraha.co · +62 812 390 110" },
+  siteChrome: {
+    header: "Sanggraha Villas",
+    footer: "© Sanggraha Villas — hand-run boutique stays across Bali.",
+    headerLinks: [
+      { id: "hl1", label: "Villas", url: "/villas" },
+      { id: "hl2", label: "Services", url: "/services" },
+      { id: "hl3", label: "Journal", url: "/journal" },
+      { id: "hl4", label: "Contact", url: "/contact" },
+    ],
+    footerLinks: [
+      { id: "fl1", label: "hello@sanggraha.co", url: "mailto:hello@sanggraha.co" },
+      { id: "fl2", label: "Instagram", url: "https://instagram.com/sanggraha" },
+      { id: "fl3", label: "WhatsApp", url: "https://wa.me/62812390110" },
+    ],
+    headerBg: "#161a12", headerColor: "#f4f5f0", footerBg: "#0e110c", footerColor: "#9aa394",
+    align: "left",
+  },
   setSiteChrome: (patch) => set((st) => ({ siteChrome: { ...st.siteChrome, ...patch } })),
+
+  brand: { ...DEFAULT_BRAND },
+  setBrand: (patch) => {
+    const next = { ...get().brand, ...patch };
+    applyBrand(next);
+    set({ brand: next });
+  },
+  savedAssets: [
+    ...PROPERTIES.slice(0, 5).map((p, i) => ({ id: `img-p${i}`, name: p.name, url: p.image, kind: "image" as const })),
+    { id: "copy-welcome", name: "Welcome copy", url: "", kind: "copy" as const, note: "Boutique Bali, run properly. Nine staffed villas, honest pricing, real hosts." },
+    { id: "copy-faq-checkin", name: "FAQ · Check-in", url: "", kind: "copy" as const, note: "Check-in is from 14:00 WITA. Early arrival? Ask us — we hold bags and open the pool." },
+    { id: "copy-faq-pool", name: "FAQ · Pool", url: "", kind: "copy" as const, note: "Pools are cleaned daily and sit around 29°. Not heated, but Bali rarely needs it." },
+  ],
+  addSavedAsset: (a) => set((st) => ({ savedAssets: [...st.savedAssets, { ...a, id: uid("asset") }] })),
+  removeSavedAsset: (id) => set((st) => ({ savedAssets: st.savedAssets.filter((x) => x.id !== id) })),
+
   setSiteTheme: (patch) => set((st) => ({ website: { ...st.website, theme: { ...st.website.theme, ...patch } } })),
   setSiteActivePage: (id) => set((st) => ({ website: { ...st.website, activePageId: id } })),
 

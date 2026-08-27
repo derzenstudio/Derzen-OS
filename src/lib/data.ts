@@ -1,4 +1,4 @@
-// ── Trellis seed workspace: "Sanggraha Villas" (tenant tnt_sanggraha) ─────
+// ── DERZEN seed workspace: "Sanggraha Villas" (tenant tnt_sanggraha) ──────
 // All money = integer minor units + currency. All dates = dayKey in the
 // property's own timezone. Night math is half-open [checkIn, checkOut).
 

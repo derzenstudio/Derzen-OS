@@ -1,4 +1,4 @@
-// ── Trellis domain model (every entity is tenant-scoped server-side) ──────
+// ── DERZEN domain model (every entity is tenant-scoped server-side) ───────
 
 export type ChannelId =
   | "airbnb" | "booking" | "vrbo" | "expedia" | "agoda" | "trip"

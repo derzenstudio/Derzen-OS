@@ -1,4 +1,4 @@
-// ── Trellis Backoffice seed data ────────────────────────────────────────────
+// ── DERZEN Backoffice seed data ─────────────────────────────────────────────
 // The operator backoffice is a SEPARATE application: own hostname, own auth,
 // own audit stream. None of this is visible to tenants. Data here is shaped
 // for internal teams — support, success, finance, integrations, on-call.

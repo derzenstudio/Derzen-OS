@@ -19,8 +19,8 @@
 | # | Action | Why |
 |---|--------|-----|
 | 1 | Register a legal entity + business bank account in the markets you'll settle in (Indonesia + US/EU recommended). | Every partner program below requires KYB (Know-Your-Business). |
-| 2 | Buy the production domains: `trellis.site`, `api.trellis.site`, `stay.trellis.site` (guest pages), `mail.trellis.site`. | OAuth redirect URIs, webhook hosts and DNS verification all need stable domains with automatic TLS. |
-| 3 | Provision a secrets manager (Doppler / AWS Secrets Manager / Vault). **Never** commit keys. Map each to the `TRELLIS_*` env var named below. | The Developer Console masks these and shows "configured / missing" per tenant environment. |
+| 2 | Buy the production domains: `derzen.site`, `api.derzen.site`, `stay.derzen.site` (guest pages), `mail.derzen.site`. | OAuth redirect URIs, webhook hosts and DNS verification all need stable domains with automatic TLS. |
+| 3 | Provision a secrets manager (Doppler / AWS Secrets Manager / Vault). **Never** commit keys. Map each to the `DERZEN_*` env var named below. | The Developer Console masks these and shows "configured / missing" per tenant environment. |
 | 4 | Stand up one sandbox tenant and one production tenant per provider where offered. All CI contract tests run against sandboxes. | A provider changing a field shape must fail CI, not production. |
 | 5 | Enable structured logging with `tenant_id`, `actor_id`, `correlation_id` on the sync workers, and trace the channel-sync path end-to-end (OTel). | This is where debugging is hardest; never ship a provider without it. |
 | 6 | PCI: **never** touch raw card data. Every gateway below must be used in hosted-fields / redirect / tokenized mode only. | Keeps you out of PCI-DSS SAQ-A scope. |
@@ -41,7 +41,7 @@ direct OTA connections later without touching product code.
 - **Requirements:** company KYB; signed Connectivity Provider agreement; per-listing fee model (~$1-2/listing/mo).
 - **Steps:**
   1. Apply at channex.io → "Become a connectivity partner". Expect 1–3 weeks review.
-  2. Get `CHANNEX_API_KEY` + property-level tokens. Store under `TRELLIS_CHANNEX_API_KEY`.
+  2. Get `CHANNEX_API_KEY` + property-level tokens. Store under `DERZEN_CHANNEX_API_KEY`.
   3. Implement/enable the `channex` adapter (already scaffolded). Contract-test against their sandbox.
   4. In Developer Console → Integrations → Channex: flip *sandbox → live* once the first
      round-trip (push rate → pull reservation) succeeds for a test listing.
@@ -56,9 +56,9 @@ direct OTA connections later without touching product code.
 - **Requirements:** registered business; proof of PMS/connectivity product; passing their
   API review; OAuth client issued per partnership.
 - **Steps:** apply via the Airbnb partner portal → integration review (weeks to months) →
-  receive `AIRBNB_CLIENT_ID/SECRET` → implement OAuth (redirect to `https://api.trellis.site/channels/airbnb/callback`)
+  receive `AIRBNB_CLIENT_ID/SECRET` → implement OAuth (redirect to `https://api.derzen.site/channels/airbnb/callback`)
   → pass certification tests (listing import, rate/availability push, message pull) → production keys.
-- **Env:** `TRELLIS_AIRBNB_CLIENT_ID`, `TRELLIS_AIRBNB_CLIENT_SECRET`.
+- **Env:** `DERZEN_AIRBNB_CLIENT_ID`, `DERZEN_AIRBNB_CLIENT_SECRET`.
 - **Customer UX already built:** one-click OAuth sign-in with automatic listing import.
 
 **Booking.com**
@@ -69,7 +69,7 @@ direct OTA connections later without touching product code.
 - **Steps:** apply → get client credentials → customer supplies **extranet property ID**
   (wizard step 2 already collects this) → you exchange it for property-level tokens →
   subscribe to the R&A push feed.
-- **Env:** `TRELLIS_BOOKING_CLIENT_ID`, `TRELLIS_BOOKING_CLIENT_SECRET`.
+- **Env:** `DERZEN_BOOKING_CLIENT_ID`, `DERZEN_BOOKING_CLIENT_SECRET`.
 
 **Expedia Group (Expedia, VRBO/HomeAway, Hotels.com)**
 - **Path:** **Expedia Partner Solutions (EPS) Rapid API** for distribution +
@@ -78,7 +78,7 @@ direct OTA connections later without touching product code.
   the vacation-rental flow (login + emailed verification code pattern — already modeled in the wizard).
 - **Steps:** register EPS → receive API key/secret → implement EPS Rapid content/booking
   endpoints → for VRBO, apply for the VRBO Software Partner program → OAuth + email-code step.
-- **Env:** `TRELLIS_EPS_API_KEY`, `TRELLIS_EPS_SHARED_SECRET`, `TRELLIS_VRBO_CLIENT_ID/SECRET`.
+- **Env:** `DERZEN_EPS_API_KEY`, `DERZEN_EPS_SHARED_SECRET`, `DERZEN_VRBO_CLIENT_ID/SECRET`.
 
 **Agoda**
 - **Path:** Agoda **Connectivity / YCS partner** program.
@@ -86,29 +86,29 @@ direct OTA connections later without touching product code.
 - **Steps:** apply via Agoda partner hub → receive `AGODA_API_USER/PASSWORD` per property
   group → customer pastes **property ID** in the wizard (already built) → you store
   credentials scoped per tenant in the secrets manager.
-- **Env:** `TRELLIS_AGODA_USER`, `TRELLIS_AGODA_KEY` (plus per-tenant property mappings in DB).
+- **Env:** `DERZEN_AGODA_USER`, `DERZEN_AGODA_KEY` (plus per-tenant property mappings in DB).
 
 **Trip.com**
 - **Path:** Trip.com Group connectivity (RatePlan/Order push APIs).
 - **Requirements:** partner contract; they provision an app key + secret.
 - **Steps:** BD contact → sandbox keys → pass order-flow certification → production keys.
-- **Env:** `TRELLIS_TRIP_APP_KEY`, `TRELLIS_TRIP_SECRET`.
+- **Env:** `DERZEN_TRIP_APP_KEY`, `DERZEN_TRIP_SECRET`.
 
 **MakeMyTrip**
 - **Path:** MMT partner/connectivity program (India market).
 - **Requirements:** Indian business presence or partnership; API credential approval
   (API-key auth — the wizard's "API credentials" pattern).
 - **Steps:** apply → receive key/secret pair → customer pastes them in the wizard (already built).
-- **Env:** `TRELLIS_MMT_API_KEY`, `TRELLIS_MMT_API_SECRET`.
+- **Env:** `DERZEN_MMT_API_KEY`, `DERZEN_MMT_API_SECRET`.
 
 **Traveloka**
 - **Path:** Traveloka Partner/Connectivity (SE Asia — high value for Bali operators).
 - **Requirements:** KYB; connectivity agreement; per-property activation.
 - **Steps:** partner application → sandbox → certification → production.
-- **Env:** `TRELLIS_TRAVELOKA_CLIENT_ID`, `TRELLIS_TRAVELOKA_CLIENT_SECRET`.
+- **Env:** `DERZEN_TRAVELOKA_CLIENT_ID`, `DERZEN_TRAVELOKA_CLIENT_SECRET`.
 
 **iCal (import/export)** — *no approval needed; ship in week 1*
-- Generate per-listing `.ics` feeds at `https://stay.trellis.site/ical/{listing}/{token}.ics`
+- Generate per-listing `.ics` feeds at `https://stay.derzen.site/ical/{listing}/{token}.ics`
   and poll customer-subscribed URLs every 15 min. This is the
   **10-minute fast path**: a new workspace can block dates before any OTA approves them.
 
@@ -122,16 +122,16 @@ direct OTA connections later without touching product code.
 - **Requirements:** platform account (Stripe Connect if you split payouts to owners);
   KYB; verified business domain; webhook endpoint over HTTPS.
 - **Steps:**
-  1. Create account → Developers → API keys → `TRELLIS_STRIPE_SECRET_KEY`, `TRELLIS_STRIPE_WEBHOOK_SECRET`, publishable key for hosted fields.
+  1. Create account → Developers → API keys → `DERZEN_STRIPE_SECRET_KEY`, `DERZEN_STRIPE_WEBHOOK_SECRET`, publishable key for hosted fields.
   2. Enable Payment Links or Checkout for deposit/balance schedules; enable Refunds API.
-  3. Register webhook at `https://api.trellis.site/webhooks/stripe` — verify signatures on every event.
+  3. Register webhook at `https://api.derzen.site/webhooks/stripe` — verify signatures on every event.
   4. For owner payouts: Stripe Connect onboarding links (owners complete KYB with Stripe directly — you never see bank details).
 - **Status rule:** mark **Live** in the Developer Console only after a real $1 charge + refund round-trip.
 
 **Razorpay** *(launch gateway #2 — India/INR guests)*
 - **Requirements:** Indian entity (or Razorpay's international entity where available); KYB with PAN/GST.
 - **Steps:** sign up → KYB (2–5 days) → get `key_id`/`key_secret` → enable UPI + cards →
-  configure webhook with signature secret → store `TRELLIS_RAZORPAY_KEY_ID/SECRET/WEBHOOK_SECRET`.
+  configure webhook with signature secret → store `DERZEN_RAZORPAY_KEY_ID/SECRET/WEBHOOK_SECRET`.
 - **Honest UI:** HitPay, Xendit, DOKU are shown as *waitlist* in-app until **you**
   complete each partnership — do not flip them to "available" before keys exist.
 
@@ -148,17 +148,17 @@ direct OTA connections later without touching product code.
   a Meta app with the WhatsApp product added.
 - **Steps:**
   1. business.facebook.com → verify the business.
-  2. developers.facebook.com → create app → add WhatsApp → get `TRELLIS_META_APP_ID/SECRET` + a permanent access token (`TRELLIS_WHATSAPP_TOKEN`) + phone-number ID + WABA ID.
+  2. developers.facebook.com → create app → add WhatsApp → get `DERZEN_META_APP_ID/SECRET` + a permanent access token (`DERZEN_WHATSAPP_TOKEN`) + phone-number ID + WABA ID.
   3. **Submit message templates** for review (reservation confirmations, reminders, task alerts) — pre-arrival/check-out templates usually approve in hours; marketing templates take longer and need opt-in.
-  4. Point the webhook at `https://api.trellis.site/webhooks/whatsapp`, verify the hub challenge, store `TRELLIS_WHATSAPP_VERIFY_TOKEN`.
+  4. Point the webhook at `https://api.derzen.site/webhooks/whatsapp`, verify the hub challenge, store `DERZEN_WHATSAPP_VERIFY_TOKEN`.
   5. Respect the 24-hour session window; outside it you may only send approved templates.
 - **Test:** send yourself a template from the sandbox number; the inbox must thread it.
 
 **Gmail / IMAP-SMTP (email in the inbox)**
 - **Requirements:** Google Cloud project with OAuth consent screen (external type is fine
   while in testing mode; verification needed to go broad).
-- **Steps:** enable Gmail API → OAuth client (`TRELLIS_GOOGLE_CLIENT_ID/SECRET`) with scopes
-  `gmail.modify` → Pub/Sub push notifications for real-time inbound (watch → `https://api.trellis.site/webhooks/gmail`) → SMTP via the same OAuth token for outbound.
+- **Steps:** enable Gmail API → OAuth client (`DERZEN_GOOGLE_CLIENT_ID/SECRET`) with scopes
+  `gmail.modify` → Pub/Sub push notifications for real-time inbound (watch → `https://api.derzen.site/webhooks/gmail`) → SMTP via the same OAuth token for outbound.
 - **Alt:** any IMAP/SMTP host works via per-tenant credentials — no Google dependency.
 
 **Instagram Direct + Facebook Messenger** (Meta Graph API)
@@ -167,12 +167,12 @@ direct OTA connections later without touching product code.
   `pages_messaging` (submit a screencast of the flow — 1–2 review rounds is normal).
 - **Steps:** add Instagram Graph + Messenger products to the Meta app → webhooks for
   `messages`, `messaging_postbacks` → implement the 24h standard messaging window →
-  `TRELLIS_META_*` shared with WhatsApp.
+  `DERZEN_META_*` shared with WhatsApp.
 - **Reality:** review is the long pole — start it in month 1.
 
 **Google (Places + OAuth + reviews)**
 - **Places API (New)** for guidebook recommendations & geocoding: enable on the same GCP
-  project, billable — set budgets/alerts. `TRELLIS_GOOGLE_MAPS_KEY` (restrict by HTTP referrer + API).
+  project, billable — set budgets/alerts. `DERZEN_GOOGLE_MAPS_KEY` (restrict by HTTP referrer + API).
 - **Business Profile API** if you later want Google review pull-in: requires location-verified Business Profiles.
 
 ---
@@ -181,7 +181,7 @@ direct OTA connections later without touching product code.
 
 **ID verification / web check-in** (e.g. Stripe Identity, Jumio, Onfido, or regional: VIDA)
 - **Requirements:** KYB with the vendor; privacy policy URL; a data-processing agreement.
-- **Steps:** enable product → `TRELLIS_IDV_API_KEY` → implement session create + webhook →
+- **Steps:** enable product → `DERZEN_IDV_API_KEY` → implement session create + webhook →
   store **only** status / provider ref / expiry (raw documents auto-purge per retention window — this is enforced in code, verify it in the vendor dashboard too).
 - **Gate:** access codes release only when verification = passed (already wired to DoorFlow below).
 
@@ -191,7 +191,7 @@ direct OTA connections later without touching product code.
 - **Steps per vendor:** developer account → OAuth app or API key → webhook for lock events →
   store per-tenant tokens scoped per lock. Codes are issued for `[checkIn 12:00 → checkOut 11:00]`
   in **property timezone** and revoked on early checkout/cancellation.
-- **Env:** `TRELLIS_TTLOCK_APP_ID/KEY`, `TRELLIS_NUKI_TOKEN`, etc.
+- **Env:** `DERZEN_TTLOCK_APP_ID/KEY`, `DERZEN_NUKI_TOKEN`, etc.
 
 ---
 
@@ -202,18 +202,18 @@ direct OTA connections later without touching product code.
   connectivity/partner API; Wheelhouse similar) — or run the built-in rules engine only.
 - **Steps:** partner application → API token → nightly pull of recommended rates →
   suggestions queue for operator review (never auto-applied; correctness over automation).
-- **Env:** `TRELLIS_PRICING_API_TOKEN`.
+- **Env:** `DERZEN_PRICING_API_TOKEN`.
 
 **Accounting sync — LedgerSync** (Xero, QuickBooks)
-- **Xero:** register an OAuth 2.0 app at developer.xero.com (free) → `TRELLIS_XERO_CLIENT_ID/SECRET`
+- **Xero:** register an OAuth 2.0 app at developer.xero.com (free) → `DERZEN_XERO_CLIENT_ID/SECRET`
   → customers connect per-organisation via OAuth (consent screen is built) → map the chart of
   accounts once per tenant (UI exists) → nightly push of invoices/bills/payouts.
 - **QuickBooks Online:** developer.intuit.com app → OAuth 2.0 → same flow.
 - **Reconciliation:** payout-to-invoice matching runs monthly; unmatched items surface in Expenses.
 
 **Provider invoice inbox** — parse attachments into draft expenses:
-- Point `invoices@{tenant}.mail.trellis.site` (inbound-parse, e.g. via your mail provider's
-  inbound webhook) at `https://api.trellis.site/webhooks/inbound-mail`. No external account needed.
+- Point `invoices@{tenant}.mail.derzen.site` (inbound-parse, e.g. via your mail provider's
+  inbound webhook) at `https://api.derzen.site/webhooks/inbound-mail`. No external account needed.
 
 ---
 

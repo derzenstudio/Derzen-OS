@@ -1,4 +1,4 @@
-// ── Trellis formatting + date/money utilities ─────────────────────────────
+// ── DERZEN formatting + date/money utilities ──────────────────────────────
 // Money is ALWAYS integer minor units + explicit currency code. Never floats.
 import { convertMinor, getDisplayCurrency } from "./fx";
 

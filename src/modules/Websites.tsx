@@ -114,7 +114,7 @@ export default function Websites() {
             {/* Editable header — logo, menu links, CTA */}
             <ChromeStrip target="header" selected={selected} onSelect={setSelected} />
 
-            <div onDragOver={(e) => e.preventDefault()} onDrop={onDrop} className="space-y-0">
+            <div onDragOver={(e) => e.preventDefault()} onDrop={onDrop} onClick={() => setSelected(null)} className="space-y-0">
               {page.blocks.map((b, idx) => (
                 <div key={b.id} onDragOver={(e) => { e.preventDefault(); const r = (e.currentTarget as HTMLElement).getBoundingClientRect(); setDropAt(e.clientY < r.top + r.height / 2 ? idx : idx + 1); }}>
                   <div className={cx("h-1 rounded-full transition-all", dropAt === idx && dragId ? "my-1 bg-brand" : "bg-transparent")} aria-hidden="true" />
@@ -361,7 +361,7 @@ function InlineBlock({ b, idx, total, selected, dragging, onSelect, onDragStart,
 }) {
   return (
     <div
-      onClick={onSelect}
+      onClick={(e) => { e.stopPropagation(); onSelect(); }}
       className={cx(
         "group relative cursor-pointer rounded-sm border transition-all",
         selected ? "border-brand shadow-[0_0_0_1px_var(--color-brand)]" : "border-transparent hover:border-line2",

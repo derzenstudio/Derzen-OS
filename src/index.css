@@ -328,3 +328,15 @@ input[type="range"] {
   outline: 2px dashed var(--color-brand);
   outline-offset: 3px;
 }
+
+/* Inline-editor placeholder while a contentEditable field is empty */
+[contenteditable="true"].et-edit:empty::before,
+[contenteditable="true"].et-edit[data-ph]:empty::before {
+  content: attr(data-ph);
+  opacity: 0.38;
+  pointer-events: none;
+  font-style: italic;
+}
+[contenteditable="true"].et-edit:focus {
+  caret-color: var(--color-brand);
+}

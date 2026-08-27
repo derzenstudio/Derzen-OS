@@ -4,7 +4,12 @@ import { Ic, type IconName } from "./icons";
 import { useApp } from "../store";
 import { PROPERTIES, propertyById } from "../lib/data";
 
-// ── Inline editable text (Canva-style: click, type, commit on blur/Enter) ──
+// ── Inline editable text — true Canva behaviour ────────────────────────────
+// Always contentEditable. The initial HTML is frozen at mount so React never
+// re-writes the text node (which would reset the caret on every keystroke).
+// Typing commits live via onInput; external updates sync only when unfocused.
+const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br/>");
+
 export function EditableText({
   value, onCommit, className, style, multiline, placeholder, as: Tag = "span", disabled,
 }: {
@@ -18,46 +23,94 @@ export function EditableText({
   disabled?: boolean;
 }) {
   const ref = useRef<HTMLElement>(null);
-  const [editing, setEditing] = useState(false);
+  const focused = useRef(false);
+  const [focus, setFocus] = useState(false);
+  const [barPos, setBarPos] = useState<{ x: number; y: number } | null>(null);
+  const initial = useRef(esc(value)).current; // frozen — keeps the DOM stable
 
+  // sync external changes (reset, undo) only while not typing
   useEffect(() => {
-    if (ref.current && ref.current.textContent !== value) ref.current.textContent = value;
-  }, [value, editing]);
+    if (!focused.current && ref.current && ref.current.textContent !== value) {
+      ref.current.innerHTML = esc(value);
+    }
+  }, [value]);
 
-  const commit = () => {
-    setEditing(false);
-    const next = (ref.current?.textContent ?? "").replace(/\u00a0/g, " ");
-    if (next !== value) onCommit(next);
+  const placeBar = () => {
+    const r = ref.current?.getBoundingClientRect();
+    if (r) setBarPos({ x: Math.max(8, Math.min(r.left + r.width / 2 - 132, window.innerWidth - 272)), y: Math.max(8, r.top - 44) });
   };
 
   if (disabled) return <Tag className={className} style={style}>{value || placeholder}</Tag>;
 
   return (
-    <Tag
-      ref={ref as never}
-      contentEditable={editing}
-      suppressContentEditableWarning
-      className={cx(
-        className,
-        "outline-none transition-shadow",
-        editing && "cursor-text rounded-sm ring-2 ring-brand/60 ring-offset-1 ring-offset-transparent",
-        !editing && "cursor-text hover:ring-1 hover:ring-line2",
-      )}
-      style={style}
-      data-ph={placeholder}
-      onFocus={() => setEditing(true)}
-      onBlur={commit}
-      onKeyDown={(e) => {
-        e.stopPropagation(); // don't trigger canvas shortcuts while typing
-        if (e.key === "Enter" && !multiline) { e.preventDefault(); (e.target as HTMLElement).blur(); }
-        if (e.key === "Escape") (e.target as HTMLElement).blur();
-      }}
-      onClick={(e) => e.stopPropagation()}
-      onMouseDown={(e) => e.stopPropagation()}
-      aria-label={placeholder ?? "editable text"}
+    <>
+      <Tag
+        ref={ref as never}
+        contentEditable
+        suppressContentEditableWarning
+        draggable={false}
+        dangerouslySetInnerHTML={{ __html: initial }}
+        data-ph={placeholder}
+        className={cx(
+          className,
+          "et-edit outline-none",
+          focus ? "cursor-text rounded-sm ring-2 ring-brand/70" : "cursor-text transition-shadow hover:ring-1 hover:ring-line2",
+        )}
+        style={{ ...style, minWidth: "1ch" }}
+        onFocus={() => { focused.current = true; setFocus(true); placeBar(); }}
+        onBlur={() => {
+          focused.current = false; setFocus(false); setBarPos(null);
+          const next = (ref.current?.innerText ?? "").replace(/\u00a0/g, " ").replace(/\n$/, "");
+          if (next !== value) onCommit(next);
+        }}
+        onInput={() => {
+          const next = (ref.current?.innerText ?? "").replace(/\u00a0/g, " ");
+          if (next !== value) onCommit(next); // live — the store updates as you type
+        }}
+        onKeyDown={(e) => {
+          e.stopPropagation();
+          if (e.key === "Enter" && !multiline) { e.preventDefault(); (e.target as HTMLElement).blur(); }
+          if (e.key === "Escape") (e.target as HTMLElement).blur();
+        }}
+        onClick={(e) => { e.stopPropagation(); placeBar(); }}
+        onMouseDown={(e) => e.stopPropagation()}
+        aria-label={placeholder ?? "editable text"}
+      />
+      {focus && barPos && <TextBar pos={barPos} multiline={!!multiline} />}
+    </>
+  );
+}
+
+// Floating format bar (Canva-style) while a text element has focus
+function TextBar({ pos, multiline }: { pos: { x: number; y: number }; multiline: boolean }) {
+  const [tick, setTick] = useState(0);
+  const exec = (cmd: string, val?: string) => {
+    document.execCommand(cmd, false, val);
+    setTick((t) => t + 1); // re-render to refresh active states
+  };
+  const active = (cmd: string) => { try { return document.queryCommandState(cmd); } catch { return false; } };
+  void tick; void multiline;
+  return (
+    <div
+      className="anim-pop fixed z-[95] flex items-center gap-0.5 rounded-md border border-line bg-card px-1 py-0.5 shadow-xl"
+      style={{ left: pos.x, top: pos.y }}
+      onMouseDown={(e) => e.preventDefault()} // keep the text selection
     >
-      {value || placeholder}
-    </Tag>
+      <ToolBtn icon="bold" label="Bold" active={active("bold")} onClick={() => exec("bold")} />
+      <ToolBtn icon="italic" label="Italic" active={active("italic")} onClick={() => exec("italic")} />
+      <ToolBtn icon="underline" label="Underline" active={active("underline")} onClick={() => exec("underline")} />
+      <span className="mx-0.5 h-4 w-px bg-line" />
+      <button onClick={() => exec("fontSize", "2")} aria-label="Smaller text" title="Smaller" className="rounded-sm px-1 font-mono text-[10px] font-bold text-mute hover:bg-paper">A−</button>
+      <button onClick={() => exec("fontSize", "5")} aria-label="Larger text" title="Larger" className="rounded-sm px-1 font-mono text-[12px] font-bold text-mute hover:bg-paper">A+</button>
+      <span className="mx-0.5 h-4 w-px bg-line" />
+      {["#141811", "#0e6b4e", "#9a6a0b", "#b42318", "#ffffff"].map((c) => (
+        <button key={c} onClick={() => exec("foreColor", c)} aria-label={`Text colour ${c}`} title="Text colour" className="h-4 w-4 rounded-full border border-line2" style={{ background: c }} />
+      ))}
+      <span className="mx-0.5 h-4 w-px bg-line" />
+      <ToolBtn icon="alignL" label="Align left" active={active("justifyLeft")} onClick={() => exec("justifyLeft")} />
+      <ToolBtn icon="alignC" label="Align centre" active={active("justifyCenter")} onClick={() => exec("justifyCenter")} />
+      <ToolBtn icon="alignR" label="Align right" active={active("justifyRight")} onClick={() => exec("justifyRight")} />
+    </div>
   );
 }
 

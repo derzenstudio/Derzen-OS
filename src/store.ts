@@ -846,7 +846,7 @@ export const useApp = create<App>((set, get) => ({
         ...st.website,
         pages: st.website.pages.map((pg) =>
           pg.id === pageId
-            ? { ...pg, blocks: pg.blocks.map((b) => (b.id === blockId ? { ...b, ...patch, style: { ...DEFAULT_BLOCK_STYLE, ...b.style, ...patch.style } } : b)) }
+            ? { ...pg, blocks: pg.blocks.map((b) => (b.id === blockId ? { ...b, ...patch, content: { ...b.content, ...patch.content }, style: { ...DEFAULT_BLOCK_STYLE, ...b.style, ...patch.style } } : b)) }
             : pg,
         ),
       },

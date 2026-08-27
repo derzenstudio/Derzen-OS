@@ -9,6 +9,15 @@ import { PROPERTIES, propertyById } from "../lib/data";
 // re-writes the text node (which would reset the caret on every keystroke).
 // Typing commits live via onInput; external updates sync only when unfocused.
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br/>");
+/** Content strings may hold light formatting HTML (<b>, <i>, <font>, <br>) — render as-is; plain text gets escaped. */
+export const toHtml = (s: string) => (/<[a-z!/]/i.test(s) ? s : esc(s));
+/** Read a contentEditable node as storable HTML; empty normalises to "". */
+const readHtml = (el: HTMLElement | null) => {
+  if (!el) return "";
+  const html = el.innerHTML.replace(/&nbsp;/g, " ");
+  const plain = el.innerText.replace(/\u00a0/g, " ").trim();
+  return plain === "" ? "" : html;
+};
 
 export function EditableText({
   value, onCommit, className, style, multiline, placeholder, as: Tag = "span", disabled,
@@ -26,12 +35,12 @@ export function EditableText({
   const focused = useRef(false);
   const [focus, setFocus] = useState(false);
   const [barPos, setBarPos] = useState<{ x: number; y: number } | null>(null);
-  const initial = useRef(esc(value)).current; // frozen — keeps the DOM stable
+  const initial = useRef(toHtml(value)).current; // frozen — keeps the DOM stable
 
   // sync external changes (reset, undo) only while not typing
   useEffect(() => {
-    if (!focused.current && ref.current && ref.current.textContent !== value) {
-      ref.current.innerHTML = esc(value);
+    if (!focused.current && ref.current && toHtml(value) !== ref.current.innerHTML) {
+      ref.current.innerHTML = toHtml(value);
     }
   }, [value]);
 
@@ -60,12 +69,13 @@ export function EditableText({
         onFocus={() => { focused.current = true; setFocus(true); placeBar(); }}
         onBlur={() => {
           focused.current = false; setFocus(false); setBarPos(null);
-          const next = (ref.current?.innerText ?? "").replace(/\u00a0/g, " ").replace(/\n$/, "");
-          if (next !== value) onCommit(next);
+          const next = readHtml(ref.current);
+          if (next !== value && !(next === "" && toHtml(value) === "")) onCommit(next);
+          if (ref.current && next === "") ref.current.innerHTML = ""; // keep :empty placeholder working
         }}
         onInput={() => {
-          const next = (ref.current?.innerText ?? "").replace(/\u00a0/g, " ");
-          if (next !== value) onCommit(next); // live — the store updates as you type
+          const next = readHtml(ref.current);
+          if (next !== value) onCommit(next); // live — the store updates as you type, formatting included
         }}
         onKeyDown={(e) => {
           e.stopPropagation();
@@ -86,6 +96,8 @@ function TextBar({ pos, multiline }: { pos: { x: number; y: number }; multiline:
   const [tick, setTick] = useState(0);
   const exec = (cmd: string, val?: string) => {
     document.execCommand(cmd, false, val);
+    // execCommand doesn't emit `input` for style toggles — nudge the editable node so the change commits live
+    (document.activeElement as HTMLElement | null)?.dispatchEvent(new Event("input", { bubbles: true }));
     setTick((t) => t + 1); // re-render to refresh active states
   };
   const active = (cmd: string) => { try { return document.queryCommandState(cmd); } catch { return false; } };

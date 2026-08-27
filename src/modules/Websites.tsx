@@ -2,7 +2,7 @@ import { useState } from "react";
 import { cx, money, copyText, toCSV, download, dayKey, addDays, today } from "../lib/format";
 import { Ic, type IconName } from "../components/icons";
 import { Badge, Btn, Dot, Field, Input, Modal, Select, Spark, Tabs, Toggle } from "../components/ui";
-import { EditableText, EditableImage, FloatingToolbar, ToolBtn, InspectorPanel, Ifield, TextInput, SegBtns } from "../components/editor";
+import { EditableText, EditableImage, FloatingToolbar, ToolBtn, InspectorPanel, Ifield, TextInput, SegBtns, toHtml } from "../components/editor";
 import { NumStepper, ColorField } from "../components/controls";
 import { useApp, DEFAULT_BLOCK_STYLE } from "../store";
 import { COLLECTIONS, PROPERTIES, propertyById, SERVICES } from "../lib/data";
@@ -362,8 +362,9 @@ function InlineBlock({ b, idx, total, selected, dragging, onSelect, onDragStart,
   return (
     <div
       onClick={(e) => { e.stopPropagation(); onSelect(); }}
+      onFocusCapture={() => { if (!selected) onSelect(); }}
       className={cx(
-        "group relative cursor-pointer rounded-sm border transition-all",
+        "group relative rounded-sm border transition-all",
         selected ? "border-brand shadow-[0_0_0_1px_var(--color-brand)]" : "border-transparent hover:border-line2",
         dragging && "opacity-40",
       )}
@@ -466,7 +467,7 @@ function BlockView({ b, edit = false, onContent }: { b: Block; edit?: boolean; o
   const t = (p: { k: string; as?: "span" | "p" | "h1" | "h2" | "h3" | "div"; className?: string; style?: React.CSSProperties; multiline?: boolean; placeholder?: string }) =>
     edit
       ? <EditableText as={p.as} value={c[p.k] ?? ""} onCommit={set(p.k)} className={p.className} style={p.style} multiline={p.multiline} placeholder={p.placeholder ?? p.k} />
-      : <Tag as={p.as} className={p.className} style={p.style}>{c[p.k]}</Tag>;
+      : <Tag as={p.as} className={p.className} style={p.style} html={toHtml(c[p.k] ?? "")} />;
   const im = (p: { k: string; className?: string; style?: React.CSSProperties }) =>
     edit
       ? <EditableImage src={c[p.k] ?? ""} onCommit={set(p.k)} className={p.className} style={p.style} />
@@ -650,8 +651,8 @@ function BlockView({ b, edit = false, onContent }: { b: Block; edit?: boolean; o
 }
 
 // static tag helper for non-edit mode
-function Tag({ as: A = "span", className, style, children }: { as?: "span" | "p" | "h1" | "h2" | "h3" | "div"; className?: string; style?: React.CSSProperties; children?: React.ReactNode }) {
-  return <A className={className} style={style}>{children}</A>;
+function Tag({ as: A = "span", className, style, children, html }: { as?: "span" | "p" | "h1" | "h2" | "h3" | "div"; className?: string; style?: React.CSSProperties; children?: React.ReactNode; html?: string }) {
+  return <A className={className} style={style} {...(html !== undefined ? { dangerouslySetInnerHTML: { __html: html } } : { children })} />;
 }
 
 // ── Inspector: Content + Style tabs for the selected block ────────────────

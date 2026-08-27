@@ -176,6 +176,12 @@ function WrongSurface({ audience }: { audience: Surface }) {
         >
           Continue there <Ic name="arrowR" size={15} />
         </a>
+        <button
+          onClick={() => useApp.setState({ session: null })}
+          className="mt-3 block w-full text-[12px] font-semibold text-mute transition-colors hover:text-ink"
+        >
+          Or sign out of this session
+        </button>
       </div>
     </div>
   );

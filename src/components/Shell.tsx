@@ -49,7 +49,7 @@ const NAV: { group: string; items: { path: string; icon: IconName; label: string
 ];
 
 function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { route, navigate, t, chatOpen, setChatOpen, featureOn, logout, session, tenants, devMode } = useApp();
+  const { route, navigate, t, chatOpen, setChatOpen, featureOn, logout, session, tenants } = useApp();
   const unread = useUnreadTotal();
   const syncAlerts = useSyncAlerts();
   const overdue = useOverdue();
@@ -82,16 +82,16 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
         </span>
       </button>
 
-      {devMode && session?.kind === "tenant" && (
+      {session?.kind === "tenant" && session.impersonated && (
         <div className="mx-3 mb-3 rounded-sm border border-brand/40 bg-brand-soft/60 p-2.5 anim-pop">
           <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-widest text-brand-deep">
-            <Ic name="code" size={11} /> Developer session
+            <Ic name="code" size={11} /> Impersonating tenant
           </p>
           <button
             onClick={() => { onClose(); navigate("/dev"); }}
             className="mt-1.5 flex w-full items-center justify-center gap-1.5 rounded-sm btn-grad py-1.5 text-[11px] font-bold text-white"
           >
-            <Ic name="chevL" size={12} /> Back to console
+            <Ic name="chevL" size={12} /> Back to console (re-auth)
           </button>
         </div>
       )}

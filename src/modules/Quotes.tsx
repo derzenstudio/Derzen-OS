@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { cx, money, moneyRaw, fmtDate, timeAgo, hoursLeft, relDay } from "../lib/format";
 import { Ic } from "../components/icons";
-import { Badge, Btn, Dot, Empty, Field, Input, Modal, Select, Textarea } from "../components/ui";
+import { Badge, Btn, Empty, Field, Input, Modal, Select, Textarea } from "../components/ui";
 import { useApp } from "../store";
 import { guestById, propertyById, serviceById } from "../lib/data";
 import type { Quote, QuoteStatus } from "../lib/types";
@@ -145,8 +145,6 @@ export default function Quotes() {
           </div>
         )}
       </Modal>
-      {voidDot(<Dot tone="ok" label="" />)}
     </div>
   );
 }
-function voidDot(_x: React.ReactNode) { return null; }

@@ -28,11 +28,22 @@ export type Session =
   | { kind: "tenant"; tenantId: string; impersonated?: boolean }
   | { kind: "developer" };
 
+const SESSION_KEY = "derzen.session";
 function loadSession(): Session | null {
-  try { return JSON.parse(localStorage.getItem("trellis.session") ?? "null") as Session | null; } catch { return null; }
+  try {
+    const s = JSON.parse(localStorage.getItem(SESSION_KEY) ?? "null") as Session | null;
+    // Only tenant sessions are ever persisted, so only tenant sessions are ever
+    // restored. A developer session found here is stale/adversarial — drop it and
+    // clear the key so it can't linger on a tenant-facing origin.
+    if (s?.kind === "developer") {
+      localStorage.removeItem(SESSION_KEY);
+      return null;
+    }
+    return s;
+  } catch { return null; }
 }
 function saveSession(s: Session | null) {
-  try { s ? localStorage.setItem("trellis.session", JSON.stringify(s)) : localStorage.removeItem("trellis.session"); } catch { /* private mode */ }
+  try { s ? localStorage.setItem(SESSION_KEY, JSON.stringify(s)) : localStorage.removeItem(SESSION_KEY); } catch { /* private mode */ }
 }
 const bootSession = loadSession();
 if (bootSession?.kind === "tenant" && bootSession.tenantId) {
@@ -101,8 +112,6 @@ interface App {
   goliveFreeze: () => void;
 
   // ── developer-in-tenant & tenant branding ──
-  devMode: boolean;
-  setDevMode: (v: boolean) => void;
   tenantFonts: Record<string, { headingUrl: string; headingFamily: string; bodyUrl: string; bodyFamily: string }>;
   setTenantFonts: (tenantId: string, fonts: { headingUrl: string; headingFamily: string; bodyUrl: string; bodyFamily: string }) => void;
   widgetStyle: WidgetStyle;
@@ -298,10 +307,11 @@ export const useApp = create<App>((set, get) => ({
   loginDeveloper: (email, pw) => {
     if (email.trim().toLowerCase() !== DEVELOPER.email || pw !== DEVELOPER.password)
       return { ok: false, error: "Developer credentials not recognised." };
+    // Developer sessions are deliberately NOT persisted. They live only in memory
+    // for the current page, so no client-writable localStorage key on any origin
+    // (tenant or dev host) can ever establish or re-establish one. Reload = re-auth.
     const session: Session = { kind: "developer" };
-    saveSession(session);
-    try { localStorage.setItem("derzen.devMode", "1"); } catch { /* private mode */ }
-    set({ session, features: null, devMode: true });
+    set({ session, features: null });
     return { ok: true };
   },
   logout: () => {
@@ -360,11 +370,6 @@ export const useApp = create<App>((set, get) => ({
     set({ theme: t });
   },
 
-  devMode: (() => { try { return localStorage.getItem("derzen.devMode") === "1"; } catch { return false; } })(),
-  setDevMode: (v) => {
-    try { v ? localStorage.setItem("derzen.devMode", "1") : localStorage.removeItem("derzen.devMode"); } catch { /* private mode */ }
-    set({ devMode: v });
-  },
   tenantFonts: {},
   setTenantFonts: (tenantId, fonts) =>
     set((st) => ({ tenantFonts: { ...st.tenantFonts, [tenantId]: fonts } })),

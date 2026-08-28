@@ -1,9 +1,11 @@
 # Builds the Vite app once per surface and publishes dist/ to Hostinger:
-#   surface=app  →  app.alvianpermana.art  (tenant + marketing)
-#   surface=dev  →  dev.alvianpermana.art  (internal consoles, noindex)
+#   surface=app  →  app.alvianpermana.art  (tenant + marketing)   main ONLY
+#   surface=dev  →  dev.alvianpermana.art  (internal consoles)    any branch
 #
-# One workflow, one job, a surface matrix — replaces the old deploy-app and
-# deploy-dev pair that each did a full independent build on every branch push.
+# Branch policy: pushes to ANY branch deploy the dev surface, so the working
+# branch keeps its fast preview loop. The production (app) leg runs only on
+# the default branch — feature-branch pushes can never redeploy app.
+# (workflow_dispatch deploys both surfaces.)
 #
 # Required repository secrets (Settings > Secrets and variables > Actions):
 #   FTP_SERVER        ftp.alvianpermana.art   (shared by both surfaces)
@@ -15,17 +17,15 @@
 # Optional repository variables (Variables tab):
 #   FTP_SERVER_DIR_APP / FTP_SERVER_DIR  override upload targets, default ./
 #
-# Deploys run on the DEFAULT BRANCH ONLY. Feature-branch pushes build nothing
-# here — open a PR instead. The first deploy used dangerous-clean-slate; it is
-# now off so FTP-Deploy-Action's sync-state file does incremental uploads
-# (no more wipe-then-reupload window where the site is partially empty).
+# dangerous-clean-slate is OFF: FTP-Deploy-Action's sync-state file performs
+# incremental uploads, so there is no wipe-then-reupload window.
 
 name: deploy
 
 on:
   push:
     branches:
-      - main
+      - "**"
   workflow_dispatch: {}
 
 concurrency:
@@ -38,6 +38,11 @@ concurrency:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    # App leg: default branch only. Dev leg: every branch (preview loop).
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      github.ref == 'refs/heads/main' ||
+      matrix.surface == 'dev'
     strategy:
       fail-fast: false
       matrix:
@@ -46,12 +51,12 @@ jobs:
             ftp_user_key: FTP_USERNAME_APP
             ftp_pass_key: FTP_PASSWORD_APP
             server_dir_var: FTP_SERVER_DIR_APP
-            write_robots: false
+            robots_allow: true
           - surface: dev
             ftp_user_key: FTP_USERNAME
             ftp_pass_key: FTP_PASSWORD
             server_dir_var: FTP_SERVER_DIR
-            write_robots: true
+            robots_allow: false
 
     steps:
       # Fail fast: validate ALL THREE secrets before spending minutes building.
@@ -80,19 +85,26 @@ jobs:
       - name: Install dependencies
         run: npm ci --no-audit --no-fund
 
-      # Typecheck gates the publish independently of the bundler.
+      # Typecheck gate. Uses the repo's own script (tsc --noEmit against the
+      # root tsconfig.json). NOTE: this codebase has never been typechecked in
+      # CI — if this step surfaces pre-existing errors, run `npm run typecheck`
+      # locally and clear them rather than removing the gate.
       - name: Typecheck
-        run: npx tsc -p tsconfig.app.json --noEmit
+        run: npm run typecheck
 
       - name: Build
         env:
           VITE_SURFACE: ${{ matrix.surface }}
         run: npm run build
 
-      - name: SPA fallback (+ keep dev out of search engines)
+      # app: explicit allow (was shipping no robots.txt at all).
+      # dev: keep the internal console out of search engines.
+      - name: SPA fallback + robots.txt
         run: |
           cp dist/index.html dist/404.html
-          if [ "${{ matrix.write_robots }}" = "true" ]; then
+          if [ "${{ matrix.robots_allow }}" = "true" ]; then
+            printf 'User-agent: *\nAllow: /\n' > dist/robots.txt
+          else
             printf 'User-agent: *\nDisallow: /\n' > dist/robots.txt
           fi
 

@@ -420,7 +420,7 @@ export const TASKS: Task[] = [
   },
   {
     id: "t-505", title: "Turnover clean — Samudra One", type: "cleaning", propertyId: "p-sam-one", assigneeId: "m-kadek",
-    due: now + 5 * H, priority: "high", status: "open", templateId: "tt-clean", templateVersion: 4, linkedReservationId: "r-2420", createdAt: now - 18 * H,
+    due: now + 11 * H, priority: "high", status: "open", templateId: "tt-clean", templateVersion: 4, linkedReservationId: "r-2420", createdAt: now - 18 * H,
     checklist: cl([["Full clean 2BR"], ["Restock minibar"], ["Photo: finished living room", false]], [2]),
   },
   {
@@ -440,7 +440,7 @@ export const TASKS: Task[] = [
   },
   {
     id: "t-509", title: "Pool service — Villa Cemara", type: "maintenance", propertyId: "p-cemara", assigneeId: "m-ari",
-    due: now + 7 * H, priority: "medium", status: "open", createdAt: now - 2 * D,
+    due: now + 16 * H, priority: "medium", status: "open", createdAt: now - 2 * D,
     checklist: cl([["Chemistry check & log", true], ["Skim + vacuum", true], ["Pump basket clean"]]),
   },
   {
@@ -450,7 +450,7 @@ export const TASKS: Task[] = [
   },
   {
     id: "t-511", title: "Evening tidy — Samudra Two", type: "cleaning", propertyId: "p-sam-two", assigneeId: "m-kadek",
-    due: now + 9 * H, priority: "low", status: "open", createdAt: now - 8 * H,
+    due: now + 21 * H, priority: "low", status: "open", createdAt: now - 8 * H,
     checklist: cl([["Light tidy + trash out"], ["Towels refresh"]]),
   },
   {

@@ -85,7 +85,7 @@ export const PRIORITY: Record<Priority, { label: string; cls: string }> = {
   low: { label: "Low", cls: "border border-line2 bg-transparent text-mute" },
   medium: { label: "Medium", cls: "bg-ink/10 text-ink" },
   high: { label: "High", cls: "bg-ink/75 text-paper" },
-  urgent: { label: "Urgent", cls: "bg-ink text-paper [background-image:repeating-linear-gradient(-45deg,rgba(255,255,255,0.24)_0_3px,transparent_3px_7px)]" },
+  urgent: { label: "Urgent", cls: "bg-ink text-paper [background-image:repeating-linear-gradient(-45deg,color-mix(in_srgb,var(--color-paper)_28%,transparent)_0_3px,transparent_3px_7px)]" },
   emergency: { label: "Emergency", cls: "bg-danger text-white" },
 };
 export function PriorityChip({ p }: { p: Priority }) {

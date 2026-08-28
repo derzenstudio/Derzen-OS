@@ -413,14 +413,15 @@ input[type="range"] {
   opacity: 0.5;
   pointer-events: none;
 }
+/* inset, so panels with overflow-hidden (ghost numerals, modals) keep them */
 .reg-marks::before {
-  top: -1px;
-  left: -1px;
+  top: 5px;
+  left: 5px;
   border-width: 2px 0 0 2px;
 }
 .reg-marks::after {
-  bottom: -1px;
-  right: -1px;
+  bottom: 5px;
+  right: 5px;
   border-width: 0 2px 2px 0;
 }
 
@@ -432,43 +433,51 @@ input[type="range"] {
 .eng { background: var(--color-paper); color: var(--color-ink); }
 .eng.text-white { color: var(--color-ink); } /* the console root itself */
 
+/* All declarations carry !important: the consoles mix in `!`-prefixed
+   utilities (!text-white/70, !bg-white/5 …) which would otherwise outrank
+   this remap and vanish on paper. Specificity still orders the tiers:
+   every rule here is (0,2,0); ties resolve by source order, and the
+   white-on-solid outrank below is (0,3,0) so it always wins.             */
+
 /* text — tiered: strong ≥ /6x → ink, mid → mute, weak ≤ /3x → faint.
    Later rules win ties, so order matters: base, then strong, then weak. */
-.eng .text-white { color: var(--color-ink); }
-.eng [class*="text-white/"] { color: var(--color-mute); }
-.eng :is([class*="text-white/9"], [class*="text-white/8"], [class*="text-white/7"], [class*="text-white/6"]) { color: var(--color-ink); }
-.eng :is([class*="text-white/3"], [class*="text-white/2"], [class*="text-white/1"], [class*="text-white/0"]) { color: var(--color-faint); }
-.eng [class*="hover:text-white"]:hover { color: var(--color-ink); }
-.eng .text-pine-100 { color: var(--color-ink); }
-.eng [class*="text-pine-200"] { color: var(--color-faint); }
+.eng .text-white { color: var(--color-ink) !important; }
+.eng [class*="text-white/"] { color: var(--color-mute) !important; }
+.eng :is([class*="text-white/9"], [class*="text-white/8"], [class*="text-white/7"], [class*="text-white/6"]) { color: var(--color-ink) !important; }
+.eng :is([class*="text-white/3"], [class*="text-white/2"], [class*="text-white/1"], [class*="text-white/0"]) { color: var(--color-faint) !important; }
+.eng [class*="hover:text-white"]:hover { color: var(--color-ink) !important; }
+.eng .text-pine-100 { color: var(--color-ink) !important; }
+.eng [class*="text-pine-200"] { color: var(--color-faint) !important; }
 /* status text → readable equivalents on paper */
-.eng [class*="text-[#4CC38A]"] { color: var(--color-brand-deep); }
-.eng [class*="text-[#e2a33c]"] { color: var(--color-gold); }
-.eng [class*="text-[#f08c8c]"], .eng [class*="text-[#e2703c]"] { color: var(--color-danger); }
-.eng [class*="text-[#7cc0ff]"], .eng [class*="text-[#3E9BFF]"] { color: var(--color-sea); }
-.eng .text-brand-bright { color: var(--color-brand-deep); }
+.eng [class*="text-[#4CC38A]"] { color: var(--color-brand-deep) !important; }
+.eng [class*="text-[#e2a33c]"] { color: var(--color-gold) !important; }
+.eng [class*="text-[#f08c8c]"], .eng [class*="text-[#e2703c]"] { color: var(--color-danger) !important; }
+.eng [class*="text-[#7cc0ff]"], .eng [class*="text-[#3E9BFF]"] { color: var(--color-sea) !important; }
+.eng .text-brand-bright { color: var(--color-brand-deep) !important; }
 /* surfaces: near-black panels → card (incl. /90 /85 suffixed), tints → washes */
-.eng [class*="bg-[#0a0a09]"], .eng [class*="bg-[#0d0d0b]"], .eng [class*="bg-[#101009]"], .eng [class*="bg-[#161613]"], .eng .bg-pine-800 { background-color: var(--color-card); }
-.eng [class*="bg-[#171714]"], .eng [class*="bg-[#121210]"], .eng .bg-pine-900, .eng .bg-pine-950 { background-color: var(--color-surface); }
-.eng [class*="bg-[#1c0f0f]"], .eng [class*="bg-[#120909]"], .eng [class*="bg-[#2a1212]"], .eng [class*="bg-[#2c1713]"], .eng [class*="bg-[#3d1f1f]"] { background-color: var(--color-danger-soft); }
-.eng [class*="bg-[#2a2113]"], .eng [class*="bg-[#3a3320]"] { background-color: var(--color-gold-soft); }
-.eng [class*="bg-[#12251b]"], .eng [class*="bg-[#1d3527]"] { background-color: var(--color-brand-soft); }
-.eng .bg-white { background-color: var(--color-card); }
-.eng [class*="bg-white/"] { background-color: color-mix(in srgb, var(--color-ink) 5%, transparent); }
-.eng [class*="hover:bg-white/"]:hover { background-color: color-mix(in srgb, var(--color-ink) 8%, transparent); }
-.eng [class*="bg-brand/"], .eng [class*="bg-[#4CC38A]/"] { background-color: var(--color-brand-soft); }
-.eng [class*="bg-danger/"] { background-color: var(--color-danger-soft); }
-.eng [class*="bg-[#e2a33c]/"], .eng [class*="bg-[#e2703c]/"] { background-color: var(--color-gold-soft); }
+.eng [class*="bg-[#0a0a09]"], .eng [class*="bg-[#0d0d0b]"], .eng [class*="bg-[#101009]"], .eng [class*="bg-[#161613]"], .eng .bg-pine-800 { background-color: var(--color-card) !important; }
+.eng [class*="bg-[#171714]"], .eng [class*="bg-[#121210]"], .eng .bg-pine-900, .eng .bg-pine-950 { background-color: var(--color-surface) !important; }
+.eng [class*="bg-[#1c0f0f]"], .eng [class*="bg-[#120909]"], .eng [class*="bg-[#2a1212]"], .eng [class*="bg-[#2c1713]"], .eng [class*="bg-[#3d1f1f]"] { background-color: var(--color-danger-soft) !important; }
+.eng [class*="bg-[#2a2113]"], .eng [class*="bg-[#3a3320]"] { background-color: var(--color-gold-soft) !important; }
+.eng [class*="bg-[#12251b]"], .eng [class*="bg-[#1d3527]"] { background-color: var(--color-brand-soft) !important; }
+.eng .bg-white { background-color: var(--color-card) !important; }
+.eng [class*="bg-white/"] { background-color: color-mix(in srgb, var(--color-ink) 5%, transparent) !important; }
+.eng [class*="hover:bg-white/"]:hover { background-color: color-mix(in srgb, var(--color-ink) 8%, transparent) !important; }
+.eng [class*="bg-brand/"], .eng [class*="bg-[#4CC38A]/"] { background-color: var(--color-brand-soft) !important; }
+.eng [class*="bg-danger/"] { background-color: var(--color-danger-soft) !important; }
+.eng [class*="bg-[#e2a33c]/"], .eng [class*="bg-[#e2703c]/"] { background-color: var(--color-gold-soft) !important; }
 /* borders & dividers */
-.eng [class*="border-white/"] { border-color: var(--color-line); }
-.eng [class*="hover:border-white/"]:hover { border-color: var(--color-line2); }
-.eng [class*="border-[#4CC38A]"] { border-color: var(--color-brand); }
-.eng [class*="border-[#e2a33c]"] { border-color: var(--color-gold); }
-.eng [class*="border-[#5a2020]"], .eng [class*="border-danger/"] { border-color: var(--color-danger); }
-.eng [class*="divide-white/"] > :not([hidden]) ~ :not([hidden]) { border-color: var(--color-line); }
-/* white type on solid brand/danger surfaces must stay white (outranks the ramp) */
-.eng :is(.bg-brand, .btn-grad, .bg-danger, .bg-[#0E6B4E], .bg-[#B42318], .bg-[#4CC38A]) [class*="text-white"] { color: #fff; }
-.eng :is(.bg-brand, .btn-grad, .bg-danger, .bg-[#B42318])[class*="text-white"] { color: #fff; }
+.eng [class*="border-white/"] { border-color: var(--color-line) !important; }
+.eng [class*="hover:border-white/"]:hover { border-color: var(--color-line2) !important; }
+.eng [class*="border-[#4CC38A]"] { border-color: var(--color-brand) !important; }
+.eng [class*="border-[#e2a33c]"] { border-color: var(--color-gold) !important; }
+.eng [class*="border-[#5a2020]"], .eng [class*="border-danger/"] { border-color: var(--color-danger) !important; }
+.eng [class*="divide-white/"] > :not([hidden]) ~ :not([hidden]) { border-color: var(--color-line) !important; }
+/* white type on solid brand/danger surfaces must stay white — (0,3,0)
+   outranks the (0,2,0) ramp even with !important on both. The hex classes
+   are bracket-escaped: unescaped [#…] is silently dropped inside :is().  */
+.eng :is(.bg-brand, .btn-grad, .bg-danger, .bg-\[\#0E6B4E\], .bg-\[\#B42318\], .bg-\[\#4CC38A\]) [class*="text-white"] { color: #fff !important; }
+.eng :is(.bg-brand, .btn-grad, .bg-danger, .bg-\[\#B42318\])[class*="text-white"] { color: #fff !important; }
 /* gradients that assumed a dark canvas */
 .eng .from-brand-bright { --tw-gradient-from: var(--color-brand); }
 .eng [class*="to-[#4CC38A]"] { --tw-gradient-to: var(--color-brand-deep); }

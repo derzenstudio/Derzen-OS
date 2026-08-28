@@ -76,7 +76,7 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       {/* Shift sheet — the day's work first, greeting in the margin */}
-      <div className="ticks relative overflow-hidden border border-line bg-card px-5 py-5">
+      <div className="reg-marks relative overflow-hidden border border-line bg-card px-5 py-5">
         {/* Ghost date numeral — a living mark that changes daily */}
         <span aria-hidden="true" className="pointer-events-none absolute -right-2 -top-10 select-none font-display text-[170px] font-extrabold leading-none text-ink/[0.055] tabular-nums">
           {new Date().getDate()}

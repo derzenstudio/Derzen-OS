@@ -37,7 +37,7 @@ const Integrations = lazy(() => import("./modules/Integrations"));
 function LoadingSurface() {
   return (
     <div className="flex h-[40vh] items-center justify-center" role="status" aria-label="Loading module">
-      <div className="ticks border border-line bg-card px-6 py-4">
+      <div className="reg-marks border border-line bg-card px-6 py-4">
         <p className="flex items-center gap-2.5 font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-faint">
           <span className="h-3 w-3 anim-spin border-2 border-line2 border-t-brand" aria-hidden="true" />
           Loading module…

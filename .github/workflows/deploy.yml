@@ -36,27 +36,34 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build-and-deploy:
+  # The matrix context is NOT in scope in a job-level "if", so the surface
+  # list is decided here and consumed with fromJSON instead: dev on every
+  # branch, app only on the default branch or a manual dispatch.
+  plan:
     runs-on: ubuntu-latest
-    # App leg: default branch only. Dev leg: every branch (preview loop).
-    if: >-
-      github.event_name == 'workflow_dispatch' ||
-      github.ref == 'refs/heads/main' ||
-      matrix.surface == 'dev'
+    outputs:
+      matrix: ${{ steps.pick.outputs.matrix }}
+    steps:
+      - name: Pick surfaces to deploy
+        id: pick
+        run: |
+          APP='{"surface":"app","ftp_user_key":"FTP_USERNAME_APP","ftp_pass_key":"FTP_PASSWORD_APP","server_dir_var":"FTP_SERVER_DIR_APP","robots_allow":true}'
+          DEV='{"surface":"dev","ftp_user_key":"FTP_USERNAME","ftp_pass_key":"FTP_PASSWORD","server_dir_var":"FTP_SERVER_DIR","robots_allow":false}'
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ] || [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            echo "matrix={\"include\":[$APP,$DEV]}" >> "$GITHUB_OUTPUT"
+          else
+            echo "matrix={\"include\":[$DEV]}" >> "$GITHUB_OUTPUT"
+          fi
+
+  build-and-deploy:
+    needs: plan
+    runs-on: ubuntu-latest
     strategy:
       fail-fast: false
-      matrix:
-        include:
-          - surface: app
-            ftp_user_key: FTP_USERNAME_APP
-            ftp_pass_key: FTP_PASSWORD_APP
-            server_dir_var: FTP_SERVER_DIR_APP
-            robots_allow: true
-          - surface: dev
-            ftp_user_key: FTP_USERNAME
-            ftp_pass_key: FTP_PASSWORD
-            server_dir_var: FTP_SERVER_DIR
-            robots_allow: false
+      # Both legs upload over FTP to the same Hostinger account, which
+      # tolerates only one session at a time, so run them back to back.
+      max-parallel: 1
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
 
     steps:
       # Fail fast: validate ALL THREE secrets before spending minutes building.

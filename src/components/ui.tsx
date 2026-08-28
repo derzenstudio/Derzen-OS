@@ -79,13 +79,13 @@ export function StatusChip({ status }: { status: ResStatus }) {
   return <Badge tone={s.tone}>{s.label}</Badge>;
 }
 
-// One ramp: wash → ink. Gold is reserved for money, red for broken things —
-// so urgency climbs in weight, not in hue.
+// One ramp with real steps AND a shape cue, so adjacent rungs never merge:
+// outline → light wash → solid ink → solid ink with hazard stripes → red.
 export const PRIORITY: Record<Priority, { label: string; cls: string }> = {
-  low: { label: "Low", cls: "bg-ink/[0.05] text-mute" },
+  low: { label: "Low", cls: "border border-line2 bg-transparent text-mute" },
   medium: { label: "Medium", cls: "bg-ink/10 text-ink" },
-  high: { label: "High", cls: "bg-ink/80 text-paper" },
-  urgent: { label: "Urgent", cls: "bg-ink text-paper" },
+  high: { label: "High", cls: "bg-ink/75 text-paper" },
+  urgent: { label: "Urgent", cls: "bg-ink text-paper [background-image:repeating-linear-gradient(-45deg,rgba(255,255,255,0.24)_0_3px,transparent_3px_7px)]" },
   emergency: { label: "Emergency", cls: "bg-danger text-white" },
 };
 export function PriorityChip({ p }: { p: Priority }) {

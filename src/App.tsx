@@ -1,33 +1,51 @@
-import { useEffect, type ComponentType } from "react";
+import { lazy, Suspense, useEffect, type ComponentType } from "react";
 import { Shell } from "./components/Shell";
 import { useApp } from "./store";
 import { refreshFx } from "./lib/fx";
-import { PublicSite, LoginPage } from "./modules/Public";
-import DevConsole from "./modules/DevConsole";
-import DevBackoffice from "./modules/DevBackoffice";
-import DevOps from "./modules/DevOps";
-import { Backoffice } from "./components/Backoffice";
-import Dashboard from "./modules/Dashboard";
-import Calendar from "./modules/Calendar";
-import Inbox from "./modules/Inbox";
-import Reservations from "./modules/Reservations";
-import Operations from "./modules/Operations";
-import Concierge from "./modules/Concierge";
-import Reviews from "./modules/Reviews";
-import Customers from "./modules/Customers";
-import Guidebooks from "./modules/Guidebooks";
-import Listings from "./modules/Listings";
-import Channels from "./modules/Channels";
-import Quotes from "./modules/Quotes";
-import Websites from "./modules/Websites";
-import GlobalStyling from "./modules/GlobalStyling";
-import Reports from "./modules/Reports";
-import SettingsModule from "./modules/Settings";
-import Integrations from "./modules/Integrations";
-import { PaymentPage } from "./modules/ChatWidget";
 import { Btn } from "./components/ui";
 import { Ic } from "./components/icons";
 import { SURFACE, SURFACE_LABELS, SURFACE_URLS, type Surface } from "./lib/surface";
+
+// ── Route-level code splitting ─────────────────────────────────────────────
+// Every surface loads its own chunk on first visit; the initial payload is
+// just the shell, store, seed data and design system.
+const PublicSite = lazy(() => import("./modules/Public").then((m) => ({ default: m.PublicSite })));
+const LoginPage = lazy(() => import("./modules/Public").then((m) => ({ default: m.LoginPage })));
+const PaymentPage = lazy(() => import("./modules/ChatWidget").then((m) => ({ default: m.PaymentPage })));
+const Backoffice = lazy(() => import("./components/Backoffice").then((m) => ({ default: m.Backoffice })));
+const DevConsole = lazy(() => import("./modules/DevConsole"));
+const DevBackoffice = lazy(() => import("./modules/DevBackoffice"));
+const DevOps = lazy(() => import("./modules/DevOps"));
+const Dashboard = lazy(() => import("./modules/Dashboard"));
+const Calendar = lazy(() => import("./modules/Calendar"));
+const Inbox = lazy(() => import("./modules/Inbox"));
+const Reservations = lazy(() => import("./modules/Reservations"));
+const Operations = lazy(() => import("./modules/Operations"));
+const Concierge = lazy(() => import("./modules/Concierge"));
+const Reviews = lazy(() => import("./modules/Reviews"));
+const Customers = lazy(() => import("./modules/Customers"));
+const Guidebooks = lazy(() => import("./modules/Guidebooks"));
+const Listings = lazy(() => import("./modules/Listings"));
+const Channels = lazy(() => import("./modules/Channels"));
+const Quotes = lazy(() => import("./modules/Quotes"));
+const Websites = lazy(() => import("./modules/Websites"));
+const GlobalStyling = lazy(() => import("./modules/GlobalStyling"));
+const Reports = lazy(() => import("./modules/Reports"));
+const SettingsModule = lazy(() => import("./modules/Settings"));
+const Integrations = lazy(() => import("./modules/Integrations"));
+
+function LoadingSurface() {
+  return (
+    <div className="flex h-[40vh] items-center justify-center" role="status" aria-label="Loading module">
+      <div className="ticks border border-line bg-card px-6 py-4">
+        <p className="flex items-center gap-2.5 font-mono text-[11px] font-bold uppercase tracking-[0.18em] text-faint">
+          <span className="h-3 w-3 anim-spin border-2 border-line2 border-t-brand" aria-hidden="true" />
+          Loading module…
+        </p>
+      </div>
+    </div>
+  );
+}
 
 const MODULES: Record<string, { title: string; sub?: string; el: ComponentType }> = {
   dashboard: { title: "nav.dashboard", sub: "What needs attention today", el: Dashboard },

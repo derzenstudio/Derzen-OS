@@ -1,0 +1,106 @@
+# Builds the Vite app once per surface and publishes dist/ to Hostinger:
+#   surface=app  →  app.alvianpermana.art  (tenant + marketing)
+#   surface=dev  →  dev.alvianpermana.art  (internal consoles, noindex)
+#
+# One workflow, one job, a surface matrix — replaces the old deploy-app and
+# deploy-dev pair that each did a full independent build on every branch push.
+#
+# Required repository secrets (Settings > Secrets and variables > Actions):
+#   FTP_SERVER        ftp.alvianpermana.art   (shared by both surfaces)
+#   FTP_USERNAME_APP  the derzen_app-scoped FTP account username
+#   FTP_PASSWORD_APP  that account's password
+#   FTP_USERNAME      the derzen (dev) scoped FTP account username
+#   FTP_PASSWORD      that account's password
+#
+# Optional repository variables (Variables tab):
+#   FTP_SERVER_DIR_APP / FTP_SERVER_DIR  override upload targets, default ./
+#
+# Deploys run on the DEFAULT BRANCH ONLY. Feature-branch pushes build nothing
+# here — open a PR instead. The first deploy used dangerous-clean-slate; it is
+# now off so FTP-Deploy-Action's sync-state file does incremental uploads
+# (no more wipe-then-reupload window where the site is partially empty).
+
+name: deploy
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch: {}
+
+concurrency:
+  # Both surfaces upload over FTP to the same Hostinger account, which
+  # tolerates only one session at a time — share the group so the matrix
+  # legs queue instead of racing and timing out on the control socket.
+  group: hostinger-ftp
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - surface: app
+            ftp_user_key: FTP_USERNAME_APP
+            ftp_pass_key: FTP_PASSWORD_APP
+            server_dir_var: FTP_SERVER_DIR_APP
+            write_robots: false
+          - surface: dev
+            ftp_user_key: FTP_USERNAME
+            ftp_pass_key: FTP_PASSWORD
+            server_dir_var: FTP_SERVER_DIR
+            write_robots: true
+
+    steps:
+      # Fail fast: validate ALL THREE secrets before spending minutes building.
+      - name: Verify FTP secrets exist
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets[matrix.ftp_user_key] }}
+          FTP_PASSWORD: ${{ secrets[matrix.ftp_pass_key] }}
+        run: |
+          if [ -z "$FTP_SERVER" ] || [ -z "$FTP_USERNAME" ] || [ -z "$FTP_PASSWORD" ]; then
+            echo "::error::Missing FTP secrets for surface '${{ matrix.surface }}'. Add FTP_SERVER, ${{ matrix.ftp_user_key }} and ${{ matrix.ftp_pass_key }} under Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      # Strict install — a drifting lockfile must fail the pipeline, not hide
+      # behind a fallback install.
+      - name: Install dependencies
+        run: npm ci --no-audit --no-fund
+
+      # Typecheck gates the publish independently of the bundler.
+      - name: Typecheck
+        run: npx tsc -p tsconfig.app.json --noEmit
+
+      - name: Build
+        env:
+          VITE_SURFACE: ${{ matrix.surface }}
+        run: npm run build
+
+      - name: SPA fallback (+ keep dev out of search engines)
+        run: |
+          cp dist/index.html dist/404.html
+          if [ "${{ matrix.write_robots }}" = "true" ]; then
+            printf 'User-agent: *\nDisallow: /\n' > dist/robots.txt
+          fi
+
+      - name: Deploy to Hostinger (${{ matrix.surface }}.alvianpermana.art)
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets[matrix.ftp_user_key] }}
+          password: ${{ secrets[matrix.ftp_pass_key] }}
+          local-dir: ./dist/
+          server-dir: ${{ vars[matrix.server_dir_var] || './' }}

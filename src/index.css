@@ -454,9 +454,21 @@ input[type="range"] {
 .eng [class*="text-[#f08c8c]"], .eng [class*="text-[#e2703c]"] { color: var(--color-danger) !important; }
 .eng [class*="text-[#7cc0ff]"], .eng [class*="text-[#3E9BFF]"] { color: var(--color-sea) !important; }
 .eng .text-brand-bright { color: var(--color-brand-deep) !important; }
+/* dark-surface accent tokens → readable equivalents on paper (case-insensitive:
+   arbitrary values keep their literal case, e.g. text-[#8FE3BF]) */
+.eng [class*="text-[#8fd6b4" i], .eng [class*="text-[#9fdcb8" i], .eng [class*="text-[#8fe3bf" i], .eng [class*="text-[#5bcba9" i] { color: var(--color-brand-deep) !important; }
+.eng [class*="text-[#8fc4dd" i], .eng [class*="text-[#9cc3d8" i] { color: var(--color-sea) !important; }
+.eng [class*="text-[#c9b3f0" i] { color: var(--color-plum) !important; }
+.eng [class*="text-[#f0a0a0" i] { color: var(--color-danger) !important; }
+.eng [class*="text-[#f0d9a0" i] { color: var(--color-gold) !important; }
+.eng [class*="text-[#f2f7f3" i] { color: var(--color-ink) !important; }
 /* surfaces: near-black panels → card (incl. /90 /85 suffixed), tints → washes */
 .eng [class*="bg-[#0a0a09]"], .eng [class*="bg-[#0d0d0b]"], .eng [class*="bg-[#101009]"], .eng [class*="bg-[#161613]"], .eng .bg-pine-800 { background-color: var(--color-card) !important; }
 .eng [class*="bg-[#171714]"], .eng [class*="bg-[#121210]"], .eng .bg-pine-900, .eng .bg-pine-950 { background-color: var(--color-surface) !important; }
+/* remaining dark card hexes (case-insensitive): neutrals & tinted blues/plums
+   → card; dark reds → danger-soft, matching the tint logic above */
+.eng [class*="bg-[#191610" i], .eng [class*="bg-[#050505" i], .eng [class*="bg-[#1b2f3d" i], .eng [class*="bg-[#173042" i], .eng [class*="bg-[#2a2140" i] { background-color: var(--color-card) !important; }
+.eng [class*="bg-[#140a0a" i], .eng [class*="bg-[#160b0b" i] { background-color: var(--color-danger-soft) !important; }
 .eng [class*="bg-[#1c0f0f]"], .eng [class*="bg-[#120909]"], .eng [class*="bg-[#2a1212]"], .eng [class*="bg-[#2c1713]"], .eng [class*="bg-[#3d1f1f]"] { background-color: var(--color-danger-soft) !important; }
 .eng [class*="bg-[#2a2113]"], .eng [class*="bg-[#3a3320]"] { background-color: var(--color-gold-soft) !important; }
 .eng [class*="bg-[#12251b]"], .eng [class*="bg-[#1d3527]"] { background-color: var(--color-brand-soft) !important; }
@@ -476,8 +488,8 @@ input[type="range"] {
 /* white type on solid brand/danger surfaces must stay white — (0,3,0)
    outranks the (0,2,0) ramp even with !important on both. The hex classes
    are bracket-escaped: unescaped [#…] is silently dropped inside :is().  */
-.eng :is(.bg-brand, .btn-grad, .bg-danger, .bg-\[\#0E6B4E\], .bg-\[\#B42318\], .bg-\[\#4CC38A\]) [class*="text-white"] { color: #fff !important; }
-.eng :is(.bg-brand, .btn-grad, .bg-danger, .bg-\[\#B42318\])[class*="text-white"] { color: #fff !important; }
+.eng :is(.bg-brand, .btn-grad, .bg-danger, .bg-\[\#0E6B4E\], .bg-\[\#B42318\], .bg-\[\#4CC38A\]) :is([class*="text-white"], [class*="text-[#f2f7f3" i]) { color: #fff !important; }
+.eng :is(.bg-brand, .btn-grad, .bg-danger, .bg-\[\#B42318\]):is([class*="text-white"], [class*="text-[#f2f7f3" i]) { color: #fff !important; }
 /* gradients that assumed a dark canvas */
 .eng .from-brand-bright { --tw-gradient-from: var(--color-brand); }
 .eng [class*="to-[#4CC38A]"] { --tw-gradient-to: var(--color-brand-deep); }

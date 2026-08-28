@@ -235,6 +235,7 @@ interface App {
   setSiteActivePage: (id: string) => void;
   siteChrome: SiteChrome;
   setSiteChrome: (patch: Partial<SiteChrome>) => void;
+  reorderSiteLinks: (target: "header" | "footer", fromId: string, toIdx: number) => void;
   addChromeBlock: (target: "header" | "footer", type: string) => void;
   updateChromeBlock: (target: "header" | "footer", id: string, patch: Partial<Block>) => void;
   removeChromeBlock: (target: "header" | "footer", id: string) => void;
@@ -871,12 +872,25 @@ export const useApp = create<App>((set, get) => ({
     ],
     headerBg: "#161a12", headerColor: "#f4f5f0", footerBg: "#0e110c", footerColor: "#9aa394",
     align: "left",
-    logoText: "Sanggraha", logoUrl: "", tagline: "Boutique Bali, run properly.",
+    logoMode: "text", logoText: "Sanggraha", logoUrl: "", logoSize: 26,
+    tagline: "Boutique Bali, run properly.", taglineVisible: true,
     showCta: true, ctaLabel: "Book direct", ctaUrl: "/search",
+    footerText: "© Sanggraha Villas — hand-run boutique stays across Bali.",
     headerBlocks: [],
     footerBlocks: [{ id: "fb-copy", type: "rich_text", content: { text: "Hand-run boutique stays across Bali. Butlers, chefs, honest pricing." } }],
   },
   setSiteChrome: (patch) => set((st) => ({ siteChrome: { ...st.siteChrome, ...patch } })),
+  reorderSiteLinks: (target, fromId, toIdx) => {
+    set((st) => {
+      const key = target === "header" ? "headerLinks" : "footerLinks";
+      const list = [...st.siteChrome[key]];
+      const i = list.findIndex((l) => l.id === fromId);
+      if (i < 0) return st;
+      const [l] = list.splice(i, 1);
+      list.splice(Math.min(toIdx, list.length), 0, l);
+      return { siteChrome: { ...st.siteChrome, [key]: list } };
+    });
+  },
   addChromeBlock: (target, type) => {
     const key = target === "header" ? "headerBlocks" : "footerBlocks";
     const block: Block = { id: uid("cb"), type, content: defaultBlockContent(type) };
@@ -942,7 +956,8 @@ export const useApp = create<App>((set, get) => ({
     set({ brand: next });
   },
   savedAssets: [
-    ...PROPERTIES.slice(0, 5).map((p, i) => ({ id: `img-p${i}`, name: p.name, url: p.image, kind: "image" as const })),
+    ...PROPERTIES.slice(0, 5).map((p, i) => ({ id: `img-p${i}`, name: `${p.name} · cover`, url: p.image, kind: "image" as const, propertyId: p.id })),
+    ...PROPERTIES.slice(0, 5).map((p, i) => ({ id: `img-p${i}-b`, name: `${p.name} · pool & grounds`, url: PROPERTIES[(i + 1) % 5].image, kind: "image" as const, propertyId: p.id })),
     { id: "copy-welcome", name: "Welcome copy", url: "", kind: "copy" as const, note: "Boutique Bali, run properly. Nine staffed villas, honest pricing, real hosts." },
     { id: "copy-faq-checkin", name: "FAQ · Check-in", url: "", kind: "copy" as const, note: "Check-in is from 14:00 WITA. Early arrival? Ask us — we hold bags and open the pool." },
     { id: "copy-faq-pool", name: "FAQ · Pool", url: "", kind: "copy" as const, note: "Pools are cleaned daily and sit around 29°. Not heated, but Bali rarely needs it." },

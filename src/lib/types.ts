@@ -412,7 +412,7 @@ export interface Block {
 }
 export interface SitePage { id: string; name: string; slug: string; blocks: Block[]; home?: boolean; }
 
-export interface SiteLink { id: string; label: string; url: string; }
+export interface SiteLink { id: string; label: string; url: string; newTab?: boolean; }
 export interface SiteChrome {
   header: string;
   footer: string;
@@ -424,17 +424,22 @@ export interface SiteChrome {
   footerColor: string;
   align: "left" | "center" | "right";
   // identity + actions
+  logoMode: "text" | "image" | "none";   // which identity element the header shows
   logoText: string;
-  logoUrl: string;   // image logo — takes precedence over text when set
+  logoUrl: string;   // used when logoMode === "image"
+  logoSize: number;  // px height of the logo mark / text
   tagline: string;
+  taglineVisible: boolean;
   showCta: boolean;
   ctaLabel: string;
   ctaUrl: string;
+  footerText: string;
   // full content blocks living inside the universal header / footer
   headerBlocks: Block[];
   footerBlocks: Block[];
 }
-export interface SavedAsset { id: string; name: string; url: string; kind: "image" | "copy"; note?: string; }
+export interface SavedAsset { id: string; name: string; url: string; kind: "image" | "copy"; note?: string; propertyId?: string; }
+export interface PropertyPhoto { id: string; url: string; label: string; }
 
 export interface InvoiceTemplate {
   brandSync: boolean;

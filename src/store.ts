@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import type { Locale } from "./lib/i18n";
 import { t as tr } from "./lib/i18n";
-import { uid, addDays, dayKey, today, nightsBetween } from "./lib/format";
+import { uid, addDays, dayKey, today, nightsBetween, parseKey } from "./lib/format";
 import type {
   AuditEntry, Block, BlockStyle, Conversation, Expense, Guidebook, IssueReport, OnboardStep, Property,
   QueuedMessage, Quote, Reservation, Review, SavedAsset, SiteChrome, SyncState, Task, Toast, WebsiteState, Message,
@@ -978,6 +978,9 @@ export function departuresOn(reservations: Reservation[], offset: number, scope:
   return reservations.filter((r) => r.checkOut === key && ["checked_in", "confirmed", "deposit_paid"].includes(r.status) && (scope === "all" || r.propertyId === scope || propertyById(r.propertyId).parentId === scope));
 }
 export function nightsInRange(r: Reservation, fromKey: string, toKey: string) {
-  return r.checkIn < toKey && r.checkOut > fromKey;
+  // Half-open [checkIn, checkOut). A same-day stay (checkIn === checkOut) is a
+  // day-use booking that occupies exactly that one day.
+  const effOut = r.checkOut === r.checkIn ? dayKey(addDays(parseKey(r.checkIn), 1)) : r.checkOut;
+  return r.checkIn < toKey && effOut > fromKey;
 }
-export const resNights = (r: Reservation) => nightsBetween(r.checkIn, r.checkOut);
+export const resNights = (r: Reservation) => Math.max(1, nightsBetween(r.checkIn, r.checkOut));

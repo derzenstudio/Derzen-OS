@@ -29,13 +29,16 @@ function barsForRow(p: Property, windowStart: string, nights: number, reservatio
     if (r.propertyId !== p.id || r.kind !== "stay") continue;
     if (r.status === "cancelled" || r.status === "no_show") continue;
     if (!nightsInRange(r, windowStart, windowEnd)) continue;
+    // same-day (checkIn === checkOut) is a day-use booking — one day wide
+    const dayUse = r.checkOut === r.checkIn;
+    const effOut = dayUse ? dayKey(addDays(parseKey(r.checkIn), 1)) : r.checkOut;
     const startIdx = Math.max(0, Math.round((+parseKey(r.checkIn) - +parseKey(windowStart)) / 86_400_000));
-    const endIdx = Math.min(nights, Math.round((+parseKey(r.checkOut) - +parseKey(windowStart)) / 86_400_000));
+    const endIdx = Math.min(nights, Math.round((+parseKey(effOut) - +parseKey(windowStart)) / 86_400_000));
     const pending = r.status === "pending" || r.status === "enquiry";
     out.push({
-      left: startIdx * COL_W + 2, width: (endIdx - startIdx) * COL_W - 4,
+      left: startIdx * COL_W + 2, width: Math.max(COL_W - 4, (endIdx - startIdx) * COL_W - 4),
       color: channelDef(r.channel).color,
-      label: `${propertyById(r.propertyId).code} · ${r.status === "checked_in" ? "in house" : "arrives " + fmtShort(r.checkIn)}`,
+      label: `${propertyById(r.propertyId).code} · ${dayUse ? "day use" : r.status === "checked_in" ? "in house" : "arrives " + fmtShort(r.checkIn)}`,
       sub: r.ref, resId: r.id, kind: pending ? "pending" : "confirmed", striped: pending,
     });
   }
@@ -118,11 +121,9 @@ export default function CalendarModule() {
         const nr = Math.min(rows.length - 1, Math.max(0, f.r + dr));
         const nc = Math.min(windowN - 1, Math.max(0, f.c + dc));
         if (extend) {
-          setSelRange((sel) => {
-            const anchor = sel && !anchoring ? (anchoring ? sel[0] : sel[0]) : f.c;
-            return [Math.min(anchor, nc), Math.max(anchor, nc)];
-          });
-        } else setSelRange(null);
+          const anchor = selRef.current ? selRef.current[0] : f.c;
+          setSel([Math.min(anchor, nc), Math.max(anchor, nc)]);
+        } else setSel(null);
         announceCell(nr, nc);
         return { r: nr, c: nc };
       });
@@ -133,10 +134,16 @@ export default function CalendarModule() {
     else if (e.key === "ArrowUp") move(-1, 0, e.shiftKey);
     else if (e.key === "Enter") {
       e.preventDefault();
-      const ks = selRange ? keys.slice(selRange[0], selRange[1] + 1) : [keys[focus.c]];
-      setEditor({ keys: ks, label: selRange ? `${effectiveChecked.length} listings × ${ks.length} nights` : `${rows[focus.r]?.name} · ${fmtDate(days[focus.c])}` });
+      if (bulkMode) {
+        const ks = selRange ? keys.slice(selRange[0], selRange[1] + 1) : [keys[focus.c]];
+        setEditor({ keys: ks, label: selRange ? `${effectiveChecked.length} listings × ${ks.length} nights` : `${rows[focus.r]?.name} · ${fmtDate(days[focus.c])}` });
+      } else {
+        const ranged = selRange && selRange[1] > selRange[0];
+        const ks = ranged ? keys.slice(selRange![0], selRange![1] + 1) : [keys[focus.c]];
+        setEditor({ keys: ks, label: ranged ? `${rows[focus.r]?.name} · ${ks.length} nights` : `${rows[focus.r]?.name} · ${fmtDate(days[focus.c])}`, isBlock: ranged || undefined });
+      }
     } else if (e.key === "Escape") {
-      setSelRange(null);
+      setSel(null);
       setBulkMode(false);
     }
   };
@@ -156,7 +163,7 @@ export default function CalendarModule() {
       toast("ok", patch.blockType ? `Block applied · ${editor.keys.length} night${editor.keys.length > 1 ? "s" : ""}` : "Night updated", `${p.name} · pushed to every live channel`);
     }
     setEditor(null);
-    setSelRange(null);
+    setSel(null);
   };
 
   const exportCSV = () => {
@@ -165,7 +172,7 @@ export default function CalendarModule() {
       p.name,
       ...keys.map((k, i) => {
         const st = cellState(p, k, days[i]);
-        const res = reservations.find((r) => r.propertyId === p.id && r.checkIn <= k && r.checkOut > k && r.status !== "cancelled");
+        const res = reservations.find((r) => r.propertyId === p.id && r.status !== "cancelled" && nightsInRange(r, k, dayKey(addDays(parseKey(k), 1))));
         if (res) return `${res.ref} (${res.status})`;
         if (st.closed) return "CLOSED";
         return String(st.rate);
@@ -175,17 +182,53 @@ export default function CalendarModule() {
     toast("ok", "CSV exported", `${rows.length} listings × ${keys.length} nights`);
   };
 
-  // drag-select handlers
-  const onMouseDownCell = (c: number) => {
-    if (!bulkMode) return;
+  // ── drag-select: works in bulk mode AND normal mode ─────────────────────
+  // Normal mode: click-drag across nights → release opens the range editor
+  // (block the range or reprice it). Bulk mode: sizes a range over the
+  // ticked listings. The anchor column is kept in a ref so leftward drags
+  // don't collapse the selection.
+  const anchorRef = useRef<{ r: number; c: number } | null>(null);
+  const movedRef = useRef(false);
+  const selRef = useRef<[number, number] | null>(null);
+  const setSel = (v: [number, number] | null) => { selRef.current = v; setSelRange(v); };
+  const onMouseDownCell = (r: number, c: number) => {
+    anchorRef.current = { r, c };
+    movedRef.current = false;
     setAnchoring(true);
-    setSelRange([c, c]);
+    setSel([c, c]);
   };
-  const onMouseEnterCell = (c: number) => {
-    if (!bulkMode || !anchoring) return;
-    setSelRange((sel) => (sel ? [Math.min(sel[0], c), Math.max(sel[0], c)] : [c, c]));
+  const onMouseEnterCell = (r: number, c: number) => {
+    const a = anchorRef.current;
+    if (!a || !anchoring) return;
+    if (bulkMode) {
+      setSel([Math.min(a.c, c), Math.max(a.c, c)]);
+      if (c !== a.c) movedRef.current = true;
+      return;
+    }
+    if (a.r !== r) return; // ranges stay within one listing's row
+    if (c !== a.c) {
+      movedRef.current = true;
+      setSel([Math.min(a.c, c), Math.max(a.c, c)]);
+    }
   };
-  const stopDrag = () => setAnchoring(false);
+  const stopDrag = () => {
+    const a = anchorRef.current;
+    const sel = selRef.current;
+    anchorRef.current = null;
+    setAnchoring(false);
+    // Normal mode: a drag across ≥2 nights opens the range editor directly
+    if (!bulkMode && a && movedRef.current && sel && sel[1] > sel[0]) {
+      const p = rows[a.r];
+      if (p && !p.isParent) {
+        const ks = keys.slice(sel[0], sel[1] + 1);
+        setFocus({ r: a.r, c: sel[1] });
+        setEditor({ keys: ks, label: `${p.name} · ${ks.length} nights selected`, isBlock: true });
+        setSel(null);
+        return;
+      }
+    }
+    if (!bulkMode) setSel(null); // plain click — the single-night editor opens via onClick
+  };
 
   const monthLabels = useMemo(() => {
     const out: { label: string; span: number }[] = [];
@@ -223,8 +266,9 @@ export default function CalendarModule() {
           {propFilterOpen && (
             <div className="anim-pop absolute left-0 top-9 z-40 w-[230px] rounded-lg border border-line bg-card p-2 shadow-xl">
               <div className="mb-1 flex justify-between px-1 text-[10.5px] font-bold text-mute">
-                <button onClick={() => setChecked([])}>All</button>
-                <button onClick={() => setChecked(properties.filter((p) => !p.archived).map((p) => p.id))}>None… invert</button>
+                <button onClick={() => setChecked(properties.filter((p) => !p.archived).map((p) => p.id))}>Select all</button>
+                <button onClick={() => setChecked([])}>Clear</button>
+                <button onClick={() => setChecked((c) => properties.filter((p) => !p.archived).map((p) => p.id).filter((id) => !c.includes(id)))}>Invert</button>
               </div>
               {properties.filter((p) => !p.archived).map((p) => (
                 <label key={p.id} className="flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-[12px] font-semibold hover:bg-paper">
@@ -241,7 +285,7 @@ export default function CalendarModule() {
         <div className="ml-auto flex items-center gap-2">
           {tab === "properties" && (
             <button
-              onClick={() => { setBulkMode(!bulkMode); setSelRange(null); }}
+              onClick={() => { setBulkMode(!bulkMode); setSel(null); }}
               className={cx("flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-[12px] font-bold transition-all", bulkMode ? "border-gold bg-gold-soft text-[#8a5c07]" : "border-line bg-card text-mute hover:text-ink")}
               aria-pressed={bulkMode}
             >
@@ -256,6 +300,18 @@ export default function CalendarModule() {
         <div className="anim-rise flex flex-wrap items-center gap-2 rounded-lg border border-gold/50 bg-gold-soft/60 px-3 py-2 text-[12px] font-semibold text-[#8a5c07]">
           <Ic name="info" size={14} />
           Drag across nights to size the range, then press <Kbd>Enter</Kbd> (or click Apply) to push rate & restrictions to {effectiveChecked.length} listings. <Kbd>Esc</Kbd> cancels · <Kbd>Shift</Kbd>+<Kbd>←→</Kbd> extends.
+          {selRange && (
+            <Btn
+              size="xs"
+              icon="check"
+              onClick={() => {
+                const ks = keys.slice(selRange[0], selRange[1] + 1);
+                setEditor({ keys: ks, label: `${effectiveChecked.length} listings × ${ks.length} nights` });
+              }}
+            >
+              Apply to {selRange[1] - selRange[0] + 1} night{selRange[1] - selRange[0] + 1 > 1 ? "s" : ""}
+            </Btn>
+          )}
         </div>
       )}
 
@@ -269,7 +325,7 @@ export default function CalendarModule() {
             <span className="flex items-center gap-1.5"><span className="h-2.5 w-5 rounded-sm bg-[#3D4A42]" /> Manual block</span>
             <span className="flex items-center gap-1.5"><span className="h-2.5 w-5 rounded-sm bg-[#B42318]" /> Maintenance</span>
             <span className="flex items-center gap-1.5"><span className="h-2.5 w-1 rounded-full bg-brand" /> price override</span>
-            <span className="hidden items-center gap-1 text-faint md:flex"><Ic name="info" size={12} /> hover any night for details & quick price edit</span>
+            <span className="hidden items-center gap-1 text-faint md:flex"><Ic name="info" size={12} /> hover a night for details · click-drag across nights to block or reprice a range</span>
             <span className="ml-auto hidden items-center gap-1 text-faint xl:flex">Keyboard: <Kbd>←→↑↓</Kbd> focus · <Kbd>Shift</Kbd>+arrows select · <Kbd>Enter</Kbd> edit · <Kbd>Esc</Kbd> cancel</span>
           </div>
 
@@ -278,7 +334,7 @@ export default function CalendarModule() {
           <div
             ref={gridRef} tabIndex={0} role="grid" aria-label="Availability calendar. Use arrow keys to move."
             onKeyDown={onKeyDown} onMouseUp={stopDrag} onMouseLeave={stopDrag}
-            className="relative overflow-auto rounded-xl border border-line bg-card outline-none focus-visible:border-brand"
+            className="relative select-none overflow-auto rounded-xl border border-line bg-card outline-none focus-visible:border-brand"
             style={{ maxHeight: "calc(100dvh - 292px)" }}
           >
             <div style={{ width: LABEL_W + windowN * COL_W, minWidth: "100%" }}>
@@ -327,15 +383,20 @@ export default function CalendarModule() {
                           <img src={p.image} alt="" className="h-full w-full object-cover" loading="lazy" onError={(e) => ((e.target as HTMLImageElement).style.display = "none")} />
                         </span>
                       )}
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-[12px] font-bold leading-tight text-ink">{p.name}</p>
+                      <button
+                        onClick={() => navigate(`/listings?property=${p.id}`)}
+                        className="group/listing min-w-0 flex-1 text-left"
+                        title={`Open ${p.name} in Listings`}
+                        aria-label={`Open ${p.name} in Listings`}
+                      >
+                        <p className="truncate text-[12px] font-bold leading-tight text-ink transition-colors group-hover/listing:text-brand group-hover/listing:underline group-hover/listing:underline-offset-2">{p.name}</p>
                         <p className="flex items-center gap-1 text-[9.5px] font-semibold text-faint">
                           {p.code} · {p.city}
                           {p.isParent && <Badge tone="ink" className="!px-1 !py-0 !text-[8.5px]">Main · {properties.filter((x) => x.parentId === p.id).length} linked</Badge>}
                           {isChild && <span className="text-brand-deep">↳ linked</span>}
                           {p.archived && <Badge tone="mute" className="!px-1 !py-0 !text-[8.5px]">Archived</Badge>}
                         </p>
-                      </div>
+                      </button>
                     </div>
                     <div className="relative" style={{ width: windowN * COL_W }} role="presentation">
                       {/* Cells */}
@@ -363,10 +424,10 @@ export default function CalendarModule() {
                             <div
                               key={c} role="gridcell"
                               aria-label={st ? `${p.name}, ${fmtDate(d)}, ${isBlock ? `blocked (${st.ov!.blockType})` : st.closed ? "closed" : "available"}, ${moneyRaw(st.rate, p.currency)}${st.minStay > 1 ? `, min ${st.minStay} nights` : ""}` : `${p.name} group row`}
-                              onMouseDown={() => { if (bulkMode && !p.isParent) { onMouseDownCell(c); setFocus({ r, c }); announceCell(r, c); } }}
-                              onMouseEnter={(e) => { if (bulkMode) onMouseEnterCell(c); else showHover(e); }}
-                              onMouseLeave={() => !bulkMode && setHover(null)}
-                              onClick={() => { if (!bulkMode && !p.isParent) { setFocus({ r, c }); setEditor({ keys: [keys[c]], label: `${p.name} · ${fmtDate(d)}`, isBlock }); } }}
+                              onMouseDown={() => { if (p.isParent) return; onMouseDownCell(r, c); setFocus({ r, c }); announceCell(r, c); }}
+                              onMouseEnter={(e) => { if (anchoring) onMouseEnterCell(r, c); else if (!bulkMode) showHover(e); }}
+                              onMouseLeave={() => !bulkMode && !anchoring && setHover(null)}
+                              onClick={() => { if (movedRef.current) { movedRef.current = false; return; } if (!bulkMode && !p.isParent) { setFocus({ r, c }); setEditor({ keys: [keys[c]], label: `${p.name} · ${fmtDate(d)}`, isBlock }); } }}
                               className={cx(
                                 "group/cell flex shrink-0 cursor-pointer flex-col items-center justify-end border-r border-line/50 pb-1 transition-colors",
                                 isWeekend(d) && "bg-black/[0.025]",
@@ -510,8 +571,8 @@ function ReservationHoverCard({ r, onOpen }: { r: Reservation; onOpen: () => voi
       </div>
       <div className="space-y-1 px-3 py-2.5 text-[11px]">
         <p className="flex justify-between"><span className="text-mute">Property</span><span className="font-bold text-ink">{p.name}</span></p>
-        <p className="flex justify-between"><span className="text-mute">Stay</span><span className="font-mono font-bold text-ink">{fmtDate(r.checkIn)} → {fmtDate(r.checkOut)}</span></p>
-        <p className="flex justify-between"><span className="text-mute">Nights</span><span className="font-mono font-bold text-ink">{nights}</span></p>
+        <p className="flex justify-between"><span className="text-mute">Stay</span><span className="font-mono font-bold text-ink">{r.checkIn === r.checkOut ? fmtDate(r.checkIn) : `${fmtDate(r.checkIn)} → ${fmtDate(r.checkOut)}`}</span></p>
+        <p className="flex justify-between"><span className="text-mute">Nights</span><span className="font-mono font-bold text-ink">{r.checkIn === r.checkOut ? "day use" : nights}</span></p>
         <p className="flex justify-between"><span className="text-mute">Guests</span><span className="font-mono font-bold text-ink">{r.adults + r.children}{r.infants ? ` + ${r.infants} infant${r.infants > 1 ? "s" : ""}` : ""}</span></p>
         <p className="flex justify-between"><span className="text-mute">Check-in</span><span className="font-bold text-ink">{r.checkInTime === "FLEXIBLE" ? "Flexible" : `${r.checkInTime} ${p.tzShort}`}</span></p>
         <p className="flex justify-between border-t border-line pt-1"><span className="text-mute">Total</span><span className="font-mono text-[12px] font-bold text-brand-deep">{moneyRaw(r.total, r.currency)}</span></p>
@@ -706,7 +767,7 @@ function ServicesTimeline({ mode }: { mode: "services" | "workforce" }) {
         <p className="ml-auto text-[11.5px] font-semibold text-mute">{mode === "services" ? "Booked slots vs capacity per day" : "Assigned jobs per staff member"}</p>
       </div>
 
-      <div className="overflow-auto rounded-xl border border-line bg-card" style={{ maxHeight: "calc(100vh - 320px)" }}>
+      <div className="overflow-auto rounded-xl border border-line bg-card" style={{ maxHeight: "calc(100dvh - 320px)" }}>
         <div style={{ width: LABEL_W + keys.length * colW }}>
           <div className="sticky top-0 z-20 flex border-b border-line bg-card">
             <div className="sticky left-0 z-10 border-r border-line px-3 py-2 text-[10.5px] font-bold uppercase tracking-wider text-mute" style={{ width: LABEL_W }}>

@@ -425,56 +425,53 @@ input[type="range"] {
 }
 
 /* ── Engineering consoles: paper + blueprint drafting sheet ─────────────
-   Scoped to the console ROOT (`.eng`), not a per-canvas class — the whole
-   console (rail, header, content) is remapped across the FULL white-opacity
-   ramp, so nothing can render white on paper no matter which alpha step the
-   markup happens to use. The dark control room (`.Backoffice`, no `.eng`)
-   is untouched and stays dark.                                           */
+   Scoped to the console ROOT (`.eng`). Substring-attribute selectors match
+   ANY alpha step or suffixed variant (text-white/65, bg-[#0a0a09]/90, …),
+   so the remap cannot rot when new opacity steps appear in markup.
+   The dark control room (Backoffice, no `.eng`) is untouched.            */
 .eng { background: var(--color-paper); color: var(--color-ink); }
+.eng.text-white { color: var(--color-ink); } /* the console root itself */
 
-/* text: the complete white ramp → ink / mute / faint */
+/* text — tiered: strong ≥ /6x → ink, mid → mute, weak ≤ /3x → faint.
+   Later rules win ties, so order matters: base, then strong, then weak. */
 .eng .text-white { color: var(--color-ink); }
-.eng :is(.text-white\/95, .text-white\/90, .text-white\/85, .text-white\/80, .text-white\/75, .text-white\/70, .text-white\/65, .text-white\/60) { color: var(--color-ink); }
-.eng :is(.text-white\/55, .text-white\/50, .text-white\/45, .text-white\/40) { color: var(--color-mute); }
-.eng :is(.text-white\/35, .text-white\/30, .text-white\/25, .text-white\/20, .text-white\/15, .text-white\/10, .text-white\/5) { color: var(--color-faint); }
-.eng .hover\:text-white:hover { color: var(--color-ink); }
+.eng [class*="text-white/"] { color: var(--color-mute); }
+.eng :is([class*="text-white/9"], [class*="text-white/8"], [class*="text-white/7"], [class*="text-white/6"]) { color: var(--color-ink); }
+.eng :is([class*="text-white/3"], [class*="text-white/2"], [class*="text-white/1"], [class*="text-white/0"]) { color: var(--color-faint); }
+.eng [class*="hover:text-white"]:hover { color: var(--color-ink); }
 .eng .text-pine-100 { color: var(--color-ink); }
-.eng :is(.text-pine-200\/70, .text-pine-200\/60, .text-pine-200\/50) { color: var(--color-faint); }
+.eng [class*="text-pine-200"] { color: var(--color-faint); }
 /* status text → readable equivalents on paper */
-.eng .text-\[\#4CC38A\] { color: var(--color-brand-deep); }
-.eng .text-\[\#e2a33c\] { color: var(--color-gold); }
-.eng .text-\[\#f08c8c\] { color: var(--color-danger); }
-.eng :is(.text-\[\#7cc0ff\], .text-\[\#3E9BFF\]) { color: var(--color-sea); }
+.eng [class*="text-[#4CC38A]"] { color: var(--color-brand-deep); }
+.eng [class*="text-[#e2a33c]"] { color: var(--color-gold); }
+.eng [class*="text-[#f08c8c]"], .eng [class*="text-[#e2703c]"] { color: var(--color-danger); }
+.eng [class*="text-[#7cc0ff]"], .eng [class*="text-[#3E9BFF]"] { color: var(--color-sea); }
 .eng .text-brand-bright { color: var(--color-brand-deep); }
-/* surfaces: near-black panels → card, inputs → surface, alert tints → washes */
-.eng :is(.bg-\[\#0d0d0b\], .bg-\[\#0a0a09\], .bg-\[\#0a0a09\]\/90, .bg-\[\#0a0a09\]\/85, .bg-\[\#101009\], .bg-\[\#161613\], .bg-pine-800) { background-color: var(--color-card); }
-.eng :is(.bg-\[\#171714\], .bg-\[\#121210\], .bg-pine-900, .bg-pine-950) { background-color: var(--color-surface); }
-.eng :is(.bg-\[\#1c0f0f\], .bg-\[\#120909\], .bg-\[\#2a1212\], .bg-\[\#2c1713\], .bg-\[\#3d1f1f\]) { background-color: var(--color-danger-soft); }
-.eng :is(.bg-\[\#2a2113\], .bg-\[\#3a3320\]) { background-color: var(--color-gold-soft); }
-.eng :is(.bg-\[\#12251b\], .bg-\[\#1d3527\]) { background-color: var(--color-brand-soft); }
+/* surfaces: near-black panels → card (incl. /90 /85 suffixed), tints → washes */
+.eng [class*="bg-[#0a0a09]"], .eng [class*="bg-[#0d0d0b]"], .eng [class*="bg-[#101009]"], .eng [class*="bg-[#161613]"], .eng .bg-pine-800 { background-color: var(--color-card); }
+.eng [class*="bg-[#171714]"], .eng [class*="bg-[#121210]"], .eng .bg-pine-900, .eng .bg-pine-950 { background-color: var(--color-surface); }
+.eng [class*="bg-[#1c0f0f]"], .eng [class*="bg-[#120909]"], .eng [class*="bg-[#2a1212]"], .eng [class*="bg-[#2c1713]"], .eng [class*="bg-[#3d1f1f]"] { background-color: var(--color-danger-soft); }
+.eng [class*="bg-[#2a2113]"], .eng [class*="bg-[#3a3320]"] { background-color: var(--color-gold-soft); }
+.eng [class*="bg-[#12251b]"], .eng [class*="bg-[#1d3527]"] { background-color: var(--color-brand-soft); }
 .eng .bg-white { background-color: var(--color-card); }
-.eng :is(.bg-white\/5, .bg-white\/\[0\.02\], .bg-white\/\[0\.03\], .bg-white\/\[0\.04\]) { background-color: color-mix(in srgb, var(--color-ink) 4%, transparent); }
-.eng :is(.bg-white\/10, .bg-white\/\[0\.06\]) { background-color: color-mix(in srgb, var(--color-ink) 7%, transparent); }
-.eng :is(.bg-white\/15, .bg-white\/20) { background-color: color-mix(in srgb, var(--color-ink) 11%, transparent); }
-.eng .hover\:bg-white\/5:hover { background-color: color-mix(in srgb, var(--color-ink) 5%, transparent); }
-.eng .hover\:bg-white\/10:hover { background-color: color-mix(in srgb, var(--color-ink) 8%, transparent); }
-.eng :is(.bg-brand\/20, .bg-brand\/25, .bg-brand\/15, .bg-\[\#4CC38A\]\/10, .bg-\[\#4CC38A\]\/15) { background-color: var(--color-brand-soft); }
-.eng :is(.bg-danger\/15, .bg-danger\/20) { background-color: var(--color-danger-soft); }
-.eng :is(.bg-\[\#e2a33c\]\/10, .bg-\[\#e2a33c\]\/15, .bg-\[\#e2703c\]\/15) { background-color: var(--color-gold-soft); }
-/* borders */
-.eng :is(.border-white\/5, .border-white\/10, .border-white\/15) { border-color: var(--color-line); }
-.eng :is(.border-white\/20, .border-white\/25, .border-white\/30) { border-color: var(--color-line2); }
-.eng .hover\:border-white\/25:hover { border-color: var(--color-line2); }
-.eng :is(.border-\[\#4CC38A\]\/40, .border-\[\#4CC38A\]\/50, .border-\[\#4CC38A\]\/60) { border-color: var(--color-brand); }
-.eng :is(.border-\[\#e2a33c\]\/40, .border-\[\#e2a33c\]\/50, .border-\[\#e2a33c\]\/60) { border-color: var(--color-gold); }
-.eng :is(.border-\[\#5a2020\], .border-danger\/40, .border-danger\/50, .border-danger\/60) { border-color: var(--color-danger); }
-.eng :is(.divide-white\/5, .divide-white\/10) > :not([hidden]) ~ :not([hidden]) { border-color: var(--color-line); }
-/* white type on solid brand/danger surfaces must stay white */
-.eng :is(.bg-brand, .btn-grad, .bg-\[\#0E6B4E\], .bg-\[\#B42318\], .bg-\[\#4CC38A\], .bg-danger) :is(.text-white, .text-white\/90, .text-white\/85, .text-white\/80, .text-white\/70) { color: #fff; }
-.eng :is(.bg-brand, .btn-grad, .bg-danger).text-white { color: #fff; }
+.eng [class*="bg-white/"] { background-color: color-mix(in srgb, var(--color-ink) 5%, transparent); }
+.eng [class*="hover:bg-white/"]:hover { background-color: color-mix(in srgb, var(--color-ink) 8%, transparent); }
+.eng [class*="bg-brand/"], .eng [class*="bg-[#4CC38A]/"] { background-color: var(--color-brand-soft); }
+.eng [class*="bg-danger/"] { background-color: var(--color-danger-soft); }
+.eng [class*="bg-[#e2a33c]/"], .eng [class*="bg-[#e2703c]/"] { background-color: var(--color-gold-soft); }
+/* borders & dividers */
+.eng [class*="border-white/"] { border-color: var(--color-line); }
+.eng [class*="hover:border-white/"]:hover { border-color: var(--color-line2); }
+.eng [class*="border-[#4CC38A]"] { border-color: var(--color-brand); }
+.eng [class*="border-[#e2a33c]"] { border-color: var(--color-gold); }
+.eng [class*="border-[#5a2020]"], .eng [class*="border-danger/"] { border-color: var(--color-danger); }
+.eng [class*="divide-white/"] > :not([hidden]) ~ :not([hidden]) { border-color: var(--color-line); }
+/* white type on solid brand/danger surfaces must stay white (outranks the ramp) */
+.eng :is(.bg-brand, .btn-grad, .bg-danger, .bg-[#0E6B4E], .bg-[#B42318], .bg-[#4CC38A]) [class*="text-white"] { color: #fff; }
+.eng :is(.bg-brand, .btn-grad, .bg-danger, .bg-[#B42318])[class*="text-white"] { color: #fff; }
 /* gradients that assumed a dark canvas */
 .eng .from-brand-bright { --tw-gradient-from: var(--color-brand); }
-.eng .to-\[\#4CC38A\] { --tw-gradient-to: var(--color-brand-deep); }
+.eng [class*="to-[#4CC38A]"] { --tw-gradient-to: var(--color-brand-deep); }
 /* drafting-table grid on the working area */
 .bp-grid {
   background-image:

@@ -30,7 +30,7 @@
 
   --color-ink: #141811;
   --color-mute: #5c6357;
-  --color-faint: #949a8b;
+  --color-faint: #697062; /* ≥ 4.5:1 on paper — AA for small text */
 
   --color-pine-950: #0e110c;
   --color-pine-900: #161a12;
@@ -67,7 +67,7 @@
 
   --color-ink: #e8eae0;
   --color-mute: #9aa394;
-  --color-faint: #66705f;
+  --color-faint: #939c88; /* ≥ 4.5:1 on the dark paper */
 
   --color-pine-950: #0a0d08;
   --color-pine-900: #10140c;
@@ -398,12 +398,12 @@ input[type="range"] {
     linear-gradient(90deg, rgba(63, 185, 140, 0.022) 1px, transparent 1px);
   background-size: 120px 120px, 120px 120px, 24px 24px, 24px 24px;
 }
-/* Corner registration ticks — drafting marks on framed panels */
-.ticks {
+/* Corner registration marks — drafting corners on framed panels */
+.reg-marks {
   position: relative;
 }
-.ticks::before,
-.ticks::after {
+.reg-marks::before,
+.reg-marks::after {
   content: "";
   position: absolute;
   width: 10px;
@@ -413,53 +413,71 @@ input[type="range"] {
   opacity: 0.5;
   pointer-events: none;
 }
-.ticks::before {
+.reg-marks::before {
   top: -1px;
   left: -1px;
   border-width: 2px 0 0 2px;
 }
-.ticks::after {
+.reg-marks::after {
   bottom: -1px;
   right: -1px;
   border-width: 0 2px 2px 0;
 }
 
-/* ── Engineering consoles: paper + blueprint (Backoffice stays the dark
-     control room — two rooms, not one duplicated) ─────────────────────── */
-.eng {
-  background: var(--color-paper);
-  color: var(--color-ink);
-}
-.eng.text-white { color: var(--color-ink); background: var(--color-paper); }
-.eng .bg-pine-950, .eng .bg-\[\#0a0a09\], .eng .bg-pine-900 { background: var(--color-surface); }
-.eng .bg-\[\#0d0d0b\], .eng .bg-pine-800 { background: var(--color-card); }
-.eng .bg-white\/5, .eng .bg-white\/\[0\.02\], .eng .bg-white\/\[0\.03\], .eng .bg-white\/\[0\.04\] { background: color-mix(in srgb, var(--color-ink) 4%, transparent); }
-.eng .bg-white\/10 { background: var(--color-line); }
-.eng .bg-\[\#1c0f0f\], .eng .bg-\[\#120909\], .eng .bg-\[\#3d1f1f\] { background: var(--color-danger-soft); }
-.eng .bg-\[\#2a2113\], .eng .bg-\[\#3a3320\] { background: var(--color-gold-soft); }
-.eng .bg-\[\#1d3527\] { background: var(--color-brand-soft); }
-.eng .border-white\/10 { border-color: var(--color-line); }
-.eng .border-white\/15 { border-color: var(--color-line2); }
-.eng .border-\[\#4CC38A\]\/50, .eng .border-\[\#4CC38A\]\/40 { border-color: color-mix(in srgb, var(--color-brand) 50%, transparent); }
-.eng .border-\[\#e2a33c\]\/60, .eng .border-\[\#e2a33c\]\/50 { border-color: color-mix(in srgb, var(--color-gold) 55%, transparent); }
-.eng .border-\[\#5a2020\] { border-color: color-mix(in srgb, var(--color-danger) 40%, transparent); }
-.eng .divide-white\/5, .eng .divide-white\/10 { border-color: var(--color-line); }
-.eng .text-white\/50, .eng .text-white\/55, .eng .text-white\/60 { color: var(--color-mute); }
-.eng .text-white\/30, .eng .text-white\/35, .eng .text-white\/40, .eng .text-white\/45 { color: var(--color-faint); }
-.eng .text-pine-100 { color: var(--color-ink); }
-.eng .text-pine-200\/70, .eng .text-pine-200\/60, .eng .text-pine-200\/50 { color: var(--color-faint); }
-.eng .text-\[\#4CC38A\] { color: var(--color-brand); }
-.eng .text-\[\#e2a33c\] { color: var(--color-gold); }
-.eng .text-\[\#f08c8c\] { color: var(--color-danger); }
-.eng .text-brand-bright { color: var(--color-brand-deep); }
-/* keep white type where it sits on solid colour */
-.eng :is(.bg-brand, .btn-grad, .bg-\[\#0E6B4E\], .bg-\[\#B42318\], .bg-\[\#4CC38A\]).text-white { color: #fff; }
-.eng .bg-brand .text-white, .eng .btn-grad .text-white { color: #fff; }
-.eng .hover\:bg-white\/5:hover, .eng .hover\:bg-white\/10:hover { background: var(--color-line); }
-.eng .hover\:text-white:hover { color: var(--color-ink); }
-.eng .hover\:border-white\/25:hover { border-color: var(--color-brand); }
+/* ── Engineering consoles: paper + blueprint drafting sheet ─────────────
+   The dark chrome (rail, header) sits OUTSIDE `.bp-grid` and keeps its own
+   colours. Everything inside `.bp-grid` — the paper canvas — is remapped
+   here, across the FULL white-opacity ramp, so nothing renders white on
+   paper regardless of which alpha step the markup uses.                  */
+.eng { background: var(--color-paper); }
+
+.bp-grid { color: var(--color-ink); }
+
+/* text: the complete white ramp → ink / mute / faint */
+.bp-grid .text-white { color: var(--color-ink); }
+.bp-grid :is(.text-white\/95, .text-white\/90, .text-white\/85, .text-white\/80, .text-white\/75, .text-white\/70, .text-white\/65, .text-white\/60) { color: var(--color-ink); }
+.bp-grid :is(.text-white\/55, .text-white\/50, .text-white\/45, .text-white\/40) { color: var(--color-mute); }
+.bp-grid :is(.text-white\/35, .text-white\/30, .text-white\/25, .text-white\/20, .text-white\/15, .text-white\/10, .text-white\/5) { color: var(--color-faint); }
+.bp-grid .hover\:text-white:hover { color: var(--color-ink); }
+.bp-grid .text-pine-100 { color: var(--color-ink); }
+.bp-grid :is(.text-pine-200\/70, .text-pine-200\/60, .text-pine-200\/50) { color: var(--color-faint); }
+/* status text → readable equivalents on paper */
+.bp-grid .text-\[\#4CC38A\] { color: var(--color-brand-deep); }
+.bp-grid .text-\[\#e2a33c\] { color: var(--color-gold); }
+.bp-grid .text-\[\#f08c8c\] { color: var(--color-danger); }
+.bp-grid :is(.text-\[\#7cc0ff\], .text-\[\#3E9BFF\]) { color: var(--color-sea); }
+.bp-grid .text-brand-bright { color: var(--color-brand-deep); }
+/* surfaces: near-black panels → card, inputs → surface, alert tints → washes */
+.bp-grid :is(.bg-\[\#0d0d0b\], .bg-\[\#0a0a09\], .bg-\[\#0a0a09\]\/90, .bg-\[\#0a0a09\]\/85, .bg-\[\#101009\], .bg-\[\#161613\], .bg-pine-800) { background-color: var(--color-card); }
+.bp-grid :is(.bg-\[\#171714\], .bg-\[\#121210\], .bg-pine-900) { background-color: var(--color-surface); }
+.bp-grid :is(.bg-\[\#1c0f0f\], .bg-\[\#120909\], .bg-\[\#2a1212\], .bg-\[\#2c1713\], .bg-\[\#3d1f1f\]) { background-color: var(--color-danger-soft); }
+.bp-grid :is(.bg-\[\#2a2113\], .bg-\[\#3a3320\]) { background-color: var(--color-gold-soft); }
+.bp-grid :is(.bg-\[\#12251b\], .bg-\[\#1d3527\]) { background-color: var(--color-brand-soft); }
+.bp-grid .bg-white { background-color: var(--color-card); }
+.bp-grid :is(.bg-white\/5, .bg-white\/\[0\.02\], .bg-white\/\[0\.03\], .bg-white\/\[0\.04\]) { background-color: color-mix(in srgb, var(--color-ink) 4%, transparent); }
+.bp-grid :is(.bg-white\/10, .bg-white\/\[0\.06\]) { background-color: color-mix(in srgb, var(--color-ink) 7%, transparent); }
+.bp-grid :is(.bg-white\/15, .bg-white\/20) { background-color: color-mix(in srgb, var(--color-ink) 11%, transparent); }
+.bp-grid .hover\:bg-white\/5:hover { background-color: color-mix(in srgb, var(--color-ink) 5%, transparent); }
+.bp-grid .hover\:bg-white\/10:hover { background-color: color-mix(in srgb, var(--color-ink) 8%, transparent); }
+.bp-grid :is(.bg-brand\/20, .bg-brand\/25, .bg-brand\/15, .bg-\[\#4CC38A\]\/10, .bg-\[\#4CC38A\]\/15) { background-color: var(--color-brand-soft); }
+.bp-grid :is(.bg-danger\/15, .bg-danger\/20) { background-color: var(--color-danger-soft); }
+.bp-grid :is(.bg-\[\#e2a33c\]\/10, .bg-\[\#e2a33c\]\/15, .bg-\[\#e2703c\]\/15) { background-color: var(--color-gold-soft); }
+/* borders */
+.bp-grid :is(.border-white\/5, .border-white\/10, .border-white\/15) { border-color: var(--color-line); }
+.bp-grid :is(.border-white\/20, .border-white\/25, .border-white\/30) { border-color: var(--color-line2); }
+.bp-grid .hover\:border-white\/25:hover { border-color: var(--color-line2); }
+.bp-grid :is(.border-\[\#4CC38A\]\/40, .border-\[\#4CC38A\]\/50, .border-\[\#4CC38A\]\/60) { border-color: var(--color-brand); }
+.bp-grid :is(.border-\[\#e2a33c\]\/40, .border-\[\#e2a33c\]\/50, .border-\[\#e2a33c\]\/60) { border-color: var(--color-gold); }
+.bp-grid :is(.border-\[\#5a2020\], .border-danger\/40, .border-danger\/50, .border-danger\/60) { border-color: var(--color-danger); }
+.bp-grid :is(.divide-white\/5, .divide-white\/10) > :not([hidden]) ~ :not([hidden]) { border-color: var(--color-line); }
+/* white type on solid brand/danger surfaces must stay white */
+.bp-grid :is(.bg-brand, .btn-grad, .bg-\[\#0E6B4E\], .bg-\[\#B42318\], .bg-\[\#4CC38A\], .bg-danger) :is(.text-white, .text-white\/90, .text-white\/85, .text-white\/80, .text-white\/70) { color: #fff; }
+.bp-grid :is(.bg-brand, .btn-grad, .bg-danger).text-white { color: #fff; }
+/* gradients that assumed a dark canvas */
+.bp-grid .from-brand-bright { --tw-gradient-from: var(--color-brand); }
+.bp-grid .to-\[\#4CC38A\] { --tw-gradient-to: var(--color-brand-deep); }
 /* drafting-table grid on the working area */
-.eng .bp-grid {
+.bp-grid {
   background-image:
     linear-gradient(color-mix(in srgb, var(--color-line) 60%, transparent) 1px, transparent 1px),
     linear-gradient(90deg, color-mix(in srgb, var(--color-line) 60%, transparent) 1px, transparent 1px);
@@ -480,8 +498,7 @@ input[type="range"] {
   left: 0; right: 0; bottom: -1px;
   height: 6px;
   pointer-events: none;
-  background-image: repeating-linear-gradient(90deg, var(--color-line2) 0 1px, transparent 1px 10px);
-  opacity: 0.75;
+  background-image: repeating-linear-gradient(90deg, color-mix(in srgb, var(--color-ink) 42%, transparent) 0 1px, transparent 1px 8px);
 }
 
 /* Rows reveal in sequence, not all at once */

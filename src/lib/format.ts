@@ -112,7 +112,18 @@ export function relDay(d: Date | string): string {
   return `${-n} days ago`;
 }
 export function timeAgo(ts: number): string {
-  const s = Math.max(1, Math.floor((Date.now() - ts) / 1000));
+  // Future timestamps render forward ("in 2h"), never as "1s ago".
+  const diff = Date.now() - ts;
+  if (diff < 0) {
+    const s = Math.ceil(-diff / 1000);
+    if (s < 60) return "in a moment";
+    const m = Math.floor(s / 60);
+    if (m < 60) return `in ${m}m`;
+    const h = Math.floor(m / 60);
+    if (h < 24) return `in ${h}h`;
+    return `in ${Math.floor(h / 24)}d`;
+  }
+  const s = Math.max(1, Math.floor(diff / 1000));
   if (s < 60) return `${s}s ago`;
   const m = Math.floor(s / 60);
   if (m < 60) return `${m}m ago`;

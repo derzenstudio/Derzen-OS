@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { cx } from "../lib/format";
 import { Ic, type IconName } from "./icons";
 import { useApp } from "../store";
 import { PROPERTIES, propertyById } from "../lib/data";
+import { compressImage } from "../lib/photoStore";
 
 // ── Inline editable text — true Canva behaviour ────────────────────────────
 // Always contentEditable. The initial HTML is frozen at mount so React never
@@ -201,47 +203,96 @@ function TextBar({ pos, multiline }: { pos: { x: number; y: number }; multiline:
   );
 }
 
-// ── Inline editable image (Canva-style: hover → swap) ──────────────────────
+// ── Inline editable image (Canva-style: click → swap) ──────────────────────
+// The picker renders through a PORTAL at document level, so it is never
+// clipped by overflow-hidden blocks (galleries, heroes). Uploads are real:
+// the file is read, compressed client-side, saved to the asset library and
+// committed — not a stock-photo placeholder.
 export function EditableImage({
   src, onCommit, className, style, alt = "", fit = "cover",
 }: {
   src: string; onCommit: (v: string) => void; className?: string; style?: React.CSSProperties; alt?: string; fit?: "cover" | "contain";
 }) {
-  const { savedAssets, addSavedAsset, toast } = useApp();
+  const { savedAssets, propertyPhotos, addSavedAsset, toast } = useApp();
   const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [url, setUrl] = useState("");
+  const [busy, setBusy] = useState(false);
   const effective = src || PROPERTIES[0].image;
+  const boxRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const pick = (v: string) => { onCommit(v); setOpen(false); };
+  const pick = (v: string) => { onCommit(v); setOpen(false); toast("ok", "Image replaced", "Saved to this block — publish to push it live."); };
+  const toggle = () => {
+    if (open) { setOpen(false); return; }
+    const r = boxRef.current?.getBoundingClientRect();
+    if (r) {
+      const below = r.bottom + 230 < window.innerHeight;
+      setPos({ x: Math.max(8, Math.min(r.left, window.innerWidth - 300)), y: below ? r.bottom + 6 : Math.max(8, r.top - 236) });
+    }
+    setOpen(true);
+  };
+  const upload = async (f: File) => {
+    setBusy(true);
+    try {
+      const { url: dataUrl } = await compressImage(f);
+      addSavedAsset({ name: f.name.replace(/\.[a-z]+$/i, ""), url: dataUrl, kind: "image" });
+      pick(dataUrl);
+    } catch {
+      toast("err", "Couldn't read that file", "Try a JPG, PNG or WebP.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const library = [
+    ...savedAssets.filter((a) => a.kind === "image").map((a) => ({ id: a.id, name: a.name, url: a.url })),
+    ...Object.entries(propertyPhotos).flatMap(([pid, photos]) => photos.slice(0, 4).map((ph) => ({ id: `${pid}-${ph.id}`, name: `${propertyById(pid)?.name ?? "Property"} · ${ph.label}`, url: ph.url }))),
+    ...PROPERTIES.map((p) => ({ id: p.id, name: p.name, url: p.image })),
+  ].filter((a, i, arr) => arr.findIndex((x) => x.url === a.url) === i).slice(0, 16);
 
   return (
-    <div className={cx("group/img relative overflow-hidden", className)} style={style}>
+    <div ref={boxRef} className={cx("group/img relative overflow-hidden", className)} style={style}>
       <img src={effective} alt={alt} className="h-full w-full" style={{ objectFit: fit }} onError={(e) => ((e.target as HTMLImageElement).src = PROPERTIES[0].image)} />
       <button
-        onClick={(e) => { e.stopPropagation(); setOpen((o) => !o); }}
-        className="absolute inset-0 flex items-center justify-center gap-1.5 bg-pine-950/0 text-[11px] font-bold text-white opacity-0 transition-all hover:bg-pine-950/45 hover:opacity-100"
+        onClick={(e) => { e.stopPropagation(); toggle(); }}
+        className="absolute inset-0 flex items-center justify-center gap-1.5 bg-pine-950/0 text-[11px] font-bold text-white opacity-0 transition-all hover:bg-pine-950/45 hover:opacity-100 focus-visible:opacity-100"
         aria-label="Replace image"
       >
         <Ic name="image" size={14} /> Replace
       </button>
-      {open && (
-        <div className="anim-pop absolute inset-x-2 top-2 z-30 rounded-md border border-line bg-card p-2.5 shadow-xl" onClick={(e) => e.stopPropagation()}>
-          <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-mute">Pick an image</p>
-          <div className="mb-2 grid max-h-[120px] grid-cols-4 gap-1 overflow-y-auto">
-            {savedAssets.filter((a) => a.kind === "image").concat(PROPERTIES.map((p) => ({ id: p.id, name: p.name, url: p.image, kind: "image" as const }))).slice(0, 12).map((a) => (
+      {/* always-visible affordance — works without hover (touch, keyboards) */}
+      <button
+        onClick={(e) => { e.stopPropagation(); toggle(); }}
+        className="absolute bottom-1 right-1 flex h-6 w-6 items-center justify-center rounded-sm bg-pine-950/70 text-white opacity-80 transition-opacity hover:opacity-100"
+        aria-label="Change image"
+        title="Change image"
+      >
+        <Ic name="image" size={12} />
+      </button>
+      {open && createPortal(
+        <div className="anim-pop fixed z-[96] w-[290px] rounded-md border border-line bg-card p-2.5 shadow-2xl" style={{ left: pos.x, top: pos.y }} onClick={(e) => e.stopPropagation()}>
+          <p className="mb-1.5 flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-mute">
+            Image library <button onClick={() => setOpen(false)} aria-label="Close image picker" className="text-faint hover:text-ink"><Ic name="x" size={11} /></button>
+          </p>
+          <div className="mb-2 grid max-h-[140px] grid-cols-4 gap-1 overflow-y-auto">
+            {library.map((a) => (
               <button key={a.id} onClick={() => pick(a.url)} className="h-12 overflow-hidden rounded-sm border border-line transition-transform hover:scale-105" title={a.name} aria-label={`Use ${a.name}`}>
                 <img src={a.url} alt={a.name} className="h-full w-full object-cover" />
               </button>
             ))}
           </div>
           <div className="flex gap-1.5">
-            <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://… or paste" className="h-7 flex-1 rounded-sm border border-line bg-paper px-2 text-[10.5px] outline-none focus:border-brand" />
-            <button onClick={() => url && pick(url)} className="rounded-sm bg-brand px-2 text-[10px] font-bold text-white">Use</button>
-            <button onClick={() => fileRef.current?.click()} className="rounded-sm border border-line px-2 text-[10px] font-bold text-mute" aria-label="Upload image"><Ic name="download" size={11} /></button>
-            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={() => { addSavedAsset({ name: "Uploaded image", url: PROPERTIES[1].image, kind: "image" }); toast("ok", "Image uploaded to asset library"); }} />
+            <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="https://… or paste" className="h-7 min-w-0 flex-1 rounded-sm border border-line bg-paper px-2 text-[10.5px] outline-none focus:border-brand" />
+            <button onClick={() => url.trim() && pick(url.trim())} className="rounded-sm bg-brand px-2 text-[10px] font-bold text-white">Use</button>
+            <button onClick={() => fileRef.current?.click()} disabled={busy} className="flex items-center gap-1 rounded-sm border border-line px-2 text-[10px] font-bold text-mute hover:border-brand hover:text-brand-deep" aria-label="Upload image">
+              {busy ? <span className="h-2.5 w-2.5 anim-spin rounded-full border border-line2 border-t-brand" /> : <Ic name="download" size={11} />} Upload
+            </button>
+            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; if (f) void upload(f); e.target.value = ""; }} />
           </div>
-        </div>
+          <p className="mt-1.5 text-[9px] leading-snug text-faint">Uploads are compressed in your browser and saved to the asset library, so every block can reuse them.</p>
+        </div>,
+        document.body,
       )}
     </div>
   );

@@ -5,7 +5,7 @@ import { Badge, Btn, Dot, Field, Input, Modal, Select, Spark, Tabs, Toggle } fro
 import { EditableText, EditableImage, FloatingToolbar, ToolBtn, InspectorPanel, Ifield, TextInput, SegBtns, toHtml } from "../components/editor";
 import { NumStepper, ColorField } from "../components/controls";
 import { useApp, DEFAULT_BLOCK_STYLE } from "../store";
-import { COLLECTIONS, PROPERTIES, propertyById, SERVICES } from "../lib/data";
+import { PROPERTIES, propertyById } from "../lib/data";
 import { embedJsSnippet, embedIframeSnippet, widgetCssVars } from "../lib/widgetTheme";
 import { ChatbotPreview } from "./ChatWidget";
 import { defaultBlockContent, parseQA, parseCSV, parseLines, CONTENT_SCHEMA, type ContentField } from "../lib/blockContent";
@@ -34,8 +34,14 @@ const WIDTH_CLASS: Record<BlockStyle["width"], string> = {
   full: "w-full", wide: "w-full max-w-[980px] mx-auto", mid: "w-full max-w-[760px] mx-auto", half: "w-full max-w-[520px] mx-auto",
 };
 
+const TEMPLATES: { name: string; vibe: string; swatchBg: string; swatchA: string; swatchB: string; palette: string; radius: number; heroVh: number; desc: string }[] = [
+  { name: "Boutique Collection", vibe: "editorial", swatchBg: "#f2f4f1", swatchA: "#0e6b4e", swatchB: "#141811", palette: "Palm & Sand", radius: 3, heroVh: 55, desc: "Full-bleed hero, generous type, quiet paper backgrounds. Built for photography-first portfolios." },
+  { name: "Beach House", vibe: "breezy", swatchBg: "#eef4f6", swatchA: "#38708a", swatchB: "#9a6a0b", palette: "Ocean Light", radius: 10, heroVh: 45, desc: "Softer radius, sea-glass accents, relaxed spacing. Suits casual coast properties." },
+  { name: "Estate & Events", vibe: "formal", swatchBg: "#141811", swatchA: "#d8c39a", swatchB: "#f2f4f1", palette: "Volcanic", radius: 0, heroVh: 65, desc: "Dark, squared-off, tall hero. For estates that host weddings and buyouts." },
+];
+
 export default function Websites() {
-  const { website, moveBlock, moveBlockTo, addBlock, duplicateBlock, updateBlock, removeBlock, setSiteTheme, setSiteActivePage, siteChrome, setSiteChrome, duplicateSite, resetSite, toast } = useApp();
+  const { website, moveBlock, moveBlockTo, addBlock, duplicateBlock, updateBlock, removeBlock, setSiteTheme, setSiteActivePage, siteChrome, setSiteChrome, duplicateSite, resetSite, addPage, deletePage, updatePage, collections, updateCollection, addCollection, removeCollection, toast } = useApp();
   const [tab, setTab] = useState("builder");
   const [libOpen, setLibOpen] = useState(false);
   const [delOpen, setDelOpen] = useState(false);
@@ -46,6 +52,9 @@ export default function Websites() {
   const [metric, setMetric] = useState<"traffic" | "bookings">("traffic");
   const [dragId, setDragId] = useState<string | null>(null);
   const [dropAt, setDropAt] = useState<number | null>(null);
+  const [newPageOpen, setNewPageOpen] = useState(false);
+  const [newPageName, setNewPageName] = useState("");
+  const [tplPreview, setTplPreview] = useState<string | null>(null);
   const page = website.pages.find((p) => p.id === website.activePageId)!;
   const sel = page.blocks.find((b) => b.id === selected) ?? null;
 
@@ -95,6 +104,72 @@ export default function Websites() {
         </div>
       </Modal>
 
+      {/* Template preview — changes nothing until Apply */}
+      <Modal open={!!tplPreview} onClose={() => setTplPreview(null)} title={`Template preview — ${tplPreview ?? ""}`} w={520}
+        footer={<>
+          <Btn variant="ghost" onClick={() => setTplPreview(null)}>Close — keep my site</Btn>
+          <Btn variant="solid" icon="check" onClick={() => {
+            const tp = TEMPLATES.find((x) => x.name === tplPreview);
+            if (tp) {
+              setSiteTheme({ palette: tp.palette, radius: tp.radius });
+              page.blocks.forEach((b) => { if (b.type === "hero") updateBlock(page.id, b.id, { style: { ...DEFAULT_BLOCK_STYLE, ...b.style, heightVh: tp.heroVh, radius: tp.radius } }); });
+              toast("ok", `${tp.name} applied`, `Palette, radius and hero height updated — your text and images are untouched.`);
+            }
+            setTplPreview(null);
+          }}>Apply template</Btn>
+        </>}>
+        {(() => {
+          const tp = TEMPLATES.find((x) => x.name === tplPreview);
+          if (!tp) return null;
+          return (
+            <div className="space-y-3">
+              <div className="overflow-hidden rounded-sm border border-line">
+                <div className="flex h-28 items-end" style={{ background: `linear-gradient(120deg, ${tp.swatchB}22, ${tp.swatchA}44), ${tp.swatchBg}` }}>
+                  <div className="w-full p-3">
+                    <div className="h-2.5 w-2/3" style={{ background: tp.swatchB, borderRadius: tp.radius }} />
+                    <div className="mt-1.5 h-2 w-1/3" style={{ background: tp.swatchA, borderRadius: tp.radius }} />
+                  </div>
+                </div>
+                <div className="space-y-1.5 p-3" style={{ background: tp.swatchBg }}>
+                  <div className="h-2 w-full" style={{ background: `${tp.swatchB}33`, borderRadius: tp.radius }} />
+                  <div className="h-2 w-5/6" style={{ background: `${tp.swatchB}22`, borderRadius: tp.radius }} />
+                  <div className="flex gap-1.5 pt-1">
+                    <div className="h-8 w-16" style={{ background: tp.swatchA, borderRadius: tp.radius }} />
+                    <div className="h-8 w-16" style={{ background: `${tp.swatchA}44`, borderRadius: tp.radius }} />
+                    <div className="h-8 w-16" style={{ background: `${tp.swatchB}1f`, borderRadius: tp.radius }} />
+                  </div>
+                </div>
+              </div>
+              <div className="grid grid-cols-3 gap-2 text-center font-mono text-[10px]">
+                <div className="rounded-sm border border-line p-2"><p className="text-faint">palette</p><p className="font-bold text-ink">{tp.palette}</p></div>
+                <div className="rounded-sm border border-line p-2"><p className="text-faint">radius</p><p className="font-bold text-ink">{tp.radius}px</p></div>
+                <div className="rounded-sm border border-line p-2"><p className="text-faint">hero</p><p className="font-bold text-ink">{tp.heroVh}vh</p></div>
+              </div>
+              <p className="text-[11.5px] leading-relaxed text-mute">{tp.desc}</p>
+              <p className="rounded-sm bg-paper px-3 py-2 text-[10px] font-semibold text-faint">Applying changes palette, corner radius and hero height on this page. Your headlines, copy and images stay exactly as they are.</p>
+            </div>
+          );
+        })()}
+      </Modal>
+
+      {/* New page */}
+      <Modal open={newPageOpen} onClose={() => setNewPageOpen(false)} title="Create a page" w={420}
+        footer={<>
+          <Btn variant="ghost" onClick={() => setNewPageOpen(false)}>Cancel</Btn>
+          <Btn variant="solid" icon="plus" onClick={() => {
+            if (!newPageName.trim()) { toast("warn", "Name the page first", "e.g. Experiences, Journal, Weddings."); return; }
+            addPage(newPageName.trim());
+            setNewPageOpen(false);
+          }}>Create page</Btn>
+        </>}>
+        <div className="space-y-3">
+          <Field label="Page name" hint="The slug is generated from the name — you can change it in Page settings.">
+            <Input value={newPageName} onChange={(e) => setNewPageName(e.target.value)} placeholder="Experiences" autoFocus onKeyDown={(e) => { if (e.key === "Enter" && newPageName.trim()) { addPage(newPageName.trim()); setNewPageOpen(false); } }} />
+          </Field>
+          <p className="rounded-sm bg-paper px-3 py-2 text-[10.5px] leading-relaxed text-mute">Starts with a hero, rich text and CTA banner — all editable. The page appears in navigation immediately.</p>
+        </div>
+      </Modal>
+
       <Tabs tabs={[{ id: "builder", label: "Page builder" }, { id: "collections", label: "Collections" }, { id: "analytics", label: "Analytics" }, { id: "embed", label: "Embeddable widgets" }, { id: "settings", label: "Website settings" }]} active={tab} onChange={setTab} />
 
       {tab === "builder" && (
@@ -109,23 +184,51 @@ export default function Websites() {
                 {p.home && <Ic name="lock" size={10} aria-label="Protected home page" />}
               </button>
             ))}
-            <button className="flex w-full items-center gap-2 rounded-sm border border-dashed border-line2 px-3 py-2 text-[12px] font-bold text-mute hover:text-ink" onClick={() => toast("info", "New page or folder", "Per-page slug, SEO title/description, social image, visibility.")}><Ic name="plus" size={13} /> Page / folder</button>
+            <button className="flex w-full items-center gap-2 rounded-sm border border-dashed border-line2 px-3 py-2 text-[12px] font-bold text-mute hover:text-ink" onClick={() => { setNewPageName(""); setNewPageOpen(true); }}><Ic name="plus" size={13} /> New page</button>
             <button className="flex w-full items-center gap-2 rounded-sm border border-dashed border-line2 px-3 py-2 text-[12px] font-bold text-mute hover:text-ink" onClick={() => setPageSettings(true)}><Ic name="gear" size={13} /> Page settings</button>
             <div className="rounded-sm border border-line bg-card p-3">
               <p className="mb-1.5 flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-mute"><Ic name="globe" size={11} /> Global header & footer</p>
-              <p className="text-[10px] leading-relaxed text-faint">Edited directly on the canvas above and below your blocks — click the logo, any menu link, the CTA button or footer text to change it. Appears on every page instantly.</p>
+              <p className="text-[10px] leading-relaxed text-faint">Click the logo, menu links, CTA or footer text on the canvas to edit. Hover the logo or tagline and press × to remove them — bring them back here. Applies to every page.</p>
+              <div className="mt-2 space-y-1.5">
+                <label className="flex items-center justify-between text-[10.5px] font-bold text-mute">
+                  <span>Show logo</span>
+                  <Toggle checked={siteChrome.logoMode !== "none"} onChange={(v) => setSiteChrome({ logoMode: v ? (siteChrome.logoUrl ? "image" : "text") : "none" })} label="Show logo" />
+                </label>
+                {siteChrome.logoMode !== "none" && (
+                  <div className="rounded-sm bg-paper p-2">
+                    <div className="flex items-center gap-2">
+                      <EditableImage src={siteChrome.logoUrl || PROPERTIES[0].image} onCommit={(v) => setSiteChrome({ logoUrl: v, logoMode: "image" })} className="h-9 w-9 shrink-0 rounded-sm border border-line bg-card" alt="Logo mark" />
+                      <div className="min-w-0 flex-1 space-y-1">
+                        <TextInput value={siteChrome.logoText} onChange={(v) => setSiteChrome({ logoText: v, logoMode: "text" })} placeholder="Wordmark text" />
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-[9px] font-bold uppercase tracking-wider text-faint">Size</span>
+                          <NumStepper value={siteChrome.logoSize} onChange={(v) => setSiteChrome({ logoSize: v })} min={16} max={64} suffix="px" w={86} label="Logo size" allowNegative={false} />
+                        </div>
+                      </div>
+                    </div>
+                    <p className="mt-1 text-[8.5px] leading-snug text-faint">Pick an image to use a mark, or type to use a wordmark — the last one you touch wins.</p>
+                  </div>
+                )}
+                <label className="flex items-center justify-between text-[10.5px] font-bold text-mute">
+                  <span>Show tagline</span>
+                  <Toggle checked={siteChrome.taglineVisible} onChange={(v) => setSiteChrome({ taglineVisible: v })} label="Show tagline" />
+                </label>
+                <label className="flex items-center justify-between text-[10.5px] font-bold text-mute">
+                  <span>Show CTA button</span>
+                  <Toggle checked={siteChrome.showCta} onChange={(v) => setSiteChrome({ showCta: v })} label="Show header CTA" />
+                </label>
+              </div>
               <div className="mt-2 grid grid-cols-2 gap-1.5">
                 <Field label="Header bg"><input type="color" value={siteChrome.headerBg} onChange={(e) => setSiteChrome({ headerBg: e.target.value })} className="h-7 w-full cursor-pointer rounded-sm border border-line bg-card" aria-label="Header background" /></Field>
                 <Field label="Footer bg"><input type="color" value={siteChrome.footerBg} onChange={(e) => setSiteChrome({ footerBg: e.target.value })} className="h-7 w-full cursor-pointer rounded-sm border border-line bg-card" aria-label="Footer background" /></Field>
               </div>
-              <label className="mt-1.5 flex items-center justify-between text-[10.5px] font-bold text-mute"><span>Show CTA button</span><Toggle checked={siteChrome.showCta} onChange={(v) => setSiteChrome({ showCta: v })} label="Show header CTA" /></label>
             </div>
           </div>
 
-          {/* Canvas — WYSIWYG, click text to type, click image to swap */}
-          <div className="rounded-lg border border-line bg-card p-4">
-            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-              <p className="font-display text-[14px] font-bold text-ink">Page: {page.name} <span className="font-mono text-[10px] font-semibold text-faint">{page.slug}</span></p>
+          {/* Canvas — WYSIWYG, edge-to-edge like the live page */}
+          <div className="overflow-hidden rounded-lg border border-line bg-card">
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-2.5">
+              <p className="font-display text-[14px] font-bold text-ink">Page: {page.name} <span className="font-mono text-[10px] font-semibold text-faint">/{page.slug}</span></p>
               <div className="flex gap-1.5">
                 <Btn size="xs" icon="plus" onClick={() => setLibOpen(true)}>Add block</Btn>
                 <Btn size="xs" variant="solid" icon="eye" onClick={() => setPreviewOpen(true)}>Preview</Btn>
@@ -164,13 +267,11 @@ export default function Websites() {
             </div>
 
             {/* Editable footer */}
-            <div className="mt-2">
-              <ChromeStrip target="footer" selected={selected} onSelect={setSelected} />
-            </div>
+            <ChromeStrip target="footer" selected={selected} onSelect={setSelected} />
 
-            <p className="mt-3 rounded-sm bg-paper px-3 py-2 text-[10.5px] leading-relaxed text-mute">
-              <b className="text-ink">Click any text to type directly.</b> Click an image to swap it from your asset library. Select a block for its
-              <b className="text-ink"> content &amp; style inspector</b>. Drag the handle to reorder — edits autosave and appear on every page instantly.
+            <p className="border-t border-line bg-paper px-4 py-2.5 text-[10.5px] leading-relaxed text-mute">
+              <b className="text-ink">Click any text to type directly.</b> Click an image (or its corner badge) to swap it from your library or upload.
+              Select a block for its <b className="text-ink">content &amp; style inspector</b>. Drag the handle to reorder — edits save live.
             </p>
           </div>
 
@@ -202,38 +303,21 @@ export default function Websites() {
             )}
             <div className="rounded-lg border border-line bg-card p-4">
               <p className="mb-2 text-[10.5px] font-bold uppercase tracking-wider text-mute">Starter templates</p>
-              {[["Boutique Collection", "editorial"], ["Beach House", "breezy"], ["Estate & Events", "formal"]].map(([name, vibe]) => (
-                <button key={name} onClick={() => toast("ok", "Template applied", `${name} — your content is preserved, layout resets.`)} className="mb-1.5 flex w-full items-center gap-2 rounded-sm border border-line px-2.5 py-2 text-left text-[11.5px] font-bold text-ink transition-colors hover:border-brand">
-                  <span className="h-8 w-12 rounded-sm bg-gradient-to-br from-brand-soft to-sea-soft" /> {name} <span className="ml-auto text-[9px] font-semibold uppercase text-faint">{vibe}</span>
+              {TEMPLATES.map((tp) => (
+                <button key={tp.name} onClick={() => setTplPreview(tp.name)} className="mb-1.5 flex w-full items-center gap-2 rounded-sm border border-line px-2.5 py-2 text-left text-[11.5px] font-bold text-ink transition-colors hover:border-brand">
+                  <span className="flex h-8 w-12 shrink-0 items-end gap-0.5 rounded-sm border border-line p-1" style={{ background: tp.swatchBg }} aria-hidden="true">
+                    <span className="h-3 w-2" style={{ background: tp.swatchA }} /><span className="h-4 w-2" style={{ background: tp.swatchB }} /><span className="h-2 w-2" style={{ background: tp.swatchA }} />
+                  </span>
+                  {tp.name} <span className="ml-auto text-[9px] font-semibold uppercase text-faint">{tp.vibe}</span>
                 </button>
               ))}
+              <p className="mt-1 text-[9px] leading-snug text-faint">Click to preview — nothing changes until you press Apply.</p>
             </div>
           </div>
         </div>
       )}
 
-      {tab === "collections" && (
-        <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
-          {COLLECTIONS.map((c) => (
-            <div key={c.id} className="rounded-lg border border-line bg-card p-4">
-              <div className="flex items-center justify-between">
-                <p className="text-[13.5px] font-bold text-ink">{c.name}</p>
-                {c.featured && <Badge tone="warn">featured</Badge>}
-              </div>
-              <p className="mt-0.5 font-mono text-[10.5px] text-mute">/{c.slug} · {c.rule}</p>
-              <div className="mt-2.5 flex gap-1.5">
-                {c.itemIds.map((id) => (
-                  <span key={id} className="h-10 w-14 overflow-hidden rounded-sm border border-line"><img src={propertyById(id).image} alt={propertyById(id).name} className="h-full w-full object-cover" loading="lazy" /></span>
-                ))}
-              </div>
-              <div className="mt-2.5 flex gap-1.5">
-                <Btn size="xs" icon="external" onClick={() => toast("info", "Opening landing page", `/${c.slug}`)}>Open page</Btn>
-                <Btn size="xs" variant="ghost" icon="pencil" onClick={() => toast("info", "Edit collection", c.rule.startsWith("Rule") ? "Rule-based — edits change the query, not the list." : "Manual — drag listings in or out.")}>Edit</Btn>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      {tab === "collections" && <CollectionsTab />}
 
       {tab === "analytics" && (
         <div className="space-y-3">
@@ -336,10 +420,14 @@ export default function Websites() {
         <div className="max-h-[70vh] overflow-y-auto rounded-sm border border-line bg-[#f4f5f0]">
           <div className="sticky top-0 z-10 px-6 py-3" style={{ background: siteChrome.headerBg, color: siteChrome.headerColor }}>
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-              <span className="flex items-baseline gap-2">
-                {siteChrome.logoUrl ? <img src={siteChrome.logoUrl} alt="Logo" className="h-6 w-6 rounded-sm object-cover" /> : <span className="font-display text-[15px] font-bold uppercase tracking-wide">{siteChrome.logoText}</span>}
-                <span className="hidden text-[9.5px] opacity-70 sm:inline">{siteChrome.tagline}</span>
-              </span>
+              {siteChrome.logoMode !== "none" && (
+                <span className="flex items-baseline gap-2">
+                  {siteChrome.logoMode === "image"
+                    ? <img src={siteChrome.logoUrl || PROPERTIES[0].image} alt="Logo" className="rounded-sm object-cover" style={{ height: siteChrome.logoSize, width: siteChrome.logoSize }} />
+                    : <span className="font-display font-bold uppercase tracking-wide" style={{ fontSize: Math.max(13, siteChrome.logoSize * 0.62) }}>{siteChrome.logoText}</span>}
+                  {siteChrome.taglineVisible && <span className="hidden text-[9.5px] opacity-70 sm:inline">{siteChrome.tagline}</span>}
+                </span>
+              )}
               <span className="flex flex-wrap items-center gap-2.5">
                 {siteChrome.headerLinks.map((l) => <span key={l.id} className="text-[10.5px] font-bold opacity-85">{l.label}</span>)}
               </span>
@@ -358,18 +446,44 @@ export default function Websites() {
         </div>
       </Modal>
 
-      {/* Page settings */}
-      <Modal open={pageSettings} onClose={() => setPageSettings(false)} title={`Page settings — ${page.name}`} w={460}
-        footer={<><Btn variant="ghost" onClick={() => setPageSettings(false)}>Cancel</Btn><Btn variant="solid" onClick={() => { setPageSettings(false); toast("ok", "Page settings saved"); }}>Save</Btn></>}>
-        <div className="space-y-3">
-          <Field label="Slug"><Input defaultValue={page.slug} className="font-mono" /></Field>
-          <Field label="SEO title"><Input defaultValue={`${page.name} — Sanggraha Villas`} /></Field>
-          <Field label="SEO description"><Input defaultValue="Hand-run boutique villas across Bali with butlers, chefs and honest pricing." /></Field>
-          <Field label="Social image"><div className="h-20 rounded-sm border border-dashed border-line2 bg-paper" /></Field>
-          <label className="flex items-center gap-2 text-[12px] font-bold"><Toggle checked label="Visible in navigation" onChange={() => undefined} /> Visible in navigation</label>
-        </div>
-      </Modal>
+      {/* Page settings — every field writes through updatePage on Save */}
+      <PageSettingsModal key={page.id} open={pageSettings} onClose={() => setPageSettings(false)} page={page}
+        onSave={(patch) => { updatePage(page.id, patch); setPageSettings(false); toast("ok", "Page settings saved", "Slug, SEO and visibility are live."); }}
+        onDelete={() => { deletePage(page.id); setPageSettings(false); }} />
     </div>
+  );
+}
+
+function PageSettingsModal({ open, onClose, page, onSave, onDelete }: {
+  open: boolean; onClose: () => void; page: import("../lib/types").SitePage;
+  onSave: (patch: { slug?: string; seo?: { title?: string; description?: string; image?: string }; visible?: boolean }) => void;
+  onDelete: () => void;
+}) {
+  const [slug, setSlug] = useState(page.slug);
+  const [title, setTitle] = useState(page.seo?.title ?? `${page.name} · Sanggraha Villas`);
+  const [desc, setDesc] = useState(page.seo?.description ?? "");
+  const [img, setImg] = useState(page.seo?.image ?? "");
+  const [visible, setVisible] = useState(page.visible !== false);
+  return (
+    <Modal open={open} onClose={onClose} title={`Page settings — ${page.name}`} w={460}
+      footer={<>
+        {!page.home && <Btn variant="ghost" icon="trash" onClick={onDelete}>Delete page</Btn>}
+        <Btn variant="ghost" onClick={onClose}>Cancel</Btn>
+        <Btn variant="solid" onClick={() => onSave({ slug: slug.trim() || page.slug, seo: { title, description: desc, image: img }, visible })}>Save</Btn>
+      </>}>
+      <div className="space-y-3">
+        <Field label="Slug" hint={`Live at /${slug.trim() || page.slug}`}>
+          <Input value={slug} onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-"))} className="font-mono" />
+        </Field>
+        <Field label="SEO title"><Input value={title} onChange={(e) => setTitle(e.target.value)} /></Field>
+        <Field label="SEO description"><Input value={desc} onChange={(e) => setDesc(e.target.value)} placeholder="Shown in search results and link previews." /></Field>
+        <Field label="Social image" hint="Click to browse your library or upload — used for link previews">
+          <EditableImage src={img} onCommit={setImg} className="h-20 w-full rounded-sm border border-dashed border-line2 bg-paper" alt="Social share image" />
+        </Field>
+        <label className="flex items-center gap-2 text-[12px] font-bold text-ink"><Toggle checked={visible} onChange={setVisible} label="Visible in navigation" /> Visible in navigation</label>
+        {page.home && <p className="rounded-sm bg-paper px-3 py-2 text-[10.5px] font-semibold text-faint"><Ic name="lock" size={10} className="mr-1 inline" /> The home page is protected — it can't be deleted or hidden.</p>}
+      </div>
+    </Modal>
   );
 }
 
@@ -422,13 +536,27 @@ function ChromeStrip({ target, selected, onSelect }: { target: "header" | "foote
   return (
     <div className="rounded-sm px-4 py-3" style={{ background: bg, color: fg, textAlign: siteChrome.align }}>
       <div className={cx("flex flex-wrap items-center gap-x-4 gap-y-2", siteChrome.align === "center" && "justify-center", siteChrome.align === "right" && "justify-end")}>
-        {isHeader && (
-          <div className="flex items-baseline gap-2">
-            {siteChrome.logoUrl
-              ? <EditableImage src={siteChrome.logoUrl} onCommit={(v) => setSiteChrome({ logoUrl: v })} className="h-7 w-7 rounded-sm" alt="Logo" />
-              : <EditableText as="span" value={siteChrome.logoText} onCommit={(v) => setSiteChrome({ logoText: v })} className="font-display text-[17px] font-bold uppercase tracking-wide" placeholder="Logo" />}
+        {isHeader && siteChrome.logoMode !== "none" && (
+          <span className="group/logo relative flex items-center gap-2">
+            {siteChrome.logoMode === "image"
+              ? <EditableImage src={siteChrome.logoUrl} onCommit={(v) => setSiteChrome({ logoUrl: v, logoMode: "image" })} className="rounded-sm" style={{ height: siteChrome.logoSize, width: siteChrome.logoSize }} alt="Logo" />
+              : <EditableText as="span" value={siteChrome.logoText} onCommit={(v) => setSiteChrome({ logoText: v })} style={{ fontSize: Math.max(13, siteChrome.logoSize * 0.62) }} className="font-display font-bold uppercase tracking-wide" placeholder="Logo" />}
+            <button
+              onClick={(e) => { e.stopPropagation(); setSiteChrome({ logoMode: "none" }); }}
+              className="absolute -right-2 -top-2 hidden h-4 w-4 items-center justify-center rounded-full bg-pine-950/80 text-white group-hover/logo:flex"
+              aria-label="Remove logo" title="Remove logo (restore from the chrome panel)"
+            ><Ic name="x" size={9} sw={3} /></button>
+          </span>
+        )}
+        {isHeader && siteChrome.taglineVisible && (
+          <span className="group/tag relative inline-flex items-center">
             <EditableText as="span" value={siteChrome.tagline} onCommit={(v) => setSiteChrome({ tagline: v })} className="hidden text-[10.5px] opacity-70 sm:inline" placeholder="Tagline" />
-          </div>
+            <button
+              onClick={(e) => { e.stopPropagation(); setSiteChrome({ taglineVisible: false }); }}
+              className="absolute -right-2 -top-2 hidden h-4 w-4 items-center justify-center rounded-full bg-pine-950/80 text-white group-hover/tag:flex"
+              aria-label="Remove tagline" title="Hide tagline (restore from the chrome panel)"
+            ><Ic name="x" size={9} sw={3} /></button>
+          </span>
         )}
         <nav className="flex flex-wrap items-center gap-1" aria-label={`${target} menu`}>
           {links.map((l) => (
@@ -497,11 +625,11 @@ function BlockView({ b, edit = false, onContent }: { b: Block; edit?: boolean; o
   const inner = (() => {
     switch (b.type) {
       case "hero": return (
-        <div className="relative overflow-hidden" style={{ borderRadius: s.radius }}>
-          {im({ k: "image", className: "h-44 w-full" })}
-          <div className="absolute inset-0 bg-gradient-to-r from-pine-950/75 to-transparent" />
-          <div className="absolute bottom-3 left-4 right-4 flex items-end justify-between gap-2">
-            {t({ k: "headline", as: "h2", className: "font-display text-[22px] font-bold leading-tight text-white", placeholder: "Headline" })}
+        <div className="relative flex items-end overflow-hidden" style={{ borderRadius: s.radius, minHeight: `${s.heightVh || 45}vh` }}>
+          <div className="absolute inset-0">{im({ k: "image", className: "h-full w-full" })}</div>
+          <div className="absolute inset-0 bg-gradient-to-t from-pine-950/80 via-pine-950/25 to-transparent" />
+          <div className="relative flex w-full items-end justify-between gap-3 p-5">
+            {t({ k: "headline", as: "h2", className: "font-display text-[26px] font-bold leading-tight text-white", placeholder: "Headline" })}
             {t({ k: "badge", className: "hidden shrink-0 rounded-sm bg-white/95 px-3 py-1.5 text-[11px] font-bold text-ink sm:block", placeholder: "Price" })}
           </div>
         </div>
@@ -534,19 +662,30 @@ function BlockView({ b, edit = false, onContent }: { b: Block; edit?: boolean; o
       }
       case "faq": {
         const items = parseQA(c.items ?? "");
+        const write = (arr: { q: string; a: string }[]) => set("items")(arr.map((x) => `${x.q} | ${x.a}`).join("\n"));
         return (
           <div>
             {t({ k: "title", as: "h3", className: "mb-1.5 font-display text-[15px] font-bold text-ink", placeholder: "FAQ title" })}
             <div className="space-y-1">
               {items.map((it, i) => (
                 <details key={i} className="group rounded-sm bg-paper px-2.5 py-2" style={{ borderRadius: s.radius }}>
-                  <summary className="flex cursor-pointer list-none items-center justify-between text-[11px] font-bold text-ink">
-                    {edit ? <EditableText as="span" value={it.q} onCommit={(v) => { const arr = [...items]; arr[i] = { ...arr[i], q: v }; set("items")(arr.map((x) => `${x.q} | ${x.a}`).join("\n")); }} placeholder="Question" /> : <span>{it.q}</span>}
-                    <Ic name="chevD" size={10} className="transition-transform group-open:rotate-180" />
+                  <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-[11px] font-bold text-ink">
+                    {edit ? <EditableText as="span" value={it.q} onCommit={(v) => { const arr = [...items]; arr[i] = { ...arr[i], q: v }; write(arr); }} placeholder="Question" /> : <span>{it.q}</span>}
+                    <span className="flex shrink-0 items-center gap-1">
+                      {edit && (
+                        <button onClick={(e) => { e.preventDefault(); e.stopPropagation(); const arr = items.filter((_, j) => j !== i); write(arr); }} aria-label={`Delete question ${i + 1}`} className="rounded-sm p-0.5 text-faint hover:bg-danger-soft hover:text-danger"><Ic name="trash" size={10} /></button>
+                      )}
+                      <Ic name="chevD" size={10} className="transition-transform group-open:rotate-180" />
+                    </span>
                   </summary>
-                  {edit ? <EditableText as="p" value={it.a} onCommit={(v) => { const arr = [...items]; arr[i] = { ...arr[i], a: v }; set("items")(arr.map((x) => `${x.q} | ${x.a}`).join("\n")); }} className="mt-1 text-[10.5px] leading-relaxed text-mute" multiline placeholder="Answer" /> : <p className="mt-1 text-[10.5px] leading-relaxed text-mute">{it.a}</p>}
+                  {edit ? <EditableText as="p" value={it.a} onCommit={(v) => { const arr = [...items]; arr[i] = { ...arr[i], a: v }; write(arr); }} className="mt-1 text-[10.5px] leading-relaxed text-mute" multiline placeholder="Answer" /> : <p className="mt-1 text-[10.5px] leading-relaxed text-mute">{it.a}</p>}
                 </details>
               ))}
+              {edit && (
+                <button onClick={(e) => { e.stopPropagation(); write([...items, { q: "New question", a: "Write the answer here — guests see this expanded." }]); }} className="flex w-full items-center justify-center gap-1.5 rounded-sm border border-dashed border-line2 py-1.5 text-[10px] font-bold text-mute transition-colors hover:border-brand hover:text-brand-deep">
+                  <Ic name="plus" size={11} /> Add question
+                </button>
+              )}
             </div>
           </div>
         );
@@ -676,6 +815,31 @@ function Tag({ as: A = "span", className, style, children, html }: { as?: "span"
   return <A className={className} style={style} {...(html !== undefined ? { dangerouslySetInnerHTML: { __html: html } } : { children })} />;
 }
 
+// ── Structured Q&A list editor (FAQ blocks) ───────────────────────────────
+function QaEditor({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const items = parseQA(value);
+  const write = (arr: { q: string; a: string }[]) => onChange(arr.map((x) => `${x.q} | ${x.a}`).join("\n"));
+  return (
+    <div className="space-y-2">
+      {items.map((it, i) => (
+        <div key={i} className="rounded-sm border border-line bg-paper/60 p-2">
+          <div className="mb-1 flex items-center justify-between">
+            <span className="font-mono text-[8.5px] font-bold uppercase tracking-wider text-faint">Q{i + 1}</span>
+            <button onClick={() => write(items.filter((_, j) => j !== i))} aria-label={`Delete question ${i + 1}`} className="rounded-sm p-0.5 text-faint hover:bg-danger-soft hover:text-danger"><Ic name="trash" size={11} /></button>
+          </div>
+          <TextInput value={it.q} onChange={(v: string) => { const arr = [...items]; arr[i] = { ...arr[i], q: v }; write(arr); }} placeholder="Question" />
+          <div className="mt-1.5">
+            <TextInput value={it.a} onChange={(v: string) => { const arr = [...items]; arr[i] = { ...arr[i], a: v }; write(arr); }} multiline placeholder="Answer" />
+          </div>
+        </div>
+      ))}
+      <button onClick={() => write([...items, { q: "New question", a: "" }])} className="flex w-full items-center justify-center gap-1.5 rounded-sm border border-dashed border-line2 py-1.5 text-[10px] font-bold text-mute transition-colors hover:border-brand hover:text-brand-deep">
+        <Ic name="plus" size={11} /> Add question
+      </button>
+    </div>
+  );
+}
+
 // ── Inspector: Content + Style tabs for the selected block ────────────────
 function InspectorTabs({ b, onContent, onStyle }: { b: Block; onContent: (patch: Record<string, string>) => void; onStyle: (patch: Partial<BlockStyle>) => void }) {
   const [tab, setTab] = useState<"content" | "style">("content");
@@ -705,11 +869,15 @@ function InspectorTabs({ b, onContent, onStyle }: { b: Block; onContent: (patch:
           </p>
           {schema.map((f) =>
             f.kind === "image" ? (
-              <Ifield key={f.key} label={f.label}>
+              <Ifield key={f.key} label={f.label} hint="Click the thumbnail to browse your library or upload">
                 <div className="flex items-center gap-2">
-                  <div className="h-10 w-16 shrink-0 overflow-hidden rounded-sm border border-line"><img src={c[f.key] || PROPERTIES[0].image} alt="" className="h-full w-full object-cover" /></div>
-                  <TextInput value={c[f.key] ?? ""} onChange={(v) => onContent({ [f.key]: v })} placeholder="https://… or click image on canvas" />
+                  <EditableImage src={c[f.key] ?? ""} onCommit={(v) => onContent({ [f.key]: v })} className="h-12 w-20 shrink-0 rounded-sm border border-line" alt={f.label} />
+                  <TextInput value={c[f.key] ?? ""} onChange={(v) => onContent({ [f.key]: v })} placeholder="https://… or pick from library" />
                 </div>
+              </Ifield>
+            ) : f.kind === "qa" ? (
+              <Ifield key={f.key} label={f.label}>
+                <QaEditor value={c[f.key] ?? ""} onChange={(v) => onContent({ [f.key]: v })} />
               </Ifield>
             ) : (
               <Ifield key={f.key} label={f.label} hint={f.hint}>
@@ -748,6 +916,99 @@ function InspectorTabs({ b, onContent, onStyle }: { b: Block; onContent: (patch:
   );
 }
 
+// ── Collections: store-driven, with create / edit / preview / delete ──────
+function CollectionsTab() {
+  const { collections, updateCollection, addCollection, removeCollection, toast } = useApp();
+  const [editId, setEditId] = useState<string | null>(null);
+  const [prevId, setPrevId] = useState<string | null>(null);
+  const editing = collections.find((c) => c.id === editId) ?? null;
+  const previewing = collections.find((c) => c.id === prevId) ?? null;
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-[11px] font-semibold text-mute">Manual or rule-based groupings — each gets its own landing page on your site.</p>
+        <Btn size="sm" icon="plus" onClick={() => addCollection()}>New collection</Btn>
+      </div>
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-3">
+        {collections.map((c) => (
+          <div key={c.id} className="rounded-lg border border-line bg-card p-4">
+            <div className="flex items-center justify-between">
+              <p className="text-[13.5px] font-bold text-ink">{c.name}</p>
+              {c.featured && <Badge tone="warn">featured</Badge>}
+            </div>
+            <p className="mt-0.5 font-mono text-[10.5px] text-mute">/{c.slug} · {c.rule} · {c.itemIds.length} listings</p>
+            <div className="mt-2.5 flex gap-1.5">
+              {c.itemIds.slice(0, 4).map((id) => propertyById(id) && (
+                <span key={id} className="h-10 w-14 overflow-hidden rounded-sm border border-line"><img src={propertyById(id).image} alt={propertyById(id).name} className="h-full w-full object-cover" loading="lazy" /></span>
+              ))}
+            </div>
+            <div className="mt-2.5 flex gap-1.5">
+              <Btn size="xs" icon="external" onClick={() => setPrevId(c.id)}>Open page</Btn>
+              <Btn size="xs" variant="ghost" icon="pencil" onClick={() => setEditId(c.id)}>Edit</Btn>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Edit */}
+      <Modal open={!!editing} onClose={() => setEditId(null)} title={`Edit collection — ${editing?.name ?? ""}`} w={480}
+        footer={<>
+          <Btn variant="ghost" icon="trash" onClick={() => { if (editing) { removeCollection(editing.id); setEditId(null); } }}>Delete</Btn>
+          <Btn variant="solid" onClick={() => { setEditId(null); toast("ok", "Collection saved", "Landing page republished."); }}>Done</Btn>
+        </>}>
+        {editing && (
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Name"><Input value={editing.name} onChange={(e) => updateCollection(editing.id, { name: e.target.value })} /></Field>
+              <Field label="Slug"><Input value={editing.slug} onChange={(e) => updateCollection(editing.id, { slug: e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, "-") })} className="font-mono" /></Field>
+            </div>
+            <label className="flex items-center gap-2 text-[12px] font-bold text-ink"><Toggle checked={editing.featured} onChange={(v) => updateCollection(editing.id, { featured: v })} label="Featured on home page" /> Featured on the home page</label>
+            <div>
+              <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-mute">Listings in this collection</p>
+              {PROPERTIES.filter((p) => !p.archived).map((p) => {
+                const on = editing.itemIds.includes(p.id);
+                return (
+                  <label key={p.id} className="mb-1 flex cursor-pointer items-center gap-2.5 rounded-sm border border-line px-2.5 py-1.5">
+                    <input type="checkbox" checked={on} onChange={() => updateCollection(editing.id, { itemIds: on ? editing.itemIds.filter((x) => x !== p.id) : [...editing.itemIds, p.id] })} className="accent-brand" aria-label={`Include ${p.name}`} />
+                    <img src={p.image} alt="" className="h-7 w-10 rounded-sm object-cover" />
+                    <span className="text-[11.5px] font-bold text-ink">{p.name}</span>
+                    <span className="ml-auto font-mono text-[9.5px] text-faint">{p.city}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Landing-page preview */}
+      <Modal open={!!previewing} onClose={() => setPrevId(null)} title={`/${previewing?.slug ?? ""} — guest view`} w={680}
+        footer={<><Btn variant="ghost" onClick={() => setPrevId(null)}>Close</Btn><Btn variant="solid" icon="copy" onClick={() => { if (previewing) { copyText(`https://stay.sanggraha.co/${previewing.slug}`); toast("ok", "Landing page URL copied"); } }}>Copy URL</Btn></>}>
+        {previewing && (
+          <div className="overflow-hidden rounded-sm border border-line">
+            <div className="bg-pine-900 px-5 py-4">
+              <p className="font-mono text-[9px] font-bold uppercase tracking-[0.2em] text-[#3fb98c]">Sanggraha collection</p>
+              <p className="mt-1 font-display text-[26px] font-bold uppercase tracking-tight text-white">{previewing.name}</p>
+            </div>
+            <div className="grid grid-cols-2 gap-3 bg-paper p-4 sm:grid-cols-3">
+              {previewing.itemIds.map((id) => propertyById(id) && (
+                <div key={id} className="overflow-hidden rounded-sm border border-line bg-card">
+                  <img src={propertyById(id).image} alt={propertyById(id).name} className="h-24 w-full object-cover" />
+                  <div className="p-2">
+                    <p className="text-[11.5px] font-bold text-ink">{propertyById(id).name}</p>
+                    <p className="font-mono text-[10px] text-mute">{propertyById(id).city} · {money(propertyById(id).pricing.plans[0].nightly, "IDR", { compact: true })}/nt</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </Modal>
+    </div>
+  );
+}
+
 function MetricCard({ label, value, series, color = "#0E6B4E" }: { label: string; value: string; series: number[]; color?: string }) {
   return (
     <div className="rounded-lg border border-line bg-card p-4">
@@ -773,9 +1034,10 @@ function Embeds() {
     </label>
   );
   const S = ({ label, k, min, max, unit }: { label: string; k: "borderW" | "radius" | "gap" | "pad" | "fontSize" | "btnRadius"; min: number; max: number; unit: string }) => (
-    <Field label={`${label} · ${st[k]}${unit}`}>
-      <input type="range" min={min} max={max} value={st[k]} onChange={(e) => setWidgetStyle({ [k]: Number(e.target.value) })} className="w-full" aria-label={label} />
-    </Field>
+    <div className="flex items-center justify-between gap-2">
+      <span className="text-[11px] font-bold text-ink">{label}</span>
+      <NumStepper value={st[k]} onChange={(v) => setWidgetStyle({ [k]: v })} min={min} max={max} suffix={unit} w={104} label={label} allowNegative={false} />
+    </div>
   );
 
   return (

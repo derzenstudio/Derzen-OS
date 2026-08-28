@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { cx, timeAgo, pct } from "../lib/format";
 import { Ic, type IconName } from "../components/icons";
 import { Badge, Btn, Dot, Toggle } from "../components/ui";
+import { NumStepper } from "../components/controls";
 import { useApp } from "../store";
 import { MODULE_FLAGS, PLATFORM_ENV, type PlatformIntegration } from "../lib/tenants";
 import { WORKSPACE } from "../lib/data";
@@ -315,10 +316,10 @@ function AiControl() {
               <option>concierge-v2</option><option>concierge-v1</option><option>generic-llm-a</option>
             </select>
           </label>
-          <label className="block">
-            <span className="mb-1 block font-mono text-[10px] font-bold uppercase tracking-widest text-white/35">temperature · {aiConfig.temperature.toFixed(2)}</span>
-            <input type="range" min={0} max={1} step={0.05} value={aiConfig.temperature} onChange={(e) => setAiConfig({ temperature: Number(e.target.value) })} className="mt-2 w-full accent-[#0E6B4E]" aria-label="Model temperature" />
-          </label>
+          <div>
+            <span className="mb-1 block font-mono text-[10px] font-bold uppercase tracking-widest text-white/35">temperature</span>
+            <NumStepper value={aiConfig.temperature} onChange={(v) => setAiConfig({ temperature: Math.round(v * 100) / 100 })} min={0} max={1} step={0.05} w={110} label="Model temperature" allowNegative={false} />
+          </div>
         </div>
         <p className="mt-4 mb-2 font-mono text-[10px] font-bold uppercase tracking-widest text-white/35">guardrails — correctness over automation</p>
         <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">

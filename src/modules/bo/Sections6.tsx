@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { cx, money, moneyRaw, dayKey, addDays, today, parseKey } from "../../lib/format";
 import { Ic } from "../../components/icons";
 import { Badge, Btn, Input, Select } from "../../components/ui";
+import { NumStepper } from "../../components/controls";
 import { useApp, type CellOverride } from "../../store";
 import {
   APPS, BOUNDARY_RULES, CONCURRENCY_RULES, DB_INVARIANTS, PACKAGES, RESOLUTION_STEPS,
@@ -334,10 +335,10 @@ export function ResolverView() {
             <span className="mb-1 block text-[9.5px] font-bold uppercase tracking-wider text-white/40">check-in</span>
             <Input type="date" value={start} onChange={(e) => e.target.value && setStart(e.target.value)} className="!bg-[#171714] !text-white" />
           </label>
-          <label className="block">
-            <span className="mb-1 block text-[9.5px] font-bold uppercase tracking-wider text-white/40">nights · {los}</span>
-            <input type="range" min={1} max={14} value={los} onChange={(e) => setLos(Number(e.target.value))} className="mt-2.5 w-full accent-[#2E9E77]" aria-label="Length of stay" />
-          </label>
+          <div>
+            <span className="mb-1 block text-[9.5px] font-bold uppercase tracking-wider text-white/40">nights</span>
+            <NumStepper value={los} onChange={(v) => setLos(v)} min={1} max={14} suffix="nt" w={100} label="Length of stay" allowNegative={false} />
+          </div>
           <label className="block">
             <span className="mb-1 block text-[9.5px] font-bold uppercase tracking-wider text-white/40">adults</span>
             <div className="flex items-center gap-1.5">

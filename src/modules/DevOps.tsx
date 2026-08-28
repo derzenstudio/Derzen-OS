@@ -28,7 +28,7 @@ export default function DevOps() {
   const [tab, setTab] = useState<STab>("roadmap");
   const [navOpen, setNavOpen] = useState(false);
   return (
-    <div className="flex min-h-screen bg-pine-950 text-white">
+    <div className="eng flex min-h-screen bg-pine-950 text-white">
       {navOpen && <div className="fixed inset-0 z-[84] bg-black/55 backdrop-blur-[2px] lg:hidden" onClick={() => setNavOpen(false)} aria-hidden="true" />}
       <aside className={cx("fixed inset-y-0 left-0 z-[85] flex h-screen w-[248px] shrink-0 flex-col border-r border-white/10 bg-[#0a0a09] shadow-2xl transition-transform duration-300 lg:sticky lg:top-0 lg:z-auto lg:w-[228px] lg:translate-x-0 lg:shadow-none", navOpen ? "translate-x-0" : "-translate-x-full")}>
         <div className="border-b border-white/10 px-4 py-4">
@@ -56,7 +56,7 @@ export default function DevOps() {
             <span className="h-1.5 w-1.5 rounded-full bg-[#4CC38A] blink" /> release {RELEASE_TRAIN.current} · canary healthy
           </span>
         </header>
-        <div className="space-y-4 p-6">
+        <div className="bp-grid space-y-4 p-6">
           {tab === "roadmap" && <Roadmap />}
           {tab === "data" && <DataPlatform />}
           {tab === "support" && <Support />}

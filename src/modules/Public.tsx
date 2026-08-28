@@ -126,25 +126,34 @@ export function PublicSite() {
         </div>
       </section>
 
-      {/* Bento: the switchboard */}
-      <section id="product" className="border-t border-line bg-paper/60 py-16">
+      {/* The index — the switchboard, set like a ledger of contents */}
+      <section id="product" className="border-t border-line bg-paper/60 py-20">
         <div className="mx-auto max-w-[1160px] px-5">
-          <div className="mb-8 flex flex-wrap items-end justify-between gap-4">
+          <div className="mb-10 flex flex-wrap items-end justify-between gap-4">
             <div>
-              <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-brand">The switchboard</p>
-              <h2 className="font-display text-[32px] font-extrabold tracking-tight sm:text-[40px]">Eighteen modules. Zero swivel-chair.</h2>
+              <p className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-brand">Index of operations</p>
+              <h2 className="mt-1 font-display text-[38px] font-extrabold uppercase leading-[0.95] tracking-tight sm:text-[48px]">Eighteen modules.<br />Zero swivel-chair.</h2>
             </div>
-            <p className="max-w-[42ch] text-[13.5px] text-mute">Rates you edit once land on six OTAs. A guest message becomes a task becomes an invoice becomes an owner statement, all in one audit chain.</p>
+            <p className="max-w-[42ch] text-[13.5px] leading-relaxed text-mute">Rates you edit once land on six OTAs. A guest message becomes a task becomes an invoice becomes an owner statement, all in one audit chain.</p>
           </div>
-          <div className="grid grid-cols-1 gap-3 md:grid-cols-6">
-            <BentoTile span="md:col-span-4" icon="calendar" title="Multi-calendar with bulk edit" body="Drag across 20 listings × 30 nights, apply rate + min-stay + CTA in one transaction. Pushes queue per channel; failures surface with rollback, never a silent double-sell." tag="Distribution" />
-            <BentoTile span="md:col-span-2" icon="sparkle" title="AI concierge" body="Cites your knowledge base or escalates. Three autopilot modes; humans approve in Suggestion mode." tag="Engage" dark />
-            <BentoTile span="md:col-span-2" icon="chat" title="Unified inbox" body="Airbnb, Booking, WhatsApp, email, threaded to the right reservation in under 10 seconds." tag="Engage" />
-            <BentoTile span="md:col-span-2" icon="wrench" title="Command Center" body="Tasks, checklists with photo proof, provider escalation, offline-first for staff in dead spots." tag="Operate" />
-            <BentoTile span="md:col-span-2" icon="web" title="Direct-booking sites" body="Visual builder, embeddable widgets, quotes that convert to reservations with a payment link." tag="Sell" dark />
-            <BentoTile span="md:col-span-3" icon="trendUp" title="Financials that reconcile" body="ADR, RevPAR, occupancy, owner statements, and every total traces to the transaction ledger. IDR ⇄ USD at timestamped rates." tag="Business" />
-            <BentoTile span="md:col-span-3" icon="lock" title="Smart locks + ID checks" body="Door codes issue at verification, revoke at checkout. Nuki, TTLock, August, Igloohome." tag="Integrations" />
-          </div>
+          <ol className="stagger border-t-2 border-ink">
+            {([
+              ["01", "Multi-calendar, bulk edit", "Drag across 20 listings × 30 nights, apply rate + min-stay + CTA in one transaction. Pushes queue per channel; failures surface with rollback, never a silent double-sell.", "Distribution", false],
+              ["02", "AI concierge", "Cites your knowledge base or escalates. Three autopilot modes; humans approve in Suggestion mode.", "Engage", true],
+              ["03", "Unified inbox", "Airbnb, Booking, WhatsApp, email, threaded to the right reservation in under 10 seconds.", "Engage", false],
+              ["04", "Command Center", "Tasks, checklists with photo proof, provider escalation, offline-first for staff in dead spots.", "Operate", false],
+              ["05", "Direct-booking sites", "Visual builder, embeddable widgets, quotes that convert to reservations with a payment link.", "Sell", false],
+              ["06", "Financials that reconcile", "ADR, RevPAR, occupancy, owner statements; every total traces to the transaction ledger. IDR ⇄ USD at timestamped rates.", "Business", false],
+              ["07", "Smart locks + ID checks", "Door codes issue at verification, revoke at checkout. Nuki, TTLock, August, Igloohome.", "Integrations", false],
+            ] as [string, string, string, string, boolean][]).map(([no, title, body, tag, inverted]) => (
+              <li key={no} className={cx("group grid grid-cols-[52px_1fr] items-baseline gap-x-4 border-b border-line px-2 py-5 transition-colors md:grid-cols-[80px_1fr_1.1fr_110px] md:gap-x-8", inverted ? "border-ink bg-ink text-paper hover:bg-pine-800" : "hover:bg-card")}>
+                <span className={cx("font-mono text-[12px] font-bold tabular-nums transition-colors", inverted ? "text-[#8FE3BF]" : "text-faint group-hover:text-brand")}>{no}</span>
+                <h3 className={cx("font-display text-[24px] font-extrabold uppercase leading-none tracking-tight transition-transform duration-200 group-hover:translate-x-1 md:text-[30px]", inverted ? "text-white" : "text-ink")}>{title}</h3>
+                <p className={cx("col-span-2 mt-2 text-[13px] leading-relaxed md:col-span-1 md:mt-0", inverted ? "text-paper/70" : "text-mute")}>{body}</p>
+                <span className={cx("col-start-2 font-mono text-[9.5px] font-bold uppercase tracking-[0.16em] md:col-start-4 md:text-right", inverted ? "text-paper/50" : "text-faint")}>{tag}</span>
+              </li>
+            ))}
+          </ol>
         </div>
       </section>
 
@@ -175,16 +184,70 @@ export function PublicSite() {
         </div>
       </section>
 
-      {/* Pricing */}
-      <section id="pricing" className="border-t border-line bg-paper/60 py-16">
-        <div className="mx-auto max-w-[1160px] px-5">
-          <h2 className="font-display text-[32px] font-extrabold tracking-tight sm:text-[40px]">Metered per unit, not per seat.</h2>
-          <p className="mt-2 max-w-[52ch] text-[13.5px] text-mute">Active property units and active service units are counted separately. Your whole team logs in free.</p>
-          <div className="mt-8 grid grid-cols-1 items-stretch gap-4 lg:grid-cols-[1fr_1.25fr_1fr]">
-            <PriceCard name="Starter" price="$49" per="/mo" units="up to 3 property units" feats={["Multi-calendar + iCal fast path", "Unified inbox", "Command Center", "1 channel connection", "1,000 AI credits/mo"]} cta={() => navigate("/login")} />
-            <PriceCard featured name="Scale" price="$118" per="/mo" units="up to 15 units + 5 services" feats={["Everything in Starter", "All OTA channels + conflict queue", "AI concierge with autopilot", "Direct-booking sites & widgets", "Quotes, guidebooks & store", "Owner portal & statements", "5,000 AI credits/mo"]} cta={demo} badge="Most operators" />
-            <PriceCard name="Enterprise" price="Custom" per="" units="100+ units, multi-brand" feats={["Dedicated sync workers", "SSO + audit export", "Custom AI guardrails", "Named engineer on sync incidents"]} cta={() => navigate("/login")} />
+      {/* Pricing — set like a rate card, not three equal cards */}
+      <section id="pricing" className="border-t border-line bg-paper/60 py-20">
+        <div className="mx-auto grid max-w-[1160px] grid-cols-1 gap-10 px-5 lg:grid-cols-[1.5fr_1fr]">
+          <div>
+            <p className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-brand">Rate card · 2026</p>
+            <h2 className="mt-1 font-display text-[38px] font-extrabold uppercase leading-[0.95] tracking-tight sm:text-[48px]">Metered per unit,<br />not per seat.</h2>
+            <p className="mt-3 max-w-[52ch] text-[13.5px] leading-relaxed text-mute">Active property units and active service units are counted separately. Your whole team logs in free.</p>
+
+            <div className="mt-8 overflow-x-auto">
+              <table className="w-full min-w-[520px] border-collapse text-left">
+                <thead>
+                  <tr className="border-b-2 border-ink">
+                    <th className="py-2.5 pr-4 font-mono text-[9.5px] font-bold uppercase tracking-[0.16em] text-faint">Plan</th>
+                    <th className="py-2.5 pr-4 font-mono text-[9.5px] font-bold uppercase tracking-[0.16em] text-faint">Units</th>
+                    <th className="py-2.5 pr-4 font-mono text-[9.5px] font-bold uppercase tracking-[0.16em] text-faint">AI credits / mo</th>
+                    <th className="py-2.5 text-right font-mono text-[9.5px] font-bold uppercase tracking-[0.16em] text-faint">Per month</th>
+                  </tr>
+                </thead>
+                <tbody className="font-mono text-[13px] tabular-nums">
+                  <tr className="border-b border-line transition-colors hover:bg-card">
+                    <td className="py-3.5 pr-4"><span className="font-display text-[18px] font-extrabold uppercase text-ink">Starter</span></td>
+                    <td className="py-3.5 pr-4 text-mute">3 properties</td>
+                    <td className="py-3.5 pr-4 text-mute">1,000</td>
+                    <td className="py-3.5 text-right font-bold text-ink">$49</td>
+                  </tr>
+                  <tr className="relative border-b border-line bg-brand-soft/60 transition-colors hover:bg-brand-soft">
+                    <td className="py-3.5 pr-4 shadow-[inset_3px_0_0_var(--color-brand)]">
+                      <span className="font-display text-[18px] font-extrabold uppercase text-ink">Scale</span>
+                      <span className="ml-2 align-middle font-mono text-[8.5px] font-bold uppercase tracking-[0.14em] text-brand-deep">most operators</span>
+                    </td>
+                    <td className="py-3.5 pr-4 text-mute">15 + 5 services</td>
+                    <td className="py-3.5 pr-4 text-mute">5,000</td>
+                    <td className="py-3.5 text-right font-bold text-ink">$118</td>
+                  </tr>
+                  <tr className="border-b border-line transition-colors hover:bg-card">
+                    <td className="py-3.5 pr-4"><span className="font-display text-[18px] font-extrabold uppercase text-ink">Enterprise</span></td>
+                    <td className="py-3.5 pr-4 text-mute">100+, multi-brand</td>
+                    <td className="py-3.5 pr-4 text-mute">custom</td>
+                    <td className="py-3.5 text-right font-bold text-ink">talk</td>
+                  </tr>
+                </tbody>
+              </table>
+              <div className="dbl-rule mt-0" aria-hidden="true" />
+              <p className="mt-2 font-mono text-[10px] text-faint">per-unit metering · proration both directions · channel + gateway fees itemised on every invoice</p>
+            </div>
+
+            <div className="mt-6 flex flex-wrap gap-3">
+              <button onClick={demo} className="btn-grad rounded-sm px-5 py-2.5 text-[13px] font-bold text-white transition-transform hover:-translate-y-0.5">Open the demo workspace</button>
+              <button onClick={() => navigate("/login")} className="rounded-sm border border-ink px-5 py-2.5 text-[13px] font-bold text-ink transition-colors hover:bg-ink hover:text-paper">Compare in product</button>
+            </div>
           </div>
+
+          <aside className="h-fit border border-line bg-card p-6">
+            <p className="font-mono text-[9.5px] font-bold uppercase tracking-[0.18em] text-faint">What every plan carries</p>
+            <ul className="mt-4 space-y-3">
+              {["Multi-calendar + iCal fast path", "Unified inbox & Command Center", "Quotes, guidebooks & store", "Owner portal & statements", "SSO, audit export, DR-tested backups"].map((f) => (
+                <li key={f} className="flex items-start gap-2.5 text-[12.5px] font-medium text-ink">
+                  <span className="mt-[7px] h-[2px] w-3 shrink-0 bg-brand" aria-hidden="true" />{f}
+                </li>
+              ))}
+            </ul>
+            <div className="dbl-rule mt-5" aria-hidden="true" />
+            <p className="mt-3 text-[11.5px] leading-relaxed text-mute">14-day trial, no card. When it ends the product keeps serving your guests; only the console asks for a payment method.</p>
+          </aside>
         </div>
       </section>
 

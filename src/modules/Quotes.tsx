@@ -163,8 +163,8 @@ export default function Quotes() {
                   </tr>
                 ))}
                 <tr>
-                  <td className="py-1.5 text-[12.5px] font-bold">Total</td>
-                  <td className="py-1.5 text-right font-mono text-[13.5px] font-bold" style={brandSync ? { color: brand.primary } : undefined}>{moneyRaw(q.total, q.currency)}</td>
+                  <td className="dbl-rule pt-2.5 text-[12.5px] font-bold">Total</td>
+                  <td className="dbl-rule pt-2.5 text-right font-mono text-[13.5px] font-bold" style={brandSync ? { color: brand.primary } : undefined}>{moneyRaw(q.total, q.currency)}</td>
                 </tr>
               </tbody>
             </table>

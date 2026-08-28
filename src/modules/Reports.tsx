@@ -65,7 +65,7 @@ export default function Reports() {
 
       {tab === "overview" && (
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <div className="stagger grid grid-cols-2 gap-3 lg:grid-cols-4">
             <KPI label="Revenue" value={money(revenue, "EUR")} delta={delta(revenue, prev.revenue)} yoy={yoy} yoyPct={0.18} />
             <KPI label="Costs" value={money(costs, "EUR")} delta={delta(costs, prev.expenses)} yoy={yoy} yoyPct={0.07} invert />
             <KPI label="ADR" value={money(adrEur, "EUR")} delta={delta(adrEur, prev.adr)} yoy={yoy} yoyPct={0.12} />
@@ -204,10 +204,10 @@ export default function Reports() {
 function KPI({ label, value, delta, yoy, yoyPct, invert }: { label: string; value: string; delta: { d: number; up: boolean }; yoy: boolean; yoyPct: number; invert?: boolean }) {
   const good = invert ? !delta.up : delta.up;
   return (
-    <div className="rounded-xl border border-line bg-card p-4">
-      <p className="text-[10px] font-bold uppercase tracking-wider text-mute">{label}</p>
-      <p className="mt-1 font-display text-[22px] font-bold text-ink">{value}</p>
-      <div className="mt-1 flex flex-wrap items-center gap-2">
+    <div className={cx("rounded-xl border border-line bg-card p-4", label === "Revenue" && "dbl-rule")}>
+      <p className="font-mono text-[10px] font-bold uppercase tracking-wider text-mute">{label}</p>
+      <p className="mt-1 font-display text-[30px] font-extrabold leading-none tracking-tight text-ink tabular-nums">{value}</p>
+      <div className="mt-2 flex flex-wrap items-center gap-2">
         <span className={cx("flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[10px] font-bold", good ? "bg-brand-soft text-brand-deep" : "bg-danger-soft text-danger")}>
           <Ic name={delta.up ? "trendUp" : "trendDown"} size={10} /> {pct(Math.abs(delta.d))} vs prior period
         </span>

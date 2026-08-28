@@ -170,7 +170,7 @@ function Topbar({ title, sub, onMenu }: { title: string; sub?: string; onMenu: (
         <button onClick={() => { logout(); }} className="ml-auto rounded-md bg-brand px-2.5 py-1 text-[11px] font-bold text-white hover:bg-brand-deep">Return to console</button>
       </div>
     )}
-    <header className="relative flex h-[58px] shrink-0 items-center gap-3 border-b border-line/70 bg-card/85 px-4 backdrop-blur md:px-6">
+    <header className="ticks relative flex h-[58px] shrink-0 items-center gap-3 bg-card/85 px-4 backdrop-blur md:px-6">
       <button onClick={onMenu} aria-label="Open navigation" className="flex h-8 w-8 items-center justify-center rounded-sm text-mute transition-colors hover:bg-paper hover:text-ink lg:hidden">
         <Ic name="menu" size={17} />
       </button>

@@ -79,11 +79,13 @@ export function StatusChip({ status }: { status: ResStatus }) {
   return <Badge tone={s.tone}>{s.label}</Badge>;
 }
 
+// One ramp: wash → ink. Gold is reserved for money, red for broken things —
+// so urgency climbs in weight, not in hue.
 export const PRIORITY: Record<Priority, { label: string; cls: string }> = {
-  low: { label: "Low", cls: "bg-black/5 text-mute" },
-  medium: { label: "Medium", cls: "bg-sea-soft text-sea" },
-  high: { label: "High", cls: "bg-gold-soft text-[#8a5c07]" },
-  urgent: { label: "Urgent", cls: "bg-[#F3D1C8] text-[#93331f]" },
+  low: { label: "Low", cls: "bg-ink/[0.05] text-mute" },
+  medium: { label: "Medium", cls: "bg-ink/10 text-ink" },
+  high: { label: "High", cls: "bg-ink/80 text-paper" },
+  urgent: { label: "Urgent", cls: "bg-ink text-paper" },
   emergency: { label: "Emergency", cls: "bg-danger text-white" },
 };
 export function PriorityChip({ p }: { p: Priority }) {

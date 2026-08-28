@@ -424,6 +424,82 @@ input[type="range"] {
   border-width: 0 2px 2px 0;
 }
 
+/* ── Engineering consoles: paper + blueprint (Backoffice stays the dark
+     control room — two rooms, not one duplicated) ─────────────────────── */
+.eng {
+  background: var(--color-paper);
+  color: var(--color-ink);
+}
+.eng.text-white { color: var(--color-ink); background: var(--color-paper); }
+.eng .bg-pine-950, .eng .bg-\[\#0a0a09\], .eng .bg-pine-900 { background: var(--color-surface); }
+.eng .bg-\[\#0d0d0b\], .eng .bg-pine-800 { background: var(--color-card); }
+.eng .bg-white\/5, .eng .bg-white\/\[0\.02\], .eng .bg-white\/\[0\.03\], .eng .bg-white\/\[0\.04\] { background: color-mix(in srgb, var(--color-ink) 4%, transparent); }
+.eng .bg-white\/10 { background: var(--color-line); }
+.eng .bg-\[\#1c0f0f\], .eng .bg-\[\#120909\], .eng .bg-\[\#3d1f1f\] { background: var(--color-danger-soft); }
+.eng .bg-\[\#2a2113\], .eng .bg-\[\#3a3320\] { background: var(--color-gold-soft); }
+.eng .bg-\[\#1d3527\] { background: var(--color-brand-soft); }
+.eng .border-white\/10 { border-color: var(--color-line); }
+.eng .border-white\/15 { border-color: var(--color-line2); }
+.eng .border-\[\#4CC38A\]\/50, .eng .border-\[\#4CC38A\]\/40 { border-color: color-mix(in srgb, var(--color-brand) 50%, transparent); }
+.eng .border-\[\#e2a33c\]\/60, .eng .border-\[\#e2a33c\]\/50 { border-color: color-mix(in srgb, var(--color-gold) 55%, transparent); }
+.eng .border-\[\#5a2020\] { border-color: color-mix(in srgb, var(--color-danger) 40%, transparent); }
+.eng .divide-white\/5, .eng .divide-white\/10 { border-color: var(--color-line); }
+.eng .text-white\/50, .eng .text-white\/55, .eng .text-white\/60 { color: var(--color-mute); }
+.eng .text-white\/30, .eng .text-white\/35, .eng .text-white\/40, .eng .text-white\/45 { color: var(--color-faint); }
+.eng .text-pine-100 { color: var(--color-ink); }
+.eng .text-pine-200\/70, .eng .text-pine-200\/60, .eng .text-pine-200\/50 { color: var(--color-faint); }
+.eng .text-\[\#4CC38A\] { color: var(--color-brand); }
+.eng .text-\[\#e2a33c\] { color: var(--color-gold); }
+.eng .text-\[\#f08c8c\] { color: var(--color-danger); }
+.eng .text-brand-bright { color: var(--color-brand-deep); }
+/* keep white type where it sits on solid colour */
+.eng :is(.bg-brand, .btn-grad, .bg-\[\#0E6B4E\], .bg-\[\#B42318\], .bg-\[\#4CC38A\]).text-white { color: #fff; }
+.eng .bg-brand .text-white, .eng .btn-grad .text-white { color: #fff; }
+.eng .hover\:bg-white\/5:hover, .eng .hover\:bg-white\/10:hover { background: var(--color-line); }
+.eng .hover\:text-white:hover { color: var(--color-ink); }
+.eng .hover\:border-white\/25:hover { border-color: var(--color-brand); }
+/* drafting-table grid on the working area */
+.eng .bp-grid {
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--color-line) 60%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--color-line) 60%, transparent) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+/* Ledger double rule — the accountant's total line */
+.dbl-rule {
+  border: 0;
+  border-top: 3px double color-mix(in srgb, var(--color-ink) 65%, transparent);
+}
+
+/* Draftsman's measurement ticks along a surface's bottom edge */
+.ticks { position: relative; }
+.ticks::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: -1px;
+  height: 6px;
+  pointer-events: none;
+  background-image: repeating-linear-gradient(90deg, var(--color-line2) 0 1px, transparent 1px 10px);
+  opacity: 0.75;
+}
+
+/* Rows reveal in sequence, not all at once */
+.stagger > * { animation: rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.stagger > *:nth-child(1) { animation-delay: 0ms; }
+.stagger > *:nth-child(2) { animation-delay: 30ms; }
+.stagger > *:nth-child(3) { animation-delay: 60ms; }
+.stagger > *:nth-child(4) { animation-delay: 90ms; }
+.stagger > *:nth-child(5) { animation-delay: 120ms; }
+.stagger > *:nth-child(6) { animation-delay: 150ms; }
+.stagger > *:nth-child(7) { animation-delay: 180ms; }
+.stagger > *:nth-child(8) { animation-delay: 210ms; }
+.stagger > *:nth-child(9) { animation-delay: 240ms; }
+.stagger > *:nth-child(10) { animation-delay: 270ms; }
+.stagger > *:nth-child(11) { animation-delay: 300ms; }
+.stagger > *:nth-child(12) { animation-delay: 330ms; }
+.stagger > *:nth-child(n + 13) { animation-delay: 360ms; }
+
 /* Inline-editor placeholder while a contentEditable field is empty */
 [contenteditable="true"].et-edit:empty::before,
 [contenteditable="true"].et-edit[data-ph]:empty::before {

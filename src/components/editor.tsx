@@ -9,8 +9,27 @@ import { PROPERTIES, propertyById } from "../lib/data";
 // re-writes the text node (which would reset the caret on every keystroke).
 // Typing commits live via onInput; external updates sync only when unfocused.
 const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, "<br/>");
-/** Content strings may hold light formatting HTML (<b>, <i>, <font>, <br>) — render as-is; plain text gets escaped. */
-export const toHtml = (s: string) => (/<[a-z!/]/i.test(s) ? s : esc(s));
+/**
+ * Sanitiser for inline editor content. Allows only typographic tags and strips
+ * every attribute except a safe `color`/`style:color` pair — so pasted or typed
+ * markup (e.g. <img onerror>, <script>, javascript: hrefs) can never execute on
+ * the canvas OR on the guest-facing published site.
+ */
+const ALLOWED = /<\/?(b|i|u|em|strong|br|font|span|div|p)\b[^>]*>/gi;
+export const sanitizeHtml = (s: string) =>
+  s.replace(/<[^>]*>/g, (tag) => {
+    const m = tag.match(/^<\/?\s*([a-z0-9]+)/i);
+    const name = m?.[1]?.toLowerCase() ?? "";
+    if (!["b", "i", "u", "em", "strong", "br", "font", "span", "div", "p"].includes(name)) return "";
+    const closing = tag.startsWith("</");
+    const color = tag.match(/(?:color\s*[:=]\s*["']?\s*(#[0-9a-f]{3,8}|[a-z]+))/i)?.[1];
+    if (closing) return `</${name}>`;
+    if (name === "br") return "<br/>";
+    return color ? `<${name} style="color:${color}">` : `<${name}>`;
+  });
+void ALLOWED;
+/** Content strings may hold light formatting HTML — sanitised, never rendered raw. */
+export const toHtml = (s: string) => (/<[a-z!/]/i.test(s) ? sanitizeHtml(s) : esc(s));
 /** Read a contentEditable node as storable HTML; empty normalises to "". */
 const readHtml = (el: HTMLElement | null) => {
   if (!el) return "";

@@ -7,6 +7,7 @@ import { NumStepper, ColorField } from "../components/controls";
 import { useApp, DEFAULT_BLOCK_STYLE } from "../store";
 import { COLLECTIONS, PROPERTIES, propertyById, SERVICES } from "../lib/data";
 import { embedJsSnippet, embedIframeSnippet, widgetCssVars } from "../lib/widgetTheme";
+import { ChatbotPreview } from "./ChatWidget";
 import { defaultBlockContent, parseQA, parseCSV, parseLines, CONTENT_SCHEMA, type ContentField } from "../lib/blockContent";
 import type { Block, BlockStyle, SiteLink } from "../lib/types";
 
@@ -739,9 +740,9 @@ function MetricCard({ label, value, series, color = "#0E6B4E" }: { label: string
 
 // ── Embeddable widgets ────────────────────────────────────────────────────
 function Embeds() {
-  const { widgetStyle: st, setWidgetStyle, toast } = useApp();
+  const { widgetStyle: st, setWidgetStyle, toast, navigate } = useApp();
   const [copied, setCopied] = useState("");
-  const [widget, setWidget] = useState<"search" | "calendar">("search");
+  const [widget, setWidget] = useState<"search" | "calendar" | "chatbot">("search");
   const [propId, setPropId] = useState(PROPERTIES[0].id);
   const copy = (key: string, text: string) => { copyText(text); setCopied(key); toast("ok", "Embed code copied", "Auto-resizing — the widget grows with its content, never clipped."); setTimeout(() => setCopied(""), 1500); };
 
@@ -804,6 +805,7 @@ function Embeds() {
             <div className="ml-auto flex items-center rounded-sm border border-line bg-paper p-0.5">
               <button onClick={() => setWidget("search")} className={cx("rounded-sm px-2.5 py-1 text-[11px] font-bold", widget === "search" ? "bg-pine-900 text-white" : "text-mute")}>Search</button>
               <button onClick={() => setWidget("calendar")} className={cx("rounded-sm px-2.5 py-1 text-[11px] font-bold", widget === "calendar" ? "bg-pine-900 text-white" : "text-mute")}>Calendar</button>
+              <button onClick={() => setWidget("chatbot")} className={cx("flex items-center gap-1 rounded-sm px-2.5 py-1 text-[11px] font-bold", widget === "chatbot" ? "bg-pine-900 text-white" : "text-mute")}><Ic name="chat" size={11} /> Concierge chatbot</button>
             </div>
             <Select value={propId} onChange={(e) => setPropId(e.target.value)} className="!w-[160px]" aria-label="Widget property">
               {PROPERTIES.filter((p) => !p.archived).map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
@@ -813,7 +815,7 @@ function Embeds() {
           <div className="rounded-sm border-2 border-dashed border-line2 bg-[#eef0ea] p-4">
             <p className="mb-2 font-mono text-[9px] font-bold uppercase tracking-widest text-faint">yourwebsite.com · hostile CSS framework loaded · widget below</p>
             <div style={{ fontSize: st.fontSize, fontFamily: st.fontFamily || undefined, color: st.text, background: st.bg, border: `${st.borderW}px solid ${st.borderColor}`, borderRadius: st.radius, padding: st.pad, transition: "all .2s" }}>
-              {widget === "search" ? <SearchWidgetPreview st={st} /> : <CalendarWidgetPreview st={st} propId={propId} />}
+              {widget === "search" ? <SearchWidgetPreview st={st} /> : widget === "calendar" ? <CalendarWidgetPreview st={st} propId={propId} /> : <ChatbotPreview st={st} onBooked={(ref) => navigate(`/pay/${ref}`)} />}
             </div>
             <p className="mt-2 text-center font-mono text-[9px] text-faint">↑ open the date picker — the frame height grew with it, nothing was cut off</p>
           </div>

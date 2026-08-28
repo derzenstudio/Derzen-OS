@@ -24,6 +24,7 @@ import GlobalStyling from "./modules/GlobalStyling";
 import Reports from "./modules/Reports";
 import SettingsModule from "./modules/Settings";
 import Integrations from "./modules/Integrations";
+import { PaymentPage } from "./modules/ChatWidget";
 import { Btn } from "./components/ui";
 import { Ic } from "./components/icons";
 import { SURFACE, SURFACE_LABELS, SURFACE_URLS, type Surface } from "./lib/surface";
@@ -132,6 +133,9 @@ export default function App() {
     if (f.headingFamily) rootStyle.setProperty("--tenant-heading", f.headingFamily);
     if (f.bodyFamily) rootStyle.setProperty("--tenant-body", f.bodyFamily);
   }, [sessionState, tenantFonts]);
+
+  // ── guest-facing hosted payment page (public — reachable from the chatbot embed) ──
+  if (route.path[0] === "pay") return <PaymentPage refCode={route.path[1] ?? ""} />;
 
   // ── public surface ──
   if (!session) {

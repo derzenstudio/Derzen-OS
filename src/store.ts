@@ -17,7 +17,7 @@ export const DEFAULT_BLOCK_STYLE: BlockStyle = {
 import {
   ACTION_ITEMS, AUDIT, CONFLICTS, CONVERSATIONS, EXPENSES, GUIDEBOOKS, ISSUES, MEMBERS,
   MSG_QUEUE, ONBOARD_STEPS, PROPERTIES, QUOTES, RESERVATIONS, REVIEWS, SYNC, TASKS,
-  WEBHOOKS, WEBSITE, WORKSPACE, channelDef, propertyById, FX_TO_EUR, COLLECTIONS,
+  WEBHOOKS, WEBSITE, WORKSPACE, channelDef, propertyById, FX_TO_EUR, COLLECTIONS, GUESTS,
 } from "./lib/data";
 import { setDisplayCurrency, refreshFx, type CurrencyCode } from "./lib/fx";
 import { compressImage, readLibrary, writeLibrary, QUOTA_BYTES, type PhotoEntry } from "./lib/photoStore";
@@ -727,6 +727,15 @@ export const useApp = create<App>((set, get) => ({
   },
   chatBooking: (input) => {
     const p = propertyById(input.propertyId);
+    // register the walk-in chat guest once so every lookup resolves
+    if (!GUESTS.some((g) => g.id === "g-chat")) {
+      GUESTS.push({
+        id: "g-chat", name: "Walk-in guest (chatbot)", emails: [], phones: [], country: "Unknown",
+        status: "active", lastActivityTs: Date.now(), lastSource: "web", lifetimeSpend: 0,
+        tags: ["chatbot"], notes: "Created by the embedded concierge widget.", consentMarketing: false,
+        aliases: [], verifiedId: false,
+      });
+    }
     const base = p.pricing.plans.find((pl) => pl.kind === "base")?.nightly ?? 3_500_000;
     const nights = Math.max(1, Math.round((+new Date(input.to) - +new Date(input.from)) / 86_400_000));
     const subtotal = base * nights;
@@ -1202,6 +1211,8 @@ export const useApp = create<App>((set, get) => ({
     };
     const seeded = otaSeedPhotos(id, [prop, ...get().properties]);
     writeLibrary(id, seeded);
+    // register in the shared lookup source so propertyById()/planFor() resolve it everywhere
+    if (!PROPERTIES.some((x) => x.id === id)) PROPERTIES.push(prop);
     get().markPending("Listings");
     set((st) => ({
       properties: [...st.properties, prop],

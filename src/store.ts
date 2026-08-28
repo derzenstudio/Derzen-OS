@@ -11,8 +11,11 @@ import { DEFAULT_BRAND, applyBrand, type BrandState } from "./lib/brand";
 import { defaultBlockContent } from "./lib/blockContent";
 import type { InvoiceTemplate, EmailTemplate } from "./lib/types";
 
+// Flush by default so every block fills the full frame edge-to-edge.
+// Text-heavy blocks add their own inner gutter inside BlockView; image,
+// hero and banner blocks deliberately bleed to the canvas edges.
 export const DEFAULT_BLOCK_STYLE: BlockStyle = {
-  width: "full", py: 28, px: 24, mt: 0, mb: 0, bg: "", color: "", scale: 1, align: "left", radius: 3,
+  width: "full", py: 0, px: 0, mt: 0, mb: 0, bg: "", color: "", scale: 1, align: "left", radius: 3,
 };
 import {
   ACTION_ITEMS, AUDIT, CONFLICTS, CONVERSATIONS, EXPENSES, GUIDEBOOKS, ISSUES, MEMBERS,

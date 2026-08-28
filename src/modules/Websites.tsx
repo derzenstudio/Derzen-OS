@@ -537,25 +537,27 @@ function ChromeStrip({ target, selected, onSelect }: { target: "header" | "foote
     <div className="rounded-sm px-4 py-3" style={{ background: bg, color: fg, textAlign: siteChrome.align }}>
       <div className={cx("flex flex-wrap items-center gap-x-4 gap-y-2", siteChrome.align === "center" && "justify-center", siteChrome.align === "right" && "justify-end")}>
         {isHeader && siteChrome.logoMode !== "none" && (
-          <span className="group/logo relative flex items-center gap-2">
+          <span className="group/logo relative flex items-center gap-1.5">
             {siteChrome.logoMode === "image"
               ? <EditableImage src={siteChrome.logoUrl} onCommit={(v) => setSiteChrome({ logoUrl: v, logoMode: "image" })} className="rounded-sm" style={{ height: siteChrome.logoSize, width: siteChrome.logoSize }} alt="Logo" />
               : <EditableText as="span" value={siteChrome.logoText} onCommit={(v) => setSiteChrome({ logoText: v })} style={{ fontSize: Math.max(13, siteChrome.logoSize * 0.62) }} className="font-display font-bold uppercase tracking-wide" placeholder="Logo" />}
             <button
               onClick={(e) => { e.stopPropagation(); setSiteChrome({ logoMode: "none" }); }}
-              className="absolute -right-2 -top-2 hidden h-4 w-4 items-center justify-center rounded-full bg-pine-950/80 text-white group-hover/logo:flex"
-              aria-label="Remove logo" title="Remove logo (restore from the chrome panel)"
-            ><Ic name="x" size={9} sw={3} /></button>
+              className="flex h-4.5 w-4.5 shrink-0 items-center justify-center rounded-full bg-white/95 text-pine-950 shadow ring-1 ring-black/20 transition-transform hover:scale-110"
+              style={{ height: 18, width: 18 }}
+              aria-label="Remove logo" title="Remove logo — restore it from the Header & footer panel"
+            ><Ic name="x" size={10} sw={3} /></button>
           </span>
         )}
         {isHeader && siteChrome.taglineVisible && (
-          <span className="group/tag relative inline-flex items-center">
-            <EditableText as="span" value={siteChrome.tagline} onCommit={(v) => setSiteChrome({ tagline: v })} className="hidden text-[10.5px] opacity-70 sm:inline" placeholder="Tagline" />
+          <span className="group/tag inline-flex items-center gap-1.5">
+            <EditableText as="span" value={siteChrome.tagline} onCommit={(v) => setSiteChrome({ tagline: v })} className="text-[10.5px] opacity-70" placeholder="Tagline" />
             <button
               onClick={(e) => { e.stopPropagation(); setSiteChrome({ taglineVisible: false }); }}
-              className="absolute -right-2 -top-2 hidden h-4 w-4 items-center justify-center rounded-full bg-pine-950/80 text-white group-hover/tag:flex"
-              aria-label="Remove tagline" title="Hide tagline (restore from the chrome panel)"
-            ><Ic name="x" size={9} sw={3} /></button>
+              className="flex shrink-0 items-center justify-center rounded-full bg-white/95 text-pine-950 shadow ring-1 ring-black/20 transition-transform hover:scale-110"
+              style={{ height: 18, width: 18 }}
+              aria-label="Remove tagline" title="Remove tagline — restore it from the Header & footer panel"
+            ><Ic name="x" size={10} sw={3} /></button>
           </span>
         )}
         <nav className="flex flex-wrap items-center gap-1" aria-label={`${target} menu`}>
@@ -805,7 +807,8 @@ function BlockView({ b, edit = false, onContent }: { b: Block; edit?: boolean; o
         mixBlendMode: (s.blend as React.CSSProperties["mixBlendMode"]) || undefined,
       }}
     >
-      <div className={cx(!s.bg && "px-1")}>{inner}</div>
+      {/* Visual blocks bleed edge-to-edge; text/content blocks keep a readable gutter */}
+      <div className={cx(["hero", "image", "gallery"].includes(b.type) ? "" : "px-4 py-4 sm:px-6")}>{inner}</div>
     </div>
   );
 }

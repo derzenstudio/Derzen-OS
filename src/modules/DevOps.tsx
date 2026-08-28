@@ -358,7 +358,7 @@ function Engineering() {
         </div>
       </Panel>
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-        <Panel title="DR drills — scheduled, executed, written down" right={<Btn size="xs" variant="ghost" className="!text-white/70" icon="history" onClick={() => toast("info", "Next drill booked", "Apr 28 — per-tenant PITR for Ambara")}>Schedule next</Btn>}>
+        <Panel title="DR drills — scheduled, executed, written down" right={<Btn size="xs" variant="ghost" className="text-white/70" icon="history" onClick={() => toast("info", "Next drill booked", "Apr 28 — per-tenant PITR for Ambara")}>Schedule next</Btn>}>
           {DR_DRILLS.map((d) => (
             <div key={d.id} className="mb-2 rounded-lg border border-white/10 px-3 py-2.5">
               <p className="text-[12px] font-bold text-white/85">{d.what}</p>

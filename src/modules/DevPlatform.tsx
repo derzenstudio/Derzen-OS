@@ -58,8 +58,8 @@ function Queue({ title, items, tone, onInspect }: { title: string; items: OpsIte
           </div>
           <span className="font-mono text-[10px] text-white/35">{timeAgo(q.since)}</span>
           <div className="flex gap-1.5">
-            {onInspect && <Btn size="xs" variant="ghost" className="!text-white/70" icon="eye" onClick={onInspect}>Inspect</Btn>}
-            <Btn size="xs" variant="ghost" className="!text-white/70" icon="refresh" onClick={() => { setList(list.filter((x) => x.id !== q.id)); toast("ok", "Requeued with fresh idempotency key", q.label); }}>Requeue</Btn>
+            {onInspect && <Btn size="xs" variant="ghost" className="text-white/70" icon="eye" onClick={onInspect}>Inspect</Btn>}
+            <Btn size="xs" variant="ghost" className="text-white/70" icon="refresh" onClick={() => { setList(list.filter((x) => x.id !== q.id)); toast("ok", "Requeued with fresh idempotency key", q.label); }}>Requeue</Btn>
           </div>
         </div>
       ))}
@@ -94,7 +94,7 @@ export function Inspector() {
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
-        <Select value={kind} onChange={(ev) => setKind(ev.target.value)} className="!w-[180px] !bg-[#171714] !text-white !border-white/15" aria-label="Entity kind">
+        <Select value={kind} onChange={(ev) => setKind(ev.target.value)} className="!w-[180px] bg-[#171714] text-white border-white/15" aria-label="Entity kind">
           <option value="reservation">Reservation</option><option value="listing">Listing</option><option value="conversation">Conversation</option><option value="rateplan">Rate plan</option>
         </Select>
         <code className="rounded-md border border-white/15 bg-[#171714] px-3 py-2 font-mono text-[11.5px] font-bold text-white">{e.ref}</code>
@@ -233,11 +233,11 @@ export function TenantDetail({ tenantId, onBack }: { tenantId: string; onBack: (
 
         <Panel title="Action panel — graduated privileges" note="permissioned · reason-required · rate-limited · audited · reversible where possible">
           <div className="flex flex-wrap gap-2">
-            <Btn size="sm" variant="ghost" className="!text-white/75" icon="refresh" onClick={() => setAction({ label: "Retry all channel syncs", destructive: false })}>Retry syncs</Btn>
-            <Btn size="sm" variant="ghost" className="!text-white/75" icon="clock" onClick={() => setAction({ label: "Extend trial +14 days", destructive: false })}>Extend trial</Btn>
-            <Btn size="sm" variant="ghost" className="!text-white/75" icon="grid" onClick={() => setAction({ label: "Adjust billable unit count", destructive: false })}>Adjust units</Btn>
-            <Btn size="sm" variant="ghost" className="!text-white/75" icon="sparkle" onClick={() => setAction({ label: "Force knowledge-base reindex", destructive: false })}>Reindex KB</Btn>
-            <Btn size="sm" variant="ghost" className="!text-white/75" icon="key" onClick={() => setAction({ label: "Rotate tenant API keys", destructive: true })}>Rotate API keys</Btn>
+            <Btn size="sm" variant="ghost" className="text-white/75" icon="refresh" onClick={() => setAction({ label: "Retry all channel syncs", destructive: false })}>Retry syncs</Btn>
+            <Btn size="sm" variant="ghost" className="text-white/75" icon="clock" onClick={() => setAction({ label: "Extend trial +14 days", destructive: false })}>Extend trial</Btn>
+            <Btn size="sm" variant="ghost" className="text-white/75" icon="grid" onClick={() => setAction({ label: "Adjust billable unit count", destructive: false })}>Adjust units</Btn>
+            <Btn size="sm" variant="ghost" className="text-white/75" icon="sparkle" onClick={() => setAction({ label: "Force knowledge-base reindex", destructive: false })}>Reindex KB</Btn>
+            <Btn size="sm" variant="ghost" className="text-white/75" icon="key" onClick={() => setAction({ label: "Rotate tenant API keys", destructive: true })}>Rotate API keys</Btn>
             <Btn size="sm" variant="danger" icon="trash" onClick={() => setAction({ label: "PURGE tenant data", destructive: true })}>Purge tenant</Btn>
           </div>
           {log.length > 0 && (
@@ -310,18 +310,18 @@ export function AnnouncementsPanel() {
       </Panel>
       <Panel title="Compose" note="preview before publish · forced-ack notices block until confirmed">
         <div className="space-y-2.5">
-          <Input value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} placeholder="Notice title" className="!bg-[#171714] !text-white !border-white/15" />
-          <Textarea value={draft.body} onChange={(e) => setDraft({ ...draft, body: e.target.value })} placeholder="What is changing, when, and what tenants need to do…" className="!min-h-[90px] !bg-[#171714] !text-white !border-white/15" />
+          <Input value={draft.title} onChange={(e) => setDraft({ ...draft, title: e.target.value })} placeholder="Notice title" className="bg-[#171714] text-white border-white/15" />
+          <Textarea value={draft.body} onChange={(e) => setDraft({ ...draft, body: e.target.value })} placeholder="What is changing, when, and what tenants need to do…" className="!min-h-[90px] bg-[#171714] text-white border-white/15" />
           <div className="grid grid-cols-2 gap-2">
-            <Select value={draft.targeting} onChange={(e) => setDraft({ ...draft, targeting: e.target.value })} className="!bg-[#171714] !text-white !border-white/15" aria-label="Targeting">
+            <Select value={draft.targeting} onChange={(e) => setDraft({ ...draft, targeting: e.target.value })} className="bg-[#171714] text-white border-white/15" aria-label="Targeting">
               {["All tenants", "Scale + Enterprise", "Trial tenants", "Tenants with Agoda live", "Custom list…"].map((x) => <option key={x}>{x}</option>)}
             </Select>
-            <Select value={draft.severity} onChange={(e) => setDraft({ ...draft, severity: e.target.value })} className="!bg-[#171714] !text-white !border-white/15" aria-label="Severity">
+            <Select value={draft.severity} onChange={(e) => setDraft({ ...draft, severity: e.target.value })} className="bg-[#171714] text-white border-white/15" aria-label="Severity">
               <option value="notice">notice</option><option value="changelog">changelog</option><option value="ack-required">forced ack</option>
             </Select>
           </div>
           <div className="flex gap-2">
-            <Btn variant="ghost" className="!text-white/70" onClick={() => toast("info", "Preview rendered", "Shown as each tenant's banner + inbox card.")}>Preview</Btn>
+            <Btn variant="ghost" className="text-white/70" onClick={() => toast("info", "Preview rendered", "Shown as each tenant's banner + inbox card.")}>Preview</Btn>
             <Btn variant="solid" icon="send" disabled={!draft.title || !draft.body} onClick={() => { setList([{ id: `an-${Date.now()}`, ...draft, state: "scheduled", when: "queued" }, ...list]); setDraft({ title: "", body: "", targeting: "All tenants", severity: "notice" }); toast("ok", "Notice scheduled", "Delivery begins in the next sync window."); }}>Schedule</Btn>
           </div>
         </div>
@@ -380,9 +380,9 @@ export function LifecyclePanel() {
           <Panel title="Sandbox generator" note="one command → realistic tenant for demos, E2E, load tests, new-engineer onboarding. Never real guest data outside production.">
             <div className="grid grid-cols-2 gap-3">
               <label className="block"><span className="mb-1 block font-mono text-[10px] font-bold uppercase text-white/35">properties</span>
-                <Input type="number" value={gen.properties} onChange={(e) => setGen({ ...gen, properties: Number(e.target.value) })} className="!bg-[#171714] !text-white !border-white/15" /></label>
+                <Input type="number" value={gen.properties} onChange={(e) => setGen({ ...gen, properties: Number(e.target.value) })} className="bg-[#171714] text-white border-white/15" /></label>
               <label className="block"><span className="mb-1 block font-mono text-[10px] font-bold uppercase text-white/35">months of history</span>
-                <Input type="number" value={gen.months} onChange={(e) => setGen({ ...gen, months: Number(e.target.value) })} className="!bg-[#171714] !text-white !border-white/15" /></label>
+                <Input type="number" value={gen.months} onChange={(e) => setGen({ ...gen, months: Number(e.target.value) })} className="bg-[#171714] text-white border-white/15" /></label>
             </div>
             {running && <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full bg-brand-bright transition-all" style={{ width: `${prog}%` }} /></div>}
             <Btn className="mt-3" variant="solid" icon="sparkle" disabled={running} onClick={generate}>{running ? `seeding ${prog}%…` : "Generate sandbox tenant"}</Btn>
@@ -394,8 +394,8 @@ export function LifecyclePanel() {
                 <p className="flex items-center gap-2 text-[12px] font-bold text-white/85"><Badge tone={j.kind === "merge" ? "info" : "warn"}>{j.kind}</Badge> {j.from}</p>
                 <p className="mt-0.5 font-mono text-[10px] text-white/40">{j.rows} · {j.state} · by {j.by}</p>
                 <div className="mt-1.5 flex gap-2">
-                  <Btn size="xs" variant="ghost" className="!text-white/70" onClick={() => toast("ok", "Dry run complete", "Diff preview attached to the job · no rows touched.")}>Dry run</Btn>
-                  <Btn size="xs" variant="ghost" className="!text-white/70" onClick={() => toast("info", "Scheduled for 02:00 UTC", "Runs inside a maintenance window with rollback plan.")}>Schedule</Btn>
+                  <Btn size="xs" variant="ghost" className="text-white/70" onClick={() => toast("ok", "Dry run complete", "Diff preview attached to the job · no rows touched.")}>Dry run</Btn>
+                  <Btn size="xs" variant="ghost" className="text-white/70" onClick={() => toast("info", "Scheduled for 02:00 UTC", "Runs inside a maintenance window with rollback plan.")}>Schedule</Btn>
                 </div>
               </div>
             ))}
@@ -427,7 +427,7 @@ export function BillingPanel() {
                   <td className="py-2.5 pr-3 text-[11px] text-white/60">{p.units}</td>
                   <td className="py-2.5 pr-3 font-mono text-[11px] text-white/80">{p.tenants}</td>
                   <td className="py-2.5 pr-3">{p.grandfathered ? <Badge tone="warn">{p.grandfathered} on older terms</Badge> : <span className="text-white/30">—</span>}</td>
-                  <td className="py-2.5 text-right"><Btn size="xs" variant="ghost" className="!text-white/60" onClick={() => toast("info", "Migration planner", `Preview moving ${p.grandfathered} tenants to ${p.version} with notice period.`)}>Migrate</Btn></td>
+                  <td className="py-2.5 text-right"><Btn size="xs" variant="ghost" className="text-white/60" onClick={() => toast("info", "Migration planner", `Preview moving ${p.grandfathered} tenants to ${p.version} with notice period.`)}>Migrate</Btn></td>
                 </tr>
               ))}
             </tbody>
@@ -645,7 +645,7 @@ export function ChannelPlatform() {
                   <td className="px-1.5 py-2 text-right font-mono text-[10px] text-white/45">{o.rate}</td>
                   <td className="px-1.5 py-2"><span className={cx("rounded px-1.5 py-0.5 font-mono text-[8.5px] font-bold uppercase", o.circuit === "closed" ? "bg-[#1d3527] text-[#4CC38A]" : o.circuit === "OPEN" ? "bg-[#3d1f1f] text-[#f08c8c] dot-pulse" : "bg-[#3a3320] text-[#e2a33c]")}>{o.circuit}</span></td>
                   <td className="px-1.5 py-2 text-right font-mono text-[10.5px] text-white/60">{o.dlq}</td>
-                  <td className="px-1.5 py-2 text-right">{o.dlq > 0 && <Btn size="xs" variant="ghost" className="!text-white/60" onClick={() => toast("ok", `${o.dlq} dead-lettered pushes requeued`, "Fresh idempotency keys · duplicates suppressed.")}>Requeue DLQ</Btn>}</td>
+                  <td className="px-1.5 py-2 text-right">{o.dlq > 0 && <Btn size="xs" variant="ghost" className="text-white/60" onClick={() => toast("ok", `${o.dlq} dead-lettered pushes requeued`, "Fresh idempotency keys · duplicates suppressed.")}>Requeue DLQ</Btn>}</td>
                 </tr>
               ))}
             </tbody>

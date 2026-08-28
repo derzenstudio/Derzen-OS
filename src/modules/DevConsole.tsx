@@ -279,7 +279,7 @@ function IntegrationCard({ i, busy, onCheck, onPatch, toast }: { i: PlatformInte
         </p>
       )}
       <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-white/10 pt-3">
-        <Btn size="xs" variant="ghost" icon={busy ? "refresh" : "pulse"} onClick={onCheck} disabled={busy} className="!text-white/70">{busy ? "checking…" : "Health check"}</Btn>
+        <Btn size="xs" variant="ghost" icon={busy ? "refresh" : "pulse"} onClick={onCheck} disabled={busy} className="text-white/70">{busy ? "checking…" : "Health check"}</Btn>
         {i.status !== "missing" && (
           <button onClick={() => { const next = i.status === "live" ? "sandbox" : "live"; onPatch({ status: next }); toast(next === "live" ? "ok" : "warn", `${i.name} → ${next}`, next === "live" ? "Tenants can now connect and sync." : "Tenant connections paused; queues draining."); }} className={cx("rounded-md border px-2.5 py-1 font-mono text-[10px] font-bold", i.status === "live" ? "border-[#4a3d1e] text-[#e2a33c] hover:bg-[#3a3320]" : "border-[#1d3527] text-[#4CC38A] hover:bg-[#1d3527]")}>
             {i.status === "live" ? "demote → sandbox" : "promote → live"}

@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { cx, money, copyText, addDays, today } from "../lib/format";
 import { Ic, type IconName } from "../components/icons";
-import { Badge, Btn, Dot, Empty, Field, Input, SearchBox, Select, Toggle, Textarea } from "../components/ui";
+import { Badge, Btn, Dot, Empty, Field, Input, Modal, SearchBox, Select, Toggle, Textarea } from "../components/ui";
 import { useApp } from "../store";
+import { fmtBytes, libraryBytes, QUOTA_BYTES, STORAGE_BACKEND } from "../lib/photoStore";
 import { CHANNEL_DEFS, SERVICES, channelDef, computeStay, planFor, propertyById } from "../lib/data";
 import { ChannelMark } from "../components/ota";
 import type { ChannelStatus, Property } from "../lib/types";
@@ -18,6 +19,10 @@ export default function Listings() {
   const [sel, setSel] = useState<string[]>([]);
   const [dragId, setDragId] = useState<string | null>(null);
   const [serviceTab, setServiceTab] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newCity, setNewCity] = useState("");
+  const addProperty = useApp((s) => s.addProperty);
   const detailId = route.query.get("property");
 
   const list = useMemo(() => {
@@ -49,8 +54,29 @@ export default function Listings() {
             <Btn size="xs" variant="ghost" onClick={() => setSel([])}>Clear</Btn>
           </div>
         )}
-        <Btn className="ml-auto" variant="solid" icon="plus" onClick={() => toast("info", "Importer", "Guided CSV/XLSX import with dry-run — or the 10-minute iCal fast path.")}>Add listing</Btn>
+        <Btn className="ml-auto" variant="solid" icon="plus" onClick={() => setAddOpen(true)}>Add listing</Btn>
       </div>
+
+      <Modal open={addOpen} onClose={() => setAddOpen(false)} title="Add a new listing" w={440}
+        footer={<>
+          <Btn variant="ghost" onClick={() => setAddOpen(false)}>Cancel</Btn>
+          <Btn variant="solid" icon="check" onClick={() => {
+            if (!newName.trim()) { toast("warn", "Give it a name", "e.g. Villa Serenity"); return; }
+            const id = addProperty(newName.trim(), newCity.trim() || "Canggu");
+            setAddOpen(false); setNewName(""); setNewCity("");
+            navigate(`/listings?property=${id}`);
+          }}>Create & sync photos</Btn>
+        </>}>
+        <div className="space-y-3">
+          <Field label="Listing name"><Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Villa Serenity" autoFocus /></Field>
+          <Field label="City / area"><Input value={newCity} onChange={(e) => setNewCity(e.target.value)} placeholder="Canggu" /></Field>
+          <p className="rounded-sm bg-paper px-3 py-2 text-[11px] leading-relaxed text-mute">
+            On creation, DERZEN pulls the media your connected channels already hold for this
+            property and seeds the <b className="text-ink">property photo library</b> with it — then you can
+            rename, reorder, replace or delete every shot and upload your own.
+          </p>
+        </div>
+      </Modal>
 
       {view === "table" ? (
         <div className="overflow-x-auto rounded-xl border border-line bg-card">
@@ -154,6 +180,102 @@ export default function Listings() {
   );
 }
 
+// ── Per-property photo library ─────────────────────────────────────────────
+function PhotoManager({ p }: { p: Property }) {
+  const { ensurePhotoLibrary, uploadPhotos, deletePhoto, renamePhoto, setCoverPhoto, movePhoto, resyncOtaPhotos, markPending } = useApp();
+  const propertyPhotos = useApp((s) => s.propertyPhotos);
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [editing, setEditing] = useState<string | null>(null);
+  const [label, setLabel] = useState("");
+
+  useMemo(() => ensurePhotoLibrary(p.id), [p.id]);
+  const photos = propertyPhotos[p.id] ?? [];
+  const used = libraryBytes(p.id);
+  const pct = Math.min(100, Math.round((used / QUOTA_BYTES) * 100));
+
+  const doUpload = async (files: FileList | null) => {
+    if (!files?.length) return;
+    setBusy(true);
+    await uploadPhotos(p.id, files);
+    setBusy(false);
+    if (fileRef.current) fileRef.current.value = "";
+  };
+
+  return (
+    <div className="rounded-xl border border-line bg-card p-4 lg:col-span-2">
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <div className="min-w-0 flex-1">
+          <h3 className="font-display text-[13.5px] font-bold text-ink">Photo library · {p.name}</h3>
+          <p className="text-[10px] font-semibold text-faint">
+            {STORAGE_BACKEND === "local" ? "saved in this browser (compressed, survives reload)" : "saved to Supabase bucket"} · {photos.length} photos
+          </p>
+        </div>
+        <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => void doUpload(e.target.files)} aria-label="Upload photos" />
+        <Btn size="xs" icon="refresh" variant="ghost" onClick={() => resyncOtaPhotos(p.id)}>Re-sync from channels</Btn>
+        <Btn size="xs" icon="upload" onClick={() => fileRef.current?.click()} disabled={busy}>{busy ? "Compressing…" : "Upload photos"}</Btn>
+      </div>
+
+      {/* storage meter */}
+      <div className="mb-3 flex items-center gap-2">
+        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-line">
+          <div className={cx("h-full rounded-full transition-all", pct > 85 ? "bg-danger" : "bg-brand")} style={{ width: `${pct}%` }} />
+        </div>
+        <span className="font-mono text-[9.5px] font-bold text-mute">{fmtBytes(used)} / {fmtBytes(QUOTA_BYTES)}</span>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        {photos.map((ph, i) => (
+          <figure key={ph.id} className="group relative overflow-hidden rounded-lg border border-line bg-paper">
+            <img src={ph.url} alt={ph.label} className="h-24 w-full object-cover" loading="lazy" onError={(e) => ((e.target as HTMLImageElement).style.opacity = "0.3")} />
+            {i === 0 && <span className="absolute left-1.5 top-1.5 flex items-center gap-1 rounded-sm bg-brand px-1.5 py-0.5 text-[8.5px] font-bold uppercase tracking-wide text-white"><Ic name="star" size={8} /> Cover</span>}
+            <span className={cx("absolute right-1.5 top-1.5 rounded-sm px-1.5 py-0.5 text-[8.5px] font-bold uppercase tracking-wide", ph.source === "upload" ? "bg-ink text-white" : "bg-white/85 text-ink")}>
+              {ph.source === "upload" ? "upload" : `sync · ${ph.channel}`}
+            </span>
+            <figcaption className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-pine-950/85 to-transparent px-2 pb-1.5 pt-5">
+              {editing === ph.id ? (
+                <input
+                  autoFocus value={label}
+                  onChange={(e) => setLabel(e.target.value)}
+                  onBlur={() => { renamePhoto(p.id, ph.id, label.trim() || ph.label); setEditing(null); markPending("Listings"); }}
+                  onKeyDown={(e) => { if (e.key === "Enter" || e.key === "Escape") (e.target as HTMLInputElement).blur(); e.stopPropagation(); }}
+                  className="w-full rounded-sm border border-brand bg-card px-1 py-0.5 text-[9.5px] font-bold text-ink outline-none"
+                  aria-label={`Rename ${ph.label}`}
+                />
+              ) : (
+                <div className="flex items-center justify-between gap-1">
+                  <button onClick={() => { setEditing(ph.id); setLabel(ph.label); }} className="truncate text-left text-[9.5px] font-bold text-white hover:underline" title="Click to rename">{ph.label}</button>
+                  <span className="flex shrink-0 gap-0.5 opacity-0 transition-opacity group-hover:opacity-100">
+                    <button onClick={() => { setEditing(ph.id); setLabel(ph.label); }} aria-label={`Rename ${ph.label}`} className="rounded bg-white/20 p-0.5 text-white hover:bg-white/40"><Ic name="pencil" size={9} /></button>
+                    {i !== 0 && <button onClick={() => setCoverPhoto(p.id, ph.id)} aria-label={`Set ${ph.label} as cover`} className="rounded bg-white/20 p-0.5 text-white hover:bg-white/40"><Ic name="star" size={9} /></button>}
+                    {i > 0 && <button onClick={() => movePhoto(p.id, ph.id, "up")} aria-label={`Move ${ph.label} up`} className="rounded bg-white/20 p-0.5 text-white hover:bg-white/40"><Ic name="chevU" size={9} /></button>}
+                    {i < photos.length - 1 && <button onClick={() => movePhoto(p.id, ph.id, "down")} aria-label={`Move ${ph.label} down`} className="rounded bg-white/20 p-0.5 text-white hover:bg-white/40"><Ic name="chevD" size={9} /></button>}
+                    <button onClick={() => deletePhoto(p.id, ph.id)} aria-label={`Delete ${ph.label}`} className="rounded bg-white/20 p-0.5 text-white hover:bg-danger"><Ic name="trash" size={9} /></button>
+                  </span>
+                </div>
+              )}
+            </figcaption>
+          </figure>
+        ))}
+        <button
+          onClick={() => fileRef.current?.click()}
+          onDragOver={(e) => e.preventDefault()}
+          onDrop={(e) => { e.preventDefault(); void doUpload(e.dataTransfer.files); }}
+          className="flex h-24 flex-col items-center justify-center gap-1 rounded-lg border-2 border-dashed border-line2 text-mute transition-colors hover:border-brand hover:text-brand-deep"
+        >
+          <Ic name="upload" size={16} />
+          <span className="text-[9.5px] font-bold">Drop images or click to upload</span>
+        </button>
+      </div>
+      <p className="mt-2 text-[10.5px] leading-relaxed text-mute">
+        First photo is the cover everywhere — calendar, site builder, OTAs. Uploads are compressed
+        client-side (max 900px, JPEG) before saving; the storage adapter swaps to your Supabase
+        bucket once its keys are configured, with zero UI changes.
+      </p>
+    </div>
+  );
+}
+
 // ── Property detail ────────────────────────────────────────────────────────
 function PropertyDetail({ p, onOpenServices }: { p: Property; onOpenServices: () => void }) {
   const { navigate, toggleArchive, togglePublishDirect, setCheckoutEnabled, toast } = useApp();
@@ -186,27 +308,7 @@ function PropertyDetail({ p, onOpenServices }: { p: Property; onOpenServices: ()
 
       {tab === "details" && (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-          <div className="rounded-xl border border-line bg-card p-4 lg:col-span-2">
-            <div className="mb-3 flex items-center justify-between">
-              <h3 className="font-display text-[13.5px] font-bold text-ink">Photo manager</h3>
-              <div className="flex gap-1.5"><Btn size="xs" icon="upload">Upload</Btn><Btn size="xs" variant="ghost" icon="image">Categorise rooms</Btn></div>
-            </div>
-            <div className="grid grid-cols-3 gap-2">
-              {[0, 1, 2, 3, 4, 5].map((i) => (
-                <figure key={i} className="group relative overflow-hidden rounded-lg border border-line">
-                  <img src={p.image} alt={`${p.name} photo ${i + 1}`} className="h-24 w-full object-cover" loading="lazy" />
-                  <figcaption className="absolute inset-x-0 bottom-0 flex items-center justify-between bg-gradient-to-t from-pine-950/80 to-transparent px-2 pb-1 pt-4">
-                    <span className="text-[9px] font-bold text-white">{i === 0 ? "Cover" : ["Pool", "Living", "Bedroom", "Kitchen", "Bath"][i - 1]}</span>
-                    <span className="flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
-                      {i !== 0 && <button aria-label="Set as cover" className="rounded bg-white/20 p-0.5 text-white hover:bg-white/40"><Ic name="star" size={10} /></button>}
-                      <button aria-label="Reorder photo" className="rounded bg-white/20 p-0.5 text-white hover:bg-white/40"><Ic name="grip" size={10} /></button>
-                    </span>
-                  </figcaption>
-                </figure>
-              ))}
-            </div>
-            <p className="mt-2 text-[10.5px] text-mute">Drag to reorder · starred photo becomes the cover everywhere (calendar, site, OTAs).</p>
-          </div>
+          <PhotoManager p={p} />
           <div className="space-y-3 rounded-xl border border-line bg-card p-4">
             <Field label="Title"><Input defaultValue={p.name} /></Field>
             <Field label="Description"><Textarea defaultValue={`${p.name} — a ${p.bedrooms}-bedroom retreat in ${p.city} with ${p.amenities.slice(0, 3).join(", ").toLowerCase()}.`} className="!min-h-[90px]" /></Field>

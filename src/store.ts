@@ -20,6 +20,7 @@ import {
   WEBHOOKS, WEBSITE, WORKSPACE, channelDef, propertyById, FX_TO_EUR, COLLECTIONS,
 } from "./lib/data";
 import { setDisplayCurrency, refreshFx, type CurrencyCode } from "./lib/fx";
+import { compressImage, readLibrary, writeLibrary, QUOTA_BYTES, type PhotoEntry } from "./lib/photoStore";
 import {
   AI_DEFAULTS, DEVELOPER, PLATFORM_INTEGRATIONS, TENANTS, hydrateTenantData,
   type PlatformIntegration, type TenantMeta,
@@ -243,6 +244,17 @@ interface App {
   pending: { count: number; modules: string[]; savedAt: number | null };
   markPending: (module: string) => void;
   flushPending: () => void;
+
+  // ── per-property photo libraries ──
+  propertyPhotos: Record<string, PhotoEntry[]>;
+  ensurePhotoLibrary: (propId: string) => void;
+  uploadPhotos: (propId: string, files: FileList | File[]) => Promise<number>;
+  deletePhoto: (propId: string, photoId: string) => void;
+  renamePhoto: (propId: string, photoId: string, label: string) => void;
+  setCoverPhoto: (propId: string, photoId: string) => void;
+  movePhoto: (propId: string, photoId: string, dir: "up" | "down") => void;
+  resyncOtaPhotos: (propId: string) => void;
+  addProperty: (name: string, city: string) => string;
   siteChrome: SiteChrome;
   setSiteChrome: (patch: Partial<SiteChrome>) => void;
   reorderSiteLinks: (target: "header" | "footer", fromId: string, toIdx: number) => void;
@@ -274,6 +286,26 @@ interface App {
 let toastSeq = 1;
 let timerSeq = 0;
 const later = (fn: () => void, ms: number) => { timerSeq += 1; window.setTimeout(fn, ms); };
+
+// Seed a property's library from its connected channels: the cover plus
+// sibling-property imagery stands in for the media each OTA holds, tagged
+// with the channel it "synced" from. Uploads always layer on top.
+const OTA_SEED_LABELS: [string, string][] = [
+  ["airbnb", "Exterior"], ["booking", "Pool"], ["vrbo", "Living area"],
+  ["airbnb", "Master bedroom"], ["booking", "Kitchen"], ["traveloka", "Bathroom"],
+];
+function otaSeedPhotos(propId: string, props: Property[]): PhotoEntry[] {
+  const self = props.find((p) => p.id === propId) ?? props[0];
+  const pool = [self, ...props.filter((p) => p.id !== propId && !p.archived)];
+  return OTA_SEED_LABELS.map(([channel, label], i) => ({
+    id: `seed-${propId}-${i}`,
+    url: pool[i % pool.length].image,
+    label: i === 0 ? "Cover · " + label : label,
+    source: "ota" as const,
+    channel,
+  }));
+}
+const uploadsCount = (photos?: PhotoEntry[]) => (photos ?? []).filter((p) => p.source === "upload").length;
 
 const initialChat: ChatChannel[] = [
   {
@@ -1050,6 +1082,134 @@ export const useApp = create<App>((set, get) => ({
     set({ pending: { count: 0, modules: [], savedAt: Date.now() } });
     get().audit(`Saved changes · ${p.count} edit${p.count > 1 ? "s" : ""} across ${p.modules.join(", ")}`, "ui");
     get().toast("ok", "All changes saved", `${p.count} edit${p.count > 1 ? "s" : ""} · ${p.modules.join(", ")} · pushed to your live site.`);
+  },
+
+  // ── Per-property photo libraries ────────────────────────────────────────
+  propertyPhotos: (() => {
+    // Restore any persisted libraries; the rest seed lazily on first open.
+    const out: Record<string, PhotoEntry[]> = {};
+    for (const p of PROPERTIES) {
+      const saved = readLibrary(p.id);
+      if (saved && saved.length) out[p.id] = saved;
+    }
+    return out;
+  })(),
+
+  ensurePhotoLibrary: (propId) => {
+    if (get().propertyPhotos[propId]?.length) return;
+    set((st) => ({ propertyPhotos: { ...st.propertyPhotos, [propId]: otaSeedPhotos(propId, st.properties) } }));
+    writeLibrary(propId, get().propertyPhotos[propId]);
+  },
+
+  uploadPhotos: async (propId, files) => {
+    get().ensurePhotoLibrary(propId);
+    const list = Array.from(files).filter((f) => f.type.startsWith("image/"));
+    if (!list.length) { get().toast("warn", "No images in that selection", "Pick JPG / PNG / WebP files."); return 0; }
+    let added = 0;
+    let photos = [...(get().propertyPhotos[propId] ?? [])];
+    for (const f of list) {
+      try {
+        const { url, bytes } = await compressImage(f);
+        if (photos.reduce((s, p) => s + (p.bytes ?? 0), 0) + bytes > QUOTA_BYTES) {
+          get().toast("warn", "Browser storage nearly full", "Delete a few photos or connect the Supabase bucket for unlimited storage.");
+          break;
+        }
+        photos.push({ id: uid("ph"), url, label: f.name.replace(/\.[a-z]+$/i, ""), source: "upload", bytes });
+        added++;
+      } catch {
+        get().toast("err", `Couldn't read ${f.name}`, "The file may be corrupt or unsupported.");
+      }
+    }
+    const { ok } = writeLibrary(propId, photos);
+    set((st) => ({ propertyPhotos: { ...st.propertyPhotos, [propId]: photos } }));
+    get().markPending("Listings");
+    if (added > 0) get().toast(ok ? "ok" : "warn", `${added} photo${added > 1 ? "s" : ""} uploaded`, ok ? "Compressed & saved to this browser · survives reload." : "Saved for this session only — storage quota reached.");
+    return added;
+  },
+
+  deletePhoto: (propId, photoId) => {
+    set((st) => {
+      const photos = (st.propertyPhotos[propId] ?? []).filter((p) => p.id !== photoId);
+      writeLibrary(propId, photos);
+      return { propertyPhotos: { ...st.propertyPhotos, [propId]: photos } };
+    });
+    get().markPending("Listings");
+    get().toast("info", "Photo deleted", "Removed from this property's library.");
+  },
+
+  renamePhoto: (propId, photoId, label) => {
+    set((st) => {
+      const photos = (st.propertyPhotos[propId] ?? []).map((p) => (p.id === photoId ? { ...p, label } : p));
+      writeLibrary(propId, photos);
+      return { propertyPhotos: { ...st.propertyPhotos, [propId]: photos } };
+    });
+  },
+
+  setCoverPhoto: (propId, photoId) => {
+    set((st) => {
+      const photos = (st.propertyPhotos[propId] ?? []).map((p) => ({ ...p, label: p.label }));
+      const chosen = photos.find((p) => p.id === photoId);
+      if (chosen) {
+        // move it first + point the property's public cover at it
+        const rest = photos.filter((p) => p.id !== photoId);
+        const next = [chosen, ...rest];
+        writeLibrary(propId, next);
+        return {
+          propertyPhotos: { ...st.propertyPhotos, [propId]: next },
+          properties: st.properties.map((pr) => (pr.id === propId ? { ...pr, image: chosen.url } : pr)),
+        };
+      }
+      return st;
+    });
+    get().markPending("Listings");
+    get().toast("ok", "Cover updated", "Calendar, site builder and OTA content now use this photo.");
+  },
+
+  movePhoto: (propId, photoId, dir) => {
+    set((st) => {
+      const photos = [...(st.propertyPhotos[propId] ?? [])];
+      const i = photos.findIndex((p) => p.id === photoId);
+      const j = dir === "up" ? i - 1 : i + 1;
+      if (i < 0 || j < 0 || j >= photos.length) return st;
+      const [p] = photos.splice(i, 1);
+      photos.splice(j, 0, p);
+      writeLibrary(propId, photos);
+      return { propertyPhotos: { ...st.propertyPhotos, [propId]: photos } };
+    });
+  },
+
+  resyncOtaPhotos: (propId) => {
+    const seeded = otaSeedPhotos(propId, get().properties);
+    set((st) => {
+      const uploads = (st.propertyPhotos[propId] ?? []).filter((p) => p.source === "upload");
+      const next = [...seeded, ...uploads];
+      writeLibrary(propId, next);
+      return { propertyPhotos: { ...st.propertyPhotos, [propId]: next } };
+    });
+    get().markPending("Listings");
+    get().toast("ok", "Re-synced from channels", `${seeded.length} OTA photos refreshed · your ${uploadsCount(get().propertyPhotos[propId])} upload${uploadsCount(get().propertyPhotos[propId]) === 1 ? "" : "s"} kept.`);
+  },
+
+  addProperty: (name, city) => {
+    const id = uid("p");
+    const base = PROPERTIES[0];
+    const prop: Property = {
+      ...base,
+      id, name, code: name.slice(0, 3).toUpperCase(), city,
+      parentId: null, isParent: false, archived: false,
+      channels: { airbnb: "live", booking: "live", direct: "live" },
+      order: get().properties.length,
+    };
+    const seeded = otaSeedPhotos(id, [prop, ...get().properties]);
+    writeLibrary(id, seeded);
+    get().markPending("Listings");
+    set((st) => ({
+      properties: [...st.properties, prop],
+      propertyPhotos: { ...st.propertyPhotos, [id]: seeded },
+    }));
+    get().audit(`Property created: ${name} (${city}) · OTA photos synced`, "ui");
+    get().toast("ok", `${name} created`, `${seeded.length} photos synced from your connected channels — edit them in the photo manager.`);
+    return id;
   },
 
   sendChat: (channelId, body) =>

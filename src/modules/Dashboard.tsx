@@ -12,21 +12,23 @@ function Stat({ label, value, to, tone, spark, suffix }: { label: string; value:
   return (
     <button
       onClick={() => navigate(to)}
-      className="group flex flex-col items-start rounded-xl border border-line bg-card px-4 py-3 text-left shadow-[0_1px_2px_rgba(26,38,32,0.05)] transition-all duration-200 hover:-translate-y-0.5 hover:border-brand/50 hover:shadow-md"
+      className="group relative flex flex-col items-start overflow-hidden border border-line bg-card px-4 pb-3 pt-3.5 text-left transition-all duration-200 hover:-translate-y-0.5 hover:border-ink/40 hover:shadow-[0_10px_28px_-14px_rgba(20,24,17,0.35)]"
       aria-label={`${label}: ${value}. Open filtered list`}
     >
-      <span className="text-[10.5px] font-bold uppercase tracking-wider text-mute">{label}</span>
-      <span className="mt-1 flex items-baseline gap-1.5">
-        <span className="font-display text-[30px] font-bold leading-none text-ink tabular-nums">{v}</span>
-        {suffix && <span className="text-[11px] font-semibold text-faint">{suffix}</span>}
+      {/* 2px status notch — the only colour signal */}
+      <span className="absolute inset-x-0 top-0 h-[2px]" style={{ background: tone ?? "var(--color-line2)" }} aria-hidden="true" />
+      <span className="font-mono text-[9.5px] font-bold uppercase tracking-[0.14em] text-faint">{label}</span>
+      <span className="mt-1.5 flex items-baseline gap-2">
+        <span className="font-display text-[46px] font-extrabold leading-[0.9] text-ink tabular-nums">{v}</span>
+        {suffix && <span className="max-w-[90px] text-[10.5px] font-semibold leading-tight text-mute">{suffix}</span>}
       </span>
-      <span className="mt-2 flex w-full items-center justify-between">
+      <span className="mt-2.5 flex w-full items-end justify-between">
         {spark ? (
           <svg width="84" height="22" aria-hidden="true">
             <polyline points={spark.map((p, i) => `${(i / (spark.length - 1)) * 84},${20 - p * 18}`).join(" ")} fill="none" stroke={tone ?? "#0E6B4E"} strokeWidth="1.6" strokeLinecap="round" />
           </svg>
-        ) : <span className="text-[10px] font-semibold text-faint">click to filter</span>}
-        <Ic name="arrowR" size={13} className="text-faint transition-transform duration-200 group-hover:translate-x-0.5 group-hover:text-brand" />
+        ) : <span className="font-mono text-[9px] font-semibold uppercase tracking-wider text-faint">open filtered ↗</span>}
+        <Ic name="arrowR" size={14} className="text-faint transition-transform duration-200 group-hover:translate-x-1 group-hover:text-brand" />
       </span>
     </button>
   );
@@ -73,50 +75,76 @@ export default function Dashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Greeting band */}
-      <div className="relative overflow-hidden rounded-xl border border-pine-800 bg-pine-900 px-5 py-4 text-white">
-        <div className="pointer-events-none absolute -right-10 -top-16 h-48 w-48 rounded-full bg-brand/25 blur-2xl" />
-        <div className="pointer-events-none absolute right-24 -bottom-20 h-40 w-40 rounded-full bg-gold/15 blur-2xl" />
-        <div className="relative flex flex-wrap items-center gap-4">
-          <div className="min-w-0 flex-1">
-            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#5BCBA9]">{fmtDate(new Date(), { year: true })} · Bali portfolio · {active.length} active units</p>
-            <h2 className="mt-1 font-display text-[24px] font-bold leading-tight">{t(greetKey)}, Sarah</h2>
-            <p className="mt-0.5 text-[12.5px] text-pine-100/80">
-              {ciToday.length} arrival{ciToday.length === 1 ? "" : "s"} and {coToday.length} departure{coToday.length === 1 ? "" : "s"} today · {openTasks.length} open task{openTasks.length === 1 ? "" : "s"} · {unread} unread guest message{unread === 1 ? "" : "s"}
+      {/* Shift sheet — the day's work first, greeting in the margin */}
+      <div className="ticks relative overflow-hidden border border-line bg-card px-5 py-5">
+        {/* Ghost date numeral — a living mark that changes daily */}
+        <span aria-hidden="true" className="pointer-events-none absolute -right-2 -top-10 select-none font-display text-[170px] font-extrabold leading-none text-ink/[0.055] tabular-nums">
+          {new Date().getDate()}
+        </span>
+        <div className="relative flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
+          <div className="min-w-0">
+            <p className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-brand">
+              Front desk · {fmtDate(new Date(), { year: true })} · WITA {new Date(Date.now() + 6 * 3_600_000).toTimeString().slice(0, 5)}
+            </p>
+            <h2 className="mt-1 font-display text-[34px] font-extrabold uppercase leading-[0.95] tracking-[0.02em] text-ink sm:text-[42px]">
+              Shift sheet
+            </h2>
+            <p className="mt-1.5 text-[12.5px] font-medium text-mute">
+              {t(greetKey)}, Sarah — {active.length} active units on tonight's board.
             </p>
           </div>
-          <div className="flex items-center gap-2">
+
+          {/* Ledger line: today's movement at a glance, double-ruled */}
+          <dl className="flex items-end gap-6 sm:gap-8">
+            <div>
+              <dt className="font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-faint">Arrivals</dt>
+              <dd className="font-display text-[44px] font-extrabold leading-[0.9] text-ink tabular-nums">{useCountUp(ciToday.length)}</dd>
+            </div>
+            <span aria-hidden="true" className="mb-1.5 h-10 w-px bg-line2" />
+            <div>
+              <dt className="font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-faint">Departures</dt>
+              <dd className="font-display text-[44px] font-extrabold leading-[0.9] text-ink tabular-nums">{useCountUp(coToday.length)}</dd>
+            </div>
+            <span aria-hidden="true" className="mb-1.5 h-10 w-px bg-line2" />
+            <div>
+              <dt className="font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-faint">Awaiting reply</dt>
+              <dd className={cx("font-display text-[44px] font-extrabold leading-[0.9] tabular-nums", needsReply.length ? "text-danger" : "text-ink")}>{useCountUp(needsReply.length)}</dd>
+            </div>
+          </dl>
+
+          <div className="flex items-center gap-2.5">
             {setupDone < onboardSteps.length && (
-              <button onClick={() => setOnboardOpen(true)} className="flex items-center gap-2 rounded-lg border border-white/15 bg-white/5 px-3 py-2 transition-colors hover:bg-white/10" aria-label="Open setup guide">
-                <Ring value={setupDone / onboardSteps.length} size={34} label="Setup progress" />
+              <button onClick={() => setOnboardOpen(true)} className="flex items-center gap-2.5 border border-line bg-paper px-3 py-2 transition-colors hover:border-brand" aria-label="Open setup guide">
+                <Ring value={setupDone / onboardSteps.length} size={32} label="Setup progress" />
                 <span className="text-left">
-                  <span className="block text-[11.5px] font-bold">{t("dash.onboard")}</span>
-                  <span className="block text-[10px] text-pine-100/70">{setupDone}/{onboardSteps.length} · restartable</span>
+                  <span className="block text-[11.5px] font-bold text-ink">{t("dash.onboard")}</span>
+                  <span className="block font-mono text-[9px] font-semibold uppercase tracking-wider text-faint">{setupDone}/{onboardSteps.length} · restartable</span>
                 </span>
               </button>
             )}
-            <div className="rounded-lg border border-white/15 bg-white/5 px-3 py-2 text-[11.5px]">
-              <p className="mb-1 font-bold text-pine-100/70">{t("dash.scope.all")}</p>
-              <Select value={scope} onChange={(e) => setScope(e.target.value)} className="!h-7 !bg-pine-800 !border-white/15 !text-white !text-[11.5px] !w-[168px]" aria-label="Property scope">
+            <div className="border border-line bg-paper px-3 py-2 text-[11.5px]">
+              <p className="mb-1 font-mono text-[9px] font-bold uppercase tracking-[0.14em] text-faint">{t("dash.scope.all")}</p>
+              <Select value={scope} onChange={(e) => setScope(e.target.value)} className="!h-7 !w-[168px] !border-line2 !bg-card !text-[11.5px]" aria-label="Property scope">
                 <option value="all">All properties</option>
                 {active.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
               </Select>
             </div>
-            <div className="flex flex-col items-start gap-1.5 rounded-lg border border-white/15 bg-white/5 px-3 py-2">
-              <label className="flex cursor-pointer items-center gap-2 text-[11.5px] font-bold">
+            <div className="flex flex-col items-start gap-1.5 border border-line bg-paper px-3 py-2">
+              <label className="flex cursor-pointer items-center gap-2 text-[11.5px] font-bold text-ink">
                 <Toggle checked={myTasks} onChange={setMyTasks} label="My tasks only" />
                 {t("dash.myTasks")}
               </label>
-              <Btn size="xs" variant="ghost" icon="refresh" onClick={refresh} className="!text-pine-100 hover:!bg-white/10 hover:!text-white">
+              <Btn size="xs" variant="ghost" icon="refresh" onClick={refresh}>
                 <span className={refreshing ? "anim-spin inline-flex" : "inline-flex"}>{t("dash.refresh")}</span>
               </Btn>
             </div>
           </div>
         </div>
+        <div className="dbl-rule relative mt-4" aria-hidden="true" />
       </div>
 
       {/* Stat widgets — every number deep-links */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+      <div className="stagger grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
         <Stat label={t("dash.unread")} value={unread} to="/inbox?filter=unread" tone="#2557D6" spark={[0.2, 0.5, 0.3, 0.8, 0.4, 0.9, 0.6]} />
         <Stat label={t("dash.openTasks")} value={openTasks.length} to="/ops?tab=board&filter=active&mine=1" tone="#C07F14" spark={[0.6, 0.4, 0.7, 0.5, 0.8, 0.4, 0.3]} />
         <Stat label={t("dash.checkins")} value={ciToday.length} to="/reservations?focus=arrivals-today" suffix={`+${ciTmr.length} ${t("dash.tomorrow")}`} tone="#0E6B4E" />

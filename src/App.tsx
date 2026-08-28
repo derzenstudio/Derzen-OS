@@ -163,13 +163,18 @@ export default function App() {
   }, [sessionState, tenantFonts]);
 
   // ── guest-facing hosted payment page (public — reachable from the chatbot embed) ──
-  if (route.path[0] === "pay") return <PaymentPage refCode={route.path[1] ?? ""} />;
+  if (route.path[0] === "pay")
+    return <Suspense fallback={<LoadingSurface />}><PaymentPage refCode={route.path[1] ?? ""} /></Suspense>;
 
   // ── public surface ──
   if (!session) {
     // dev.* is internal-only — no marketing site, straight to the sign-in wall
-    if (SURFACE === "dev") return <LoginPage />;
-    return route.path[0] === "login" ? <LoginPage /> : <PublicSite />;
+    if (SURFACE === "dev") return <Suspense fallback={<LoadingSurface />}><LoginPage /></Suspense>;
+    return (
+      <Suspense fallback={<LoadingSurface />}>
+        {route.path[0] === "login" ? <LoginPage /> : <PublicSite />}
+      </Suspense>
+    );
   }
 
   // ── surface guard: one audience per host ──
@@ -181,10 +186,14 @@ export default function App() {
   // ── internal backoffice (separate application: own shell, nav, audit) ──
   if (session.kind === "developer") {
     const sub = route.path[1];
-    if (sub === "console") return <DevConsole />;
-    if (sub === "backoffice") return <DevBackoffice />;
-    if (sub === "substrate") return <DevOps />;
-    return <Backoffice />;
+    return (
+      <Suspense fallback={<LoadingSurface />}>
+        {sub === "console" ? <DevConsole />
+          : sub === "backoffice" ? <DevBackoffice />
+          : sub === "substrate" ? <DevOps />
+          : <Backoffice />}
+      </Suspense>
+    );
   }
 
   // ── tenant app ──
@@ -201,7 +210,11 @@ export default function App() {
     );
   }
   const enabled = featureOn(page);
-  return <Shell>{enabled ? <def.el key={page} /> : <ModuleGated name={page} />}</Shell>;
+  return (
+    <Shell>
+      {enabled ? <Suspense fallback={<LoadingSurface />}><def.el key={page} /></Suspense> : <ModuleGated name={page} />}
+    </Shell>
+  );
 }
 
 import { parseHash as parseHashSafe } from "./store";

@@ -33,7 +33,7 @@ export default function DevBackoffice() {
   const list = TENANTS.filter((t) => !q.trim() || t.name.toLowerCase().includes(q.toLowerCase()) || t.email.toLowerCase().includes(q.toLowerCase()));
 
   return (
-    <div className="flex min-h-screen bg-pine-950 text-white">
+    <div className="eng flex min-h-screen bg-pine-950 text-white">
       {navOpen && <div className="fixed inset-0 z-[84] bg-black/55 backdrop-blur-[2px] lg:hidden" onClick={() => setNavOpen(false)} aria-hidden="true" />}
       <aside className={cx("fixed inset-y-0 left-0 z-[85] flex h-screen w-[248px] shrink-0 flex-col border-r border-white/10 bg-[#0a0a09] shadow-2xl transition-transform duration-300 lg:sticky lg:top-0 lg:z-auto lg:w-[228px] lg:translate-x-0 lg:shadow-none", navOpen ? "translate-x-0" : "-translate-x-full")}>
         <div className="border-b border-white/10 px-4 py-4">

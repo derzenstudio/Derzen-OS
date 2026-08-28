@@ -3,8 +3,8 @@ import type { Locale } from "./lib/i18n";
 import { t as tr } from "./lib/i18n";
 import { uid, addDays, dayKey, today, nightsBetween, parseKey } from "./lib/format";
 import type {
-  AuditEntry, Block, BlockStyle, Conversation, Expense, Guidebook, IssueReport, OnboardStep, Property,
-  QueuedMessage, Quote, Reservation, Review, SavedAsset, SiteChrome, SyncState, Task, Toast, WebsiteState, Message,
+  AuditEntry, Block, BlockStyle, Collection, Conversation, Expense, Guidebook, IssueReport, OnboardStep, Property,
+  QueuedMessage, Quote, Reservation, Review, SavedAsset, SiteChrome, SitePage, SyncState, Task, Toast, WebsiteState, Message,
 } from "./lib/types";
 import { DEFAULT_WIDGET_STYLE, type WidgetStyle } from "./lib/widgetTheme";
 import { DEFAULT_BRAND, applyBrand, type BrandState } from "./lib/brand";
@@ -17,7 +17,7 @@ export const DEFAULT_BLOCK_STYLE: BlockStyle = {
 import {
   ACTION_ITEMS, AUDIT, CONFLICTS, CONVERSATIONS, EXPENSES, GUIDEBOOKS, ISSUES, MEMBERS,
   MSG_QUEUE, ONBOARD_STEPS, PROPERTIES, QUOTES, RESERVATIONS, REVIEWS, SYNC, TASKS,
-  WEBHOOKS, WEBSITE, WORKSPACE, channelDef, propertyById, FX_TO_EUR,
+  WEBHOOKS, WEBSITE, WORKSPACE, channelDef, propertyById, FX_TO_EUR, COLLECTIONS,
 } from "./lib/data";
 import { setDisplayCurrency, refreshFx, type CurrencyCode } from "./lib/fx";
 import {
@@ -233,6 +233,16 @@ interface App {
   removeBlock: (pageId: string, blockId: string) => void;
   setSiteTheme: (patch: Partial<WebsiteState["theme"]>) => void;
   setSiteActivePage: (id: string) => void;
+  addPage: (name: string) => void;
+  deletePage: (id: string) => void;
+  updatePage: (pageId: string, patch: Partial<SitePage>) => void;
+  collections: Collection[];
+  updateCollection: (id: string, patch: Partial<Collection>) => void;
+  addCollection: () => void;
+  removeCollection: (id: string) => void;
+  pending: { count: number; modules: string[]; savedAt: number | null };
+  markPending: (module: string) => void;
+  flushPending: () => void;
   siteChrome: SiteChrome;
   setSiteChrome: (patch: Partial<SiteChrome>) => void;
   reorderSiteLinks: (target: "header" | "footer", fromId: string, toIdx: number) => void;
@@ -501,11 +511,14 @@ export const useApp = create<App>((set, get) => ({
     })),
   setConvNote: (id, note) => set((st) => ({ conversations: st.conversations.map((c) => (c.id === id ? { ...c, note, notes: note } : c)) })),
 
-  setCalendarCell: (propId, key, patch) =>
+  setCalendarCell: (propId, key, patch) => {
+    get().markPending("Calendar");
     set((st) => ({
       calendarOverrides: { ...st.calendarOverrides, [propId]: { ...st.calendarOverrides[propId], [key]: { ...st.calendarOverrides[propId]?.[key], ...patch } } },
-    })),
+    }));
+  },
   manualBlock: (propId, keys, patch) => {
+    get().markPending("Calendar");
     // Same path as bulk edit: local override first, then a durable per-channel
     // push queue — so a manual block / custom price syncs with everything.
     const st = get();
@@ -541,6 +554,7 @@ export const useApp = create<App>((set, get) => ({
 
   bulkApply: (propIds, keys, patch) => {
     const st = get();
+    get().markPending("Calendar");
     set({ bulkSnapshot: { overrides: st.calendarOverrides } });
     const next = { ...st.calendarOverrides };
     for (const p of propIds) {
@@ -965,8 +979,78 @@ export const useApp = create<App>((set, get) => ({
   addSavedAsset: (a) => set((st) => ({ savedAssets: [...st.savedAssets, { ...a, id: uid("asset") }] })),
   removeSavedAsset: (id) => set((st) => ({ savedAssets: st.savedAssets.filter((x) => x.id !== id) })),
 
-  setSiteTheme: (patch) => set((st) => ({ website: { ...st.website, theme: { ...st.website.theme, ...patch } } })),
+  setSiteTheme: (patch) => { get().markPending("Websites"); set((st) => ({ website: { ...st.website, theme: { ...st.website.theme, ...patch } } })); },
   setSiteActivePage: (id) => set((st) => ({ website: { ...st.website, activePageId: id } })),
+
+  addPage: (name) => {
+    const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || `page-${Date.now()}`;
+    const pg: SitePage = {
+      id: uid("pg"), name, slug,
+      seo: { title: `${name} — Sanggraha Villas`, description: "" },
+      visible: true,
+      blocks: [
+        { id: uid("b"), type: "hero", content: { ...defaultBlockContent("hero"), headline: name, sub: "A new page on your site — click any text to edit." } },
+        { id: uid("b"), type: "rich_text", content: defaultBlockContent("rich_text") },
+        { id: uid("b"), type: "cta_banner", content: defaultBlockContent("cta_banner") },
+      ],
+    };
+    get().markPending("Websites");
+    set((st) => ({ website: { ...st.website, pages: [...st.website.pages, pg], activePageId: pg.id } }));
+    get().toast("ok", `Page “${name}” created`, `/${slug} — added to navigation automatically. Hit Save to keep it.`);
+  },
+  deletePage: (id) => {
+    const st0 = get();
+    const pg = st0.website.pages.find((p) => p.id === id);
+    if (!pg) return;
+    if (pg.home) { st0.toast("warn", "The home page is protected", "Every site needs a front door."); return; }
+    const remaining = st0.website.pages.filter((p) => p.id !== id);
+    get().markPending("Websites");
+    set((st) => ({
+      website: {
+        ...st.website,
+        pages: remaining,
+        activePageId: st.website.activePageId === id ? remaining[0]?.id ?? st.website.activePageId : st.website.activePageId,
+      },
+    }));
+    get().toast("warn", `Deleted “${pg.name}”`, "The URL will 301-redirect to home after you save.");
+  },
+  updatePage: (pageId, patch) => {
+    get().markPending("Websites");
+    set((st) => ({
+      website: {
+        ...st.website,
+        pages: st.website.pages.map((p) => (p.id === pageId ? { ...p, ...patch, seo: { ...p.seo, ...patch.seo } } : p)),
+      },
+    }));
+  },
+
+  collections: COLLECTIONS,
+  updateCollection: (id, patch) => {
+    get().markPending("Websites");
+    set((st) => ({ collections: st.collections.map((c) => (c.id === id ? { ...c, ...patch } : c)) }));
+  },
+  addCollection: () => {
+    const c: Collection = { id: uid("col"), name: "New collection", slug: `collection-${get().collections.length + 1}`, rule: "Manual", itemIds: PROPERTIES.slice(0, 3).map((p) => p.id), featured: false };
+    get().markPending("Websites");
+    set((st) => ({ collections: [c, ...st.collections] }));
+    get().toast("ok", "Collection created", "Edit its name, slug and listings — then Save.");
+  },
+  removeCollection: (id) => {
+    get().markPending("Websites");
+    set((st) => ({ collections: st.collections.filter((c) => c.id !== id) }));
+    get().toast("warn", "Collection removed", "Its landing page unpublished.");
+  },
+
+  pending: { count: 0, modules: [], savedAt: null },
+  markPending: (module) =>
+    set((st) => ({ pending: { ...st.pending, count: st.pending.count + 1, modules: st.pending.modules.includes(module) ? st.pending.modules : [...st.pending.modules, module] } })),
+  flushPending: () => {
+    const p = get().pending;
+    if (p.count === 0) return;
+    set({ pending: { count: 0, modules: [], savedAt: Date.now() } });
+    get().audit(`Saved changes · ${p.count} edit${p.count > 1 ? "s" : ""} across ${p.modules.join(", ")}`, "ui");
+    get().toast("ok", "All changes saved", `${p.count} edit${p.count > 1 ? "s" : ""} · ${p.modules.join(", ")} · pushed to your live site.`);
+  },
 
   sendChat: (channelId, body) =>
     set((st) => ({

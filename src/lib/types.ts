@@ -410,7 +410,11 @@ export interface Block {
   style?: BlockStyle;
   content?: Record<string, string>;
 }
-export interface SitePage { id: string; name: string; slug: string; blocks: Block[]; home?: boolean; }
+export interface SitePage {
+  id: string; name: string; slug: string; blocks: Block[]; home?: boolean;
+  seo?: { title?: string; description?: string; image?: string };
+  visible?: boolean;
+}
 
 export interface SiteLink { id: string; label: string; url: string; newTab?: boolean; }
 export interface SiteChrome {

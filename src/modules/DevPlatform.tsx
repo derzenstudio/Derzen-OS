@@ -422,7 +422,7 @@ export function BillingPanel() {
                 <tr key={p.id} className="border-b border-white/5">
                   <td className="py-2.5 pr-3 text-[13px] font-bold text-white/90">{p.name}</td>
                   <td className="py-2.5 pr-3 font-mono text-[11px] text-[#8fd6b4]">{p.version}</td>
-                  <td className="py-2.5 pr-3"><Input type="number" defaultValue={p.priceUSD || ""} placeholder="custom" onBlur={() => toast("ok", `${p.name} price draft saved`, "Applies to NEW signups only — existing tenants keep " + p.version + ".")} className="!h-7 !w-[84px] !bg-[#171714] !text-white !border-white/15 font-mono !text-[11px]" aria-label={`${p.name} USD price`} /></td>
+                  <td className="py-2.5 pr-3"><Input type="number" defaultValue={p.priceUSD || ""} placeholder="custom" onBlur={() => toast("ok", `${p.name} price draft saved`, "Applies to NEW signups only — existing tenants keep " + p.version + ".")} className="!h-7 !w-[84px] bg-[#171714] text-white border-white/15 font-mono !text-[11px]" aria-label={`${p.name} USD price`} /></td>
                   <td className="py-2.5 pr-3 font-mono text-[11px] text-white/60">{p.priceIDR ? `Rp ${(p.priceIDR).toLocaleString()}` : "—"}</td>
                   <td className="py-2.5 pr-3 text-[11px] text-white/60">{p.units}</td>
                   <td className="py-2.5 pr-3 font-mono text-[11px] text-white/80">{p.tenants}</td>
@@ -548,7 +548,7 @@ export function EntitlementsPanel() {
                 <p className="text-[12.5px] font-bold text-white/90">{c.cap}</p>
                 <span className={cx("rounded px-2 py-0.5 font-mono text-[9px] font-bold uppercase", statusTone[c.status])}>{c.status}</span>
                 {c.waitlist > 0 && <span className="font-mono text-[9.5px] text-white/40">waitlist {c.waitlist}</span>}
-                <Select value={c.status} onChange={(e) => { setRegistry(registry.map((x) => x.cap === c.cap ? { ...x, status: e.target.value } : x)); toast("ok", `${c.cap} → ${e.target.value}`, e.target.value === "ga" ? "Unlocked for entitled tenants · changelog drafted." : "Registry updated · UI labels follow."); }} className="ml-auto !h-7 !w-[104px] !bg-[#171714] !text-white !border-white/15 !text-[10.5px]" aria-label={`Status for ${c.cap}`}>
+                <Select value={c.status} onChange={(e) => { setRegistry(registry.map((x) => x.cap === c.cap ? { ...x, status: e.target.value } : x)); toast("ok", `${c.cap} → ${e.target.value}`, e.target.value === "ga" ? "Unlocked for entitled tenants · changelog drafted." : "Registry updated · UI labels follow."); }} className="ml-auto !h-7 !w-[104px] bg-[#171714] text-white border-white/15 !text-[10.5px]" aria-label={`Status for ${c.cap}`}>
                   {["planned", "alpha", "beta", "ga", "deprecated"].map((s) => <option key={s} value={s}>{s}</option>)}
                 </Select>
               </div>

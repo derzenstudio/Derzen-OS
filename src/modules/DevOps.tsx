@@ -80,7 +80,7 @@ function Roadmap() {
   return (
     <>
       <section className="relative overflow-hidden rounded-xl border border-white/10 bg-[#0a0a09] p-6">
-        <div className="absolute inset-0 opacity-[0.1]" style={{ backgroundImage: "url(\"image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cpath d='M0 60h120M60 0v120' stroke='%23ffffff' stroke-width='0.5'/%3E%3C/svg%3E\")" }} aria-hidden="true" />
+        <div className="absolute inset-0 opacity-[0.1]" style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cpath d='M0 60h120M60 0v120' stroke='%23ffffff' stroke-width='0.5'/%3E%3C/svg%3E\")" }} aria-hidden="true" />
         <div className="relative flex flex-wrap items-end gap-6">
           <div className="min-w-0 flex-1">
             <p className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-brand-bright">build order · the plan we ship by</p>
@@ -475,7 +475,7 @@ function Developers() {
               {a.status === "in review" ? (
                 <div className="flex gap-1.5">
                   <Btn size="xs" variant="solid" icon="check" onClick={() => { setApps(apps.map((x) => x.app === a.app ? { ...x, status: "listed" } : x)); toast("ok", `${a.app} listed`, "Install flow now checks tenant entitlements."); }}>Approve</Btn>
-                  <Btn size="xs" variant="ghost" className="!text-white/60" onClick={() => { setApps(apps.filter((x) => x.app !== a.app)); toast("warn", "Rejected with feedback", "Developer notified · scope request too broad."); }}>Reject</Btn>
+                  <Btn size="xs" variant="ghost" className="text-white/60" onClick={() => { setApps(apps.filter((x) => x.app !== a.app)); toast("warn", "Rejected with feedback", "Developer notified · scope request too broad."); }}>Reject</Btn>
                 </div>
               ) : <span className="rounded-full bg-[#1d3527] px-2 py-0.5 font-mono text-[9px] font-bold text-[#4CC38A]">listed</span>}
             </div>

@@ -1,5 +1,25 @@
 # QA Audit — DERZEN Hospitality OS
 
+## Resolution log (latest pass)
+
+| Item | Status | Evidence |
+|---|---|---|
+| S-1 chatbot guest crash | FIXED | `g-chat` guest registered before reservation creation |
+| S-2 new-property registry crash | FIXED | `addProperty` registers into the shared lookup |
+| S-3 stored XSS in inline editor | FIXED | strict allowlist sanitizer (`sanitizeHtml`) on every render path |
+| F-1 chatbot → payment dead flow | FIXED | live chatbot embed preview + public hosted payment page `#/en/pay/:ref` |
+| M-1 emdash copy | PARTIAL | guest-facing + global chrome cleaned (Public, Shell, App, ChatWidget); ~300 remain in module/dev-side strings, mapped via `\u2014` grep for the next copy pass |
+| M-2 stub site buttons | FIXED | Duplicate clones the full page tree to a `-copy` subdomain; Delete requires typing the subdomain, then unpublishes + resets, audited |
+| M-3 execCommand | FIXED | TextBar rewritten on the Range API (wrap/unwrap toggle, font-color via allowlisted attr, block-level align + relative sizing) |
+| L-1 no session expiry | FIXED | tenant sessions 12h TTL, developer 4h; expired sessions dropped at boot with a visible notice |
+| L-2 photo storage | IMPROVED | per-library capacity readout + "nearly full" warning pointing at the Supabase bucket seam |
+| L-3 i18n coverage | OPEN | catalogues still nav/dashboard/common only |
+| L-4 bundle splitting | OPEN | single 1.15 MB chunk; needs manualChunks in the Vite config |
+| L-5 timer cleanup | OPEN | harmless store timers |
+
+---
+
+
 **Auditor:** Quality & Release Management
 **Scope:** Full codebase review — tenant app (`app.*`), developer consoles (`dev.*`), public site, guest surfaces. Buttons/links, security, functionality, build health.
 **Verdict:** 2 crash bugs + 1 injection surface + 1 dead feature found and **fixed in this pass** (build verified green, 83 modules). 7 findings remain open for the team, none blocking.

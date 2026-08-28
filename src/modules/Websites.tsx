@@ -35,9 +35,11 @@ const WIDTH_CLASS: Record<BlockStyle["width"], string> = {
 };
 
 export default function Websites() {
-  const { website, moveBlock, moveBlockTo, addBlock, duplicateBlock, updateBlock, removeBlock, setSiteTheme, setSiteActivePage, siteChrome, setSiteChrome, toast } = useApp();
+  const { website, moveBlock, moveBlockTo, addBlock, duplicateBlock, updateBlock, removeBlock, setSiteTheme, setSiteActivePage, siteChrome, setSiteChrome, duplicateSite, resetSite, toast } = useApp();
   const [tab, setTab] = useState("builder");
   const [libOpen, setLibOpen] = useState(false);
+  const [delOpen, setDelOpen] = useState(false);
+  const [delName, setDelName] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
   const [pageSettings, setPageSettings] = useState(false);
@@ -71,9 +73,27 @@ export default function Websites() {
           </p>
         </div>
         <label className="flex items-center gap-2 text-[12px] font-bold text-ink">Publish <Toggle checked={website.published} onChange={(v) => toast(v ? "ok" : "warn", v ? "Site published" : "Site unpublished", v ? "TLS issued automatically." : "Embeds and links show a maintenance notice.")} label="Publish site" /></label>
-        <Btn size="sm" icon="copy" onClick={() => toast("ok", "Site duplicated", "sanggraha-copy.derzen.site")}>Duplicate</Btn>
-        <Btn size="sm" variant="ghost" icon="trash" onClick={() => toast("warn", "Delete requires typing the site name", "Protection against accidental loss.")}>Delete</Btn>
+        <Btn size="sm" icon="copy" onClick={() => duplicateSite()}>Duplicate</Btn>
+        <Btn size="sm" variant="ghost" icon="trash" onClick={() => { setDelName(""); setDelOpen(true); }}>Delete</Btn>
       </div>
+
+      <Modal open={delOpen} onClose={() => setDelOpen(false)} title="Delete this site" w={460}
+        footer={<>
+          <Btn variant="ghost" onClick={() => setDelOpen(false)}>Keep site</Btn>
+          <Btn variant="danger" icon="trash" disabled={delName.trim() !== website.subdomain} onClick={() => { resetSite(); setDelOpen(false); }}>Delete permanently</Btn>
+        </>}>
+        <div className="space-y-3">
+          <p className="text-[12.5px] leading-relaxed text-mute">
+            This unpublishes <code className="rounded-sm bg-paper px-1.5 py-0.5 font-mono text-[11.5px] text-ink">{website.subdomain}.derzen.site</code> and
+            removes <b className="text-ink">all {website.pages.length} pages</b>, including the builder content, header and footer.
+            Listings, pricing, reservations and settings are <b className="text-ink">not</b> touched.
+          </p>
+          <Field label={`Type “${website.subdomain}” to confirm`}>
+            <Input value={delName} onChange={(e) => setDelName(e.target.value)} placeholder={website.subdomain} autoFocus />
+          </Field>
+          <p className="flex items-center gap-1.5 text-[10.5px] font-semibold text-faint"><Ic name="shield" size={11} /> This action is audited and cannot be undone from the UI.</p>
+        </div>
+      </Modal>
 
       <Tabs tabs={[{ id: "builder", label: "Page builder" }, { id: "collections", label: "Collections" }, { id: "analytics", label: "Analytics" }, { id: "embed", label: "Embeddable widgets" }, { id: "settings", label: "Website settings" }]} active={tab} onChange={setTab} />
 

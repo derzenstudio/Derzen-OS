@@ -48,7 +48,7 @@ export function ChatbotPreview({ st, onBooked }: { st: WidgetStyle; onBooked: (r
     const to = dayKey(addDays(from, nights));
     const { ref, total, currency } = chatBooking({ propertyId: propId, from, to, guests });
     setMsgs((m) => [...m, { from: "guest", text: `Book ${propertyById(propId).name}, ${fmtDate(from)} → ${fmtDate(to)}` }]);
-    bot(`Done — I've held ${propertyById(propId).name} for you. Total ${money(total, currency)} (30% deposit due now). Opening the secure payment page…`, 500);
+    bot(`Done. I've held ${propertyById(propId).name} for you. Total ${money(total, currency)} (30% deposit due now). Opening the secure payment page…`, 500);
     setTimeout(() => onBooked(ref), 1600);
   };
 
@@ -101,9 +101,9 @@ export function ChatbotPreview({ st, onBooked }: { st: WidgetStyle; onBooked: (r
 
       <div className="flex flex-wrap gap-1.5 border-t px-3 py-2.5" style={{ borderColor: st.borderColor, background: st.bg }}>
         {[
-          ["Check availability", () => { setMsgs((m) => [...m, { from: "guest", text: "I'd like to check availability" }]); bot("Of course — pick your villa and dates below.", 450); setPickerOpen(true); }],
-          ["Pool heated?", () => ask("Is the pool heated?", "Pools sit around 29° — Bali rarely needs more. Want me to check dates for you?")],
-          ["Airport transfer?", () => ask("Do you do airport transfers?", "Yes — share your flight number after booking and a driver meets you at DPS arrivals.")],
+          ["Check availability", () => { setMsgs((m) => [...m, { from: "guest", text: "I'd like to check availability" }]); bot("Of course. Pick your villa and dates below.", 450); setPickerOpen(true); }],
+          ["Pool heated?", () => ask("Is the pool heated?", "Pools sit around 29°, and Bali rarely needs more. Want me to check dates for you?")],
+          ["Airport transfer?", () => ask("Do you do airport transfers?", "Yes. Share your flight number after booking and a driver meets you at DPS arrivals.")],
         ].map(([label, fn]) => (
           <button key={String(label)} onClick={fn as () => void} className="rounded-full border px-2.5 py-1 text-[10px] font-bold transition-colors hover:opacity-80" style={{ borderColor: st.borderColor, color: st.text, background: st.card }}>{String(label)}</button>
         ))}
@@ -128,7 +128,7 @@ export function PaymentPage({ refCode }: { refCode: string }) {
           <Ic name="alertTri" size={26} className="mx-auto text-gold" />
           <h1 className="mt-3 font-display text-[20px] font-bold text-ink">Reservation not found</h1>
           <p className="mt-1.5 text-[12.5px] text-mute">The payment link <code className="font-mono">{refCode}</code> doesn't match an open booking. It may have expired or already been paid.</p>
-          <p className="mt-3 font-mono text-[10px] text-faint">If you just booked, wait a few seconds and refresh — links activate once the hold is confirmed.</p>
+          <p className="mt-3 font-mono text-[10px] text-faint">If you just booked, wait a few seconds and refresh. Links activate once the hold is confirmed.</p>
         </div>
       </Shell0>
     );
@@ -152,7 +152,7 @@ export function PaymentPage({ refCode }: { refCode: string }) {
               <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-brand-soft"><Ic name="checkCircle" size={30} className="text-brand" /></span>
               <h1 className="mt-4 font-display text-[24px] font-bold text-ink">Payment received</h1>
               <p className="mx-auto mt-1.5 max-w-[40ch] text-[13px] leading-relaxed text-mute">
-                Your deposit for <b className="text-ink">{p.name}</b> is confirmed. A receipt and your guidebook link are on the way to your inbox — and the villa is now blocked for you across every channel.
+                Your deposit for <b className="text-ink">{p.name}</b> is confirmed. A receipt and your guidebook link are on the way to your inbox, and the villa is now blocked for you across every channel.
               </p>
               <p className="mt-4 inline-block rounded-sm bg-paper px-3 py-1.5 font-mono text-[12px] font-bold text-brand-deep">{res.ref} · deposit {money(deposit, res.currency)}</p>
               <div className="mt-5"><Btn onClick={() => navigate("/reservations")}>View in workspace (demo)</Btn></div>
@@ -172,9 +172,9 @@ export function PaymentPage({ refCode }: { refCode: string }) {
                 <p className="mb-2 text-[10.5px] font-bold uppercase tracking-wider text-mute">Pay with</p>
                 <div className="space-y-1.5">
                   {([
-                    ["card", "Card", "Visa · Mastercard · Amex — processed by the connected gateway, card data never touches this site"],
-                    ["va", "Virtual account", "Xendit VA · BCA, Mandiri, BNI, BRI — expires in 24h"],
-                    ["transfer", "Bank transfer", "Manual instructions — confirmed within one business day"],
+                    ["card", "Card", "Visa · Mastercard · Amex, processed by the connected gateway; card data never touches this site"],
+                    ["va", "Virtual account", "Xendit VA · BCA, Mandiri, BNI, BRI, expires in 24h"],
+                    ["transfer", "Bank transfer", "Manual instructions, confirmed within one business day"],
                   ] as const).map(([id, label, sub]) => (
                     <label key={id} className={cx("flex cursor-pointer items-start gap-2.5 rounded-sm border px-3 py-2.5 transition-colors", method === id ? "border-brand bg-brand-soft/50" : "border-line hover:border-line2")}>
                       <input type="radio" name="pm" checked={method === id} onChange={() => setMethod(id)} className="mt-1" />
@@ -192,7 +192,7 @@ export function PaymentPage({ refCode }: { refCode: string }) {
                     <input placeholder="12 / 28" className="h-9 w-full rounded-sm border border-line bg-paper px-2.5 font-mono text-[12.5px] outline-none focus:border-brand" /></label>
                   <label className="block"><span className="mb-1 block text-[10px] font-bold uppercase tracking-wide text-mute">CVC</span>
                     <input placeholder="123" className="h-9 w-full rounded-sm border border-line bg-paper px-2.5 font-mono text-[12.5px] outline-none focus:border-brand" /></label>
-                  <p className="col-span-2 rounded-sm bg-paper px-2.5 py-1.5 text-[10px] leading-snug text-faint"><Ic name="shield" size={10} className="mr-1 inline" /> This field is tokenised by the gateway — the merchant and DERZEN only ever see a token, never the number.</p>
+                  <p className="col-span-2 rounded-sm bg-paper px-2.5 py-1.5 text-[10px] leading-snug text-faint"><Ic name="shield" size={10} className="mr-1 inline" /> This field is tokenised by the gateway. The merchant and DERZEN only ever see a token, never the number.</p>
                 </div>
               )}
               {method === "va" && (
@@ -204,7 +204,7 @@ export function PaymentPage({ refCode }: { refCode: string }) {
               {method === "transfer" && (
                 <div className="mt-3 rounded-sm border border-line bg-paper px-3 py-2.5 text-[11px] leading-relaxed anim-rise">
                   <p className="font-bold text-ink">BCA 0881 2345 67 · PT Sanggraha Hospitality</p>
-                  <p className="mt-0.5 text-mute">Reference: <b className="font-mono">{res.ref}</b> — send the confirmation screenshot to stay@sanggraha.co and we'll verify manually.</p>
+                  <p className="mt-0.5 text-mute">Reference: <b className="font-mono">{res.ref}</b>. Send the confirmation screenshot to stay@sanggraha.co and we'll verify manually.</p>
                 </div>
               )}
 

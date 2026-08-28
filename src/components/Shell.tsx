@@ -166,7 +166,7 @@ function Topbar({ title, sub, onMenu }: { title: string; sub?: string; onMenu: (
     {impersonated && (
       <div className="flex shrink-0 items-center gap-3 border-b border-brand/40 bg-brand-soft px-4 py-1.5">
         <Ic name="eye" size={13} className="text-brand-deep" />
-        <p className="text-[11.5px] font-bold text-brand-deep">Impersonating {tenantName} — every action is logged to the audit trail as a developer session.</p>
+        <p className="text-[11.5px] font-bold text-brand-deep">Impersonating {tenantName}. Every action is logged to the audit trail as a developer session.</p>
         <button onClick={() => { logout(); }} className="ml-auto rounded-md bg-brand px-2.5 py-1 text-[11px] font-bold text-white hover:bg-brand-deep">Return to console</button>
       </div>
     )}
@@ -215,7 +215,7 @@ function Topbar({ title, sub, onMenu }: { title: string; sub?: string; onMenu: (
             </button>
           ))}
           <button
-            onClick={async () => { const ok = await refreshRates(); toast(ok ? "ok" : "warn", ok ? "Live FX rates loaded" : "Using dated snapshot", ok ? "open.er-api.com · just now" : "Offline — amounts still convert at the snapshot rate."); }}
+            onClick={async () => { const ok = await refreshRates(); toast(ok ? "ok" : "warn", ok ? "Live FX rates loaded" : "Using dated snapshot", ok ? "open.er-api.com · just now" : "Offline. Amounts still convert at the snapshot rate."); }}
             aria-label="Refresh exchange rates"
             title={`Rates: ${fx.source === "live" ? "live · " + fx.asOf : "snapshot · " + fx.asOf}`}
             className="rounded p-1 text-mute transition-colors hover:bg-paper hover:text-brand"
@@ -317,7 +317,7 @@ function copilotAnswer(q: string, props: Property[]): { text: string; confirm?: 
   }
   if (/(open|available|free).*(weekend|next)/.test(s)) {
     const open = props.filter((p) => !p.archived && !p.isParent && arrivalsOn(RESERVATIONS, ((6 - t.getDay()) + 7) % 7 || 7, p.id).length === 0);
-    return { text: `For next weekend (${fmtShort(weekendStart)}–${fmtShort(addDays(weekendStart, 2))}) these are open: ${open.slice(0, 5).map((p) => p.name).join(", ") || "none — every villa has an arrival"}. Samudra Three is open but its direct checkout is disabled.` };
+    return { text: `For next weekend (${fmtShort(weekendStart)}–${fmtShort(addDays(weekendStart, 2))}) these are open: ${open.slice(0, 5).map((p) => p.name).join(", ") || "none, every villa has an arrival"}. Samudra Three is open but its direct checkout is disabled.` };
   }
   if (/(overdue|behind|late)/.test(s)) {
     return { text: `3 tasks are overdue: the AC drip at Villa Purnama (urgent, 20h over), water heater descale at Kelapa, and nothing else critical. The AC one has a flagged ceiling stain, so I'd escalate to Bali Pool & Plumbing today. Want me to create the provider task?`, confirm: { label: "Create provider task", taskId: "Fix: master suite ceiling (Bali Pool & Plumbing)" } };
@@ -326,16 +326,16 @@ function copilotAnswer(q: string, props: Property[]): { text: string; confirm?: 
     return { text: `Draft for Jonas Weber (Booking.com, Villa Cemara):\n\n"Hi Jonas, yes to both! We'll have a cot set up in the ground-floor bedroom, and while the pool isn't heated it sits at a lovely 29° this week. See you at 14:00. Kadek"\n\nTone-checked against your brand rules. Send it from the Inbox, or I can queue it under Autopilot → Suggestion.` };
   }
   if (/(automation|automate|sop)/.test(s)) {
-    return { text: `Two automation gaps I can see:\n1. No "guest cancellation notice" template fires for VRBO cancellations (R-2432 was cancelled with no outbound message).\n2. Kelapa has no checkout-cleaning task generated because it's unmanaged — set a template anyway?\nI can wire both. Write actions need your confirm.` };
+    return { text: `Two automation gaps I can see:\n1. No "guest cancellation notice" template fires for VRBO cancellations (R-2432 was cancelled with no outbound message).\n2. Kelapa has no checkout-cleaning task generated because it's unmanaged. Set a template anyway?\nI can wire both. Write actions need your confirm.` };
   }
   if (/(anomal|weird|unusual|issue)/.test(s)) {
     return { text: `Anomalies right now:\n• Agoda rate pushes failing: base USD 322 is below their USD 348 floor (4th failure).\n• VRBO OAuth token expired 26h ago, 6 pushes queued behind it.\n• Rumah Senja knowledge scope is empty → concierge escalated 2 guest questions this week.\n• Samudra Two ↔ Booking.com room-type conflict is 2h old and holding an inbound reservation.` };
   }
   if (/(occupancy|occup)/.test(s)) {
-    return { text: `Occupancy next 30 days: 71% across 9 active units (83% if you include holds). Best week is the 21st–27th at 89%. Weakest is Kelapa mid-week — the Traveloka markup is your lowest (7%); a flash rate there would likely fill it.` };
+    return { text: `Occupancy next 30 days: 71% across 9 active units (83% if you include holds). Best week is the 21st–27th at 89%. Weakest is Kelapa mid-week, where the Traveloka markup is your lowest (7%); a flash rate there would likely fill it.` };
   }
   if (/create.*task|add.*task/.test(s)) {
-    return { text: `Got it — I'll create a task from your request. Confirm below and I'll write it to the Command Center (logged to the audit trail as source: ai).`, confirm: { label: "Confirm & create task", taskId: "Copilot task: follow up on request" } };
+    return { text: `Got it, I'll create a task from your request. Confirm below and I'll write it to the Command Center (logged to the audit trail as source: ai).`, confirm: { label: "Confirm & create task", taskId: "Copilot task: follow up on request" } };
   }
   return { text: `I read your tenant data (properties, calendar, ledger, inbox). Try:\n• "Which villas are open next weekend?"\n• "What's my ADR vs last year?"\n• "Show anomalies"\n• "Draft a reply to Jonas"\n• "Create a task to …" (write actions always ask you first).` };
 }
@@ -439,7 +439,7 @@ function OnboardWizard() {
   const { onboardOpen, setOnboardOpen, onboardSteps, doneOnboard, navigate, t } = useApp();
   const done = onboardSteps.filter((s) => s.done).length;
   return (
-    <Modal open={onboardOpen} onClose={() => setOnboardOpen(false)} title={<span className="flex items-center gap-2"><Ic name="nav" size={16} className="text-brand" /> Setup guide — get bookable in 10 minutes</span>} w={560}
+    <Modal open={onboardOpen} onClose={() => setOnboardOpen(false)} title={<span className="flex items-center gap-2"><Ic name="nav" size={16} className="text-brand" /> Setup guide: get bookable in 10 minutes</span>} w={560}
       footer={<Btn variant="ghost" onClick={() => setOnboardOpen(false)}>{t("common.close")}</Btn>}>
       <div className="mb-4 flex items-center gap-3">
         <Ring value={done / onboardSteps.length} size={48} label="Setup progress" />

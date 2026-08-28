@@ -28,8 +28,13 @@ import {
 
 // ── sessions & tenant-scoped boot ──────────────────────────────────────────
 export type Session =
-  | { kind: "tenant"; tenantId: string; impersonated?: boolean }
-  | { kind: "developer" };
+  | { kind: "tenant"; tenantId: string; impersonated?: boolean; exp?: number }
+  | { kind: "developer"; exp?: number };
+
+// Tenant sessions expire after 12h, developer sessions after 4h. Expired
+// sessions are dropped at boot with a visible notice — never silently renewed.
+const TENANT_TTL = 12 * 3_600_000;
+const DEV_TTL = 4 * 3_600_000;
 
 const SESSION_KEY = "derzen.session";
 function loadSession(): Session | null {
@@ -42,11 +47,20 @@ function loadSession(): Session | null {
       localStorage.removeItem(SESSION_KEY);
       return null;
     }
+    if (s?.exp && Date.now() > s.exp) {
+      localStorage.removeItem(SESSION_KEY);
+      try { localStorage.setItem("derzen.sessionExpired", "1"); } catch { /* ignore */ }
+      return null;
+    }
     return s;
   } catch { return null; }
 }
 function saveSession(s: Session | null) {
-  try { s ? localStorage.setItem(SESSION_KEY, JSON.stringify(s)) : localStorage.removeItem(SESSION_KEY); } catch { /* private mode */ }
+  try {
+    if (!s) { localStorage.removeItem(SESSION_KEY); return; }
+    const stamped: Session = { ...s, exp: Date.now() + (s.kind === "developer" ? DEV_TTL : TENANT_TTL) };
+    localStorage.setItem(SESSION_KEY, JSON.stringify(stamped));
+  } catch { /* private mode */ }
 }
 const bootSession = loadSession();
 if (bootSession?.kind === "tenant" && bootSession.tenantId) {
@@ -237,6 +251,8 @@ interface App {
   addPage: (name: string) => void;
   deletePage: (id: string) => void;
   updatePage: (pageId: string, patch: Partial<SitePage>) => void;
+  duplicateSite: () => void;
+  resetSite: () => void;
   collections: Collection[];
   updateCollection: (id: string, patch: Partial<Collection>) => void;
   addCollection: () => void;
@@ -1063,6 +1079,37 @@ export const useApp = create<App>((set, get) => ({
         pages: st.website.pages.map((p) => (p.id === pageId ? { ...p, ...patch, seo: { ...p.seo, ...patch.seo } } : p)),
       },
     }));
+  },
+
+  duplicateSite: () => {
+    const st = get();
+    const clonePage = (pg: SitePage): SitePage => ({
+      ...pg, id: uid("pg"), slug: pg.slug ? `${pg.slug}-copy` : "copy", home: false,
+      seo: { ...pg.seo },
+      blocks: pg.blocks.map((b) => ({ ...b, id: uid("b"), content: { ...b.content }, style: { ...DEFAULT_BLOCK_STYLE, ...b.style } })),
+    });
+    const copies = st.website.pages.map(clonePage);
+    get().markPending("Websites");
+    set((s) => ({
+      website: { ...s.website, subdomain: `${s.website.subdomain}-copy`, pages: [...s.website.pages, ...copies], activePageId: copies[0].id },
+    }));
+    get().audit(`Site duplicated — ${copies.length} pages cloned`, "ui");
+    get().toast("ok", "Copy created", `${copies.length} pages cloned under a new subdomain. You're now editing the copy — hit Save.`);
+  },
+
+  resetSite: () => {
+    const home: SitePage = {
+      id: uid("pg"), name: "Home", slug: "home", home: true, visible: true,
+      seo: { title: "Sanggraha Villas", description: "" },
+      blocks: [
+        { id: uid("b"), type: "hero", content: defaultBlockContent("hero") },
+        { id: uid("b"), type: "cta_banner", content: defaultBlockContent("cta_banner") },
+      ],
+    };
+    get().markPending("Websites");
+    set((s) => ({ website: { ...s.website, pages: [home], activePageId: home.id, published: false } }));
+    get().audit("Site deleted — unpublished and reset to a blank Home page", "ui");
+    get().toast("warn", "Site deleted", "Unpublished and reset. Listings, pricing and settings are untouched.");
   },
 
   collections: COLLECTIONS,

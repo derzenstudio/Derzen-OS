@@ -110,37 +110,93 @@ export function EditableText({
   );
 }
 
-// Floating format bar (Canva-style) while a text element has focus
+// Floating format bar (Canva-style) while a text element has focus.
+// Formatting is done with the Range API — no deprecated execCommand anywhere.
 function TextBar({ pos, multiline }: { pos: { x: number; y: number }; multiline: boolean }) {
   const [tick, setTick] = useState(0);
-  const exec = (cmd: string, val?: string) => {
-    document.execCommand(cmd, false, val);
-    // execCommand doesn't emit `input` for style toggles — nudge the editable node so the change commits live
-    (document.activeElement as HTMLElement | null)?.dispatchEvent(new Event("input", { bubbles: true }));
-    setTick((t) => t + 1); // re-render to refresh active states
-  };
-  const active = (cmd: string) => { try { return document.queryCommandState(cmd); } catch { return false; } };
   void tick; void multiline;
+
+  const commit = () => {
+    (document.activeElement as HTMLElement | null)?.dispatchEvent(new Event("input", { bubbles: true }));
+    setTick((t) => t + 1);
+  };
+  const selEl = () => {
+    const sel = window.getSelection();
+    const n = sel?.anchorNode;
+    return n instanceof Element ? n : (n?.parentElement ?? null);
+  };
+  const host = () => selEl()?.closest("[contenteditable]") as HTMLElement | null;
+
+  const wrap = (tag: "b" | "i" | "u") => {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return;
+    const range = sel.getRangeAt(0);
+    const existing = selEl()?.closest(tag);
+    if (existing && existing.contains(range.commonAncestorContainer)) {
+      const parent = existing.parentNode;
+      if (parent) { while (existing.firstChild) parent.insertBefore(existing.firstChild, existing); parent.removeChild(existing); commit(); return; }
+    }
+    try {
+      const frag = range.extractContents();
+      const el = document.createElement(tag);
+      el.appendChild(frag);
+      range.insertNode(el);
+      sel.removeAllRanges();
+      const r2 = document.createRange();
+      r2.selectNodeContents(el);
+      sel.addRange(r2);
+    } catch { /* selection crossing block boundaries — leave as typed */ }
+    commit();
+  };
+  const setColor = (c: string) => {
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return;
+    try {
+      const range = sel.getRangeAt(0);
+      const frag = range.extractContents();
+      const el = document.createElement("font");
+      el.setAttribute("color", c); // the only attribute the sanitizer allows through
+      el.appendChild(frag);
+      range.insertNode(el);
+    } catch { /* ignore */ }
+    commit();
+  };
+  const setSize = (dir: 1 | -1) => {
+    const h = host();
+    if (!h) return;
+    const cur = parseFloat(h.style.fontSize) || 1; // em, relative to the block's base
+    h.style.fontSize = `${Math.min(1.7, Math.max(0.7, +(cur + dir * 0.15).toFixed(2)))}em`;
+    commit();
+  };
+  const align = (v: "left" | "center" | "right") => {
+    const h = host();
+    if (!h) return;
+    h.style.textAlign = v;
+    commit();
+  };
+  const activeTag = (tag: string) => !!selEl()?.closest(tag);
+  const alignActive = (v: string) => (host()?.style.textAlign || "left") === v;
+
   return (
     <div
       className="anim-pop fixed z-[95] flex items-center gap-0.5 rounded-md border border-line bg-card px-1 py-0.5 shadow-xl"
       style={{ left: pos.x, top: pos.y }}
       onMouseDown={(e) => e.preventDefault()} // keep the text selection
     >
-      <ToolBtn icon="bold" label="Bold" active={active("bold")} onClick={() => exec("bold")} />
-      <ToolBtn icon="italic" label="Italic" active={active("italic")} onClick={() => exec("italic")} />
-      <ToolBtn icon="underline" label="Underline" active={active("underline")} onClick={() => exec("underline")} />
+      <ToolBtn icon="bold" label="Bold" active={activeTag("b")} onClick={() => wrap("b")} />
+      <ToolBtn icon="italic" label="Italic" active={activeTag("i")} onClick={() => wrap("i")} />
+      <ToolBtn icon="underline" label="Underline" active={activeTag("u")} onClick={() => wrap("u")} />
       <span className="mx-0.5 h-4 w-px bg-line" />
-      <button onClick={() => exec("fontSize", "2")} aria-label="Smaller text" title="Smaller" className="rounded-sm px-1 font-mono text-[10px] font-bold text-mute hover:bg-paper">A−</button>
-      <button onClick={() => exec("fontSize", "5")} aria-label="Larger text" title="Larger" className="rounded-sm px-1 font-mono text-[12px] font-bold text-mute hover:bg-paper">A+</button>
+      <button onClick={() => setSize(-1)} aria-label="Smaller text" title="Smaller" className="rounded-sm px-1 font-mono text-[10px] font-bold text-mute hover:bg-paper">A−</button>
+      <button onClick={() => setSize(1)} aria-label="Larger text" title="Larger" className="rounded-sm px-1 font-mono text-[12px] font-bold text-mute hover:bg-paper">A+</button>
       <span className="mx-0.5 h-4 w-px bg-line" />
       {["#141811", "#0e6b4e", "#9a6a0b", "#b42318", "#ffffff"].map((c) => (
-        <button key={c} onClick={() => exec("foreColor", c)} aria-label={`Text colour ${c}`} title="Text colour" className="h-4 w-4 rounded-full border border-line2" style={{ background: c }} />
+        <button key={c} onClick={() => setColor(c)} aria-label={`Text colour ${c}`} title="Text colour" className="h-4 w-4 rounded-full border border-line2" style={{ background: c }} />
       ))}
       <span className="mx-0.5 h-4 w-px bg-line" />
-      <ToolBtn icon="alignL" label="Align left" active={active("justifyLeft")} onClick={() => exec("justifyLeft")} />
-      <ToolBtn icon="alignC" label="Align centre" active={active("justifyCenter")} onClick={() => exec("justifyCenter")} />
-      <ToolBtn icon="alignR" label="Align right" active={active("justifyRight")} onClick={() => exec("justifyRight")} />
+      <ToolBtn icon="alignL" label="Align left" active={alignActive("left")} onClick={() => align("left")} />
+      <ToolBtn icon="alignC" label="Align centre" active={alignActive("center")} onClick={() => align("center")} />
+      <ToolBtn icon="alignR" label="Align right" active={alignActive("right")} onClick={() => align("right")} />
     </div>
   );
 }

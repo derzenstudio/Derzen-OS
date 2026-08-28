@@ -56,7 +56,7 @@ export function PublicSite() {
       <section className="mx-auto grid max-w-[1160px] grid-cols-1 gap-10 px-5 pb-16 pt-14 lg:grid-cols-[1.15fr_1fr] lg:pt-20">
         <div className="anim-rise">
           <p className="mb-4 inline-flex items-center gap-2 rounded-full border border-line bg-card px-3 py-1 text-[11px] font-bold text-mute">
-            <span className="h-1.5 w-1.5 rounded-full bg-brand dot-pulse" /> Live from a demo workspace in Bali — 6 channels syncing now
+            <span className="h-1.5 w-1.5 rounded-full bg-brand dot-pulse" /> Live from a demo workspace in Bali · 6 channels syncing now
           </p>
           <h1 className="font-display text-[44px] font-extrabold leading-[1.02] tracking-[-0.03em] sm:text-[58px]">
             Every villa.<br />Every channel.<br /><span className="relative inline-block">One ledger.<span className="absolute inset-x-0 bottom-1 -z-10 h-3 bg-brand-soft" aria-hidden="true" /></span>
@@ -101,7 +101,7 @@ export function PublicSite() {
               </div>
             </div>
             <div className="space-y-2 px-4 py-3">
-              <p className="text-[9.5px] font-bold uppercase tracking-wider text-white/40">Channel sync — last push</p>
+              <p className="text-[9.5px] font-bold uppercase tracking-wider text-white/40">Channel sync · last push</p>
               {["airbnb", "booking", "vrbo", "agoda", "traveloka"].map((c, i) => {
                 const def = channelDef(c as never);
                 const phase = liveChannels[i];
@@ -139,8 +139,8 @@ export function PublicSite() {
           <div className="grid grid-cols-1 gap-3 md:grid-cols-6">
             <BentoTile span="md:col-span-4" icon="calendar" title="Multi-calendar with bulk edit" body="Drag across 20 listings × 30 nights, apply rate + min-stay + CTA in one transaction. Pushes queue per channel; failures surface with rollback, never a silent double-sell." tag="Distribution" />
             <BentoTile span="md:col-span-2" icon="sparkle" title="AI concierge" body="Cites your knowledge base or escalates. Three autopilot modes; humans approve in Suggestion mode." tag="Engage" dark />
-            <BentoTile span="md:col-span-2" icon="chat" title="Unified inbox" body="Airbnb, Booking, WhatsApp, email — threaded to the right reservation in under 10 seconds." tag="Engage" />
-            <BentoTile span="md:col-span-2" icon="wrench" title="Command Center" body="Tasks, checklists with photo proof, provider escalation — offline-first for staff in dead spots." tag="Operate" />
+            <BentoTile span="md:col-span-2" icon="chat" title="Unified inbox" body="Airbnb, Booking, WhatsApp, email, threaded to the right reservation in under 10 seconds." tag="Engage" />
+            <BentoTile span="md:col-span-2" icon="wrench" title="Command Center" body="Tasks, checklists with photo proof, provider escalation, offline-first for staff in dead spots." tag="Operate" />
             <BentoTile span="md:col-span-2" icon="web" title="Direct-booking sites" body="Visual builder, embeddable widgets, quotes that convert to reservations with a payment link." tag="Sell" dark />
             <BentoTile span="md:col-span-3" icon="trendUp" title="Financials that reconcile" body="ADR, RevPAR, occupancy, owner statements, and every total traces to the transaction ledger. IDR ⇄ USD at timestamped rates." tag="Business" />
             <BentoTile span="md:col-span-3" icon="lock" title="Smart locks + ID checks" body="Door codes issue at verification, revoke at checkout. Nuki, TTLock, August, Igloohome." tag="Integrations" />
@@ -196,7 +196,7 @@ export function PublicSite() {
             <h2 className="mt-1 font-display text-[32px] font-extrabold tracking-tight">Your guests' data never meets another operator's.</h2>
             <ul className="mt-5 space-y-3">
               {[
-                ["Row-level isolation", "tenant_id enforced in PostgreSQL RLS on every table — verified by an automated cross-tenant suite that runs against every new API route."],
+                ["Row-level isolation", "tenant_id enforced in PostgreSQL RLS on every table, verified by an automated cross-tenant suite that runs against every new API route."],
                 ["Money is integer math", "Minor units + explicit currency everywhere. Listing, channel and reporting currencies stay separate, with the FX rate + timestamp stored on every conversion."],
                 ["PII on a timer", "ID documents purge after the retention window; payments are tokenized; GDPR export & erase per guest, built in."],
                 ["Nothing fails silently", "Every push, send and webhook runs on a durable queue with retry, dead-letter and alerts. Sync health is a first-class page."],
@@ -209,7 +209,7 @@ export function PublicSite() {
             </ul>
           </div>
           <div className="overflow-hidden rounded-xl border border-line bg-pine-950 p-5 font-mono text-[11px] leading-relaxed text-white/70">
-            <p className="mb-2 text-[9.5px] font-bold uppercase tracking-widest text-white/35">structured log — every request</p>
+            <p className="mb-2 text-[9.5px] font-bold uppercase tracking-widest text-white/35">structured log · every request</p>
             <pre className="overflow-x-auto">{`{ "ts": "06:41:02Z", "level": "info",
   "tenant_id": "t-sanggraha",
   "actor_id": "u-sarah",
@@ -219,7 +219,7 @@ export function PublicSite() {
   "pushes_queued": ["airbnb","booking",
     "vrbo","agoda","traveloka","direct"],
   "duration_ms": 214 }`}</pre>
-            <p className="mt-3 border-t border-white/10 pt-3 text-white/45">Same shape on every background job — so “who changed this rate, and when” is always a query, not an investigation.</p>
+            <p className="mt-3 border-t border-white/10 pt-3 text-white/45">Same shape on every background job, so “who changed this rate, and when” is always a query, not an investigation.</p>
           </div>
         </div>
       </section>
@@ -234,7 +234,7 @@ export function PublicSite() {
             <button onClick={demo} className="hover:text-white">Demo</button>
             <button onClick={() => go("product")} className="hover:text-white">Product</button>
           </div>
-          <p className="w-full font-mono text-[10.5px] text-white/35">© 2026 DERZEN Systems · rates snapshot via open.er-api.com · PCI scope minimised — cards never touch our servers</p>
+          <p className="w-full font-mono text-[10.5px] text-white/35">© 2026 DERZEN Systems · rates snapshot via open.er-api.com · PCI scope minimised, cards never touch our servers</p>
         </div>
       </footer>
     </div>
@@ -337,7 +337,7 @@ export function LoginPage() {
             {[
               ["Row-level tenant isolation", "each workspace is a sealed database row-space"],
               ["Sync that can't fail silently", "durable queues, dead-letters, alerts at 2h"],
-              ["AI that escalates, never invents", "citations or a human — your call, per property"],
+              ["AI that escalates, never invents", "citations or a human, your call, per property"],
             ].map(([h, s]) => (
               <p key={h} className="flex items-start gap-3 text-[13.5px]"><Ic name="check" size={15} className="mt-0.5 shrink-0 text-brand-bright" sw={2.6} /><span><b>{h}.</b> <span className="text-white/55">{s}</span></span></p>
             ))}
@@ -357,7 +357,7 @@ export function LoginPage() {
             <button onClick={() => { setMode("developer"); setErr(null); }} className={cx("flex-1 rounded-md py-2 text-[12.5px] font-bold", mode === "developer" ? "bg-brand text-white" : "text-mute")}>Developer</button>
           </div>
           <h2 className="font-display text-[26px] font-extrabold tracking-tight text-ink">{mode === "tenant" ? "Sign in to your workspace" : "Internal backoffice"}</h2>
-          <p className="mt-1 text-[13px] text-mute">{mode === "tenant" ? "Your data stays in your tenant — sealed at the database layer." : "Separate application, separate audit stream: ops queues, tenants, billing, flags, security."}</p>
+          <p className="mt-1 text-[13px] text-mute">{mode === "tenant" ? "Your data stays in your tenant, sealed at the database layer." : "Separate application, separate audit stream: ops queues, tenants, billing, flags, security."}</p>
 
           <form ref={formRef} onSubmit={submit} className="mt-6 space-y-3">
             <label className="block">

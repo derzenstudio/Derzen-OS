@@ -209,6 +209,7 @@ function PhotoManager({ p }: { p: Property }) {
           <h3 className="font-display text-[13.5px] font-bold text-ink">Photo library · {p.name}</h3>
           <p className="text-[10px] font-semibold text-faint">
             {STORAGE_BACKEND === "local" ? "saved in this browser (compressed, survives reload)" : "saved to Supabase bucket"} · {photos.length} photos
+            {photos.reduce((s, x) => s + (x.bytes ?? 0), 0) > QUOTA_BYTES * 0.8 && <span className="ml-1 rounded-sm bg-gold-soft px-1.5 py-0.5 font-bold text-gold">nearly full, connect the Supabase bucket</span>}
           </p>
         </div>
         <input ref={fileRef} type="file" accept="image/*" multiple className="hidden" onChange={(e) => void doUpload(e.target.files)} aria-label="Upload photos" />

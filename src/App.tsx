@@ -35,7 +35,7 @@ const MODULES: Record<string, { title: string; sub?: string; el: ComponentType }
   inbox: { title: "nav.inbox", sub: "Every channel, one thread per guest", el: Inbox },
   reservations: { title: "nav.reservations", sub: "Bookings, payments & the immutable timeline", el: Reservations },
   ops: { title: "nav.ops", sub: "Tasks, providers, automations & expenses", el: Operations },
-  sync: { title: "nav.sync", sub: "Channel connections — nothing fails silently", el: Channels },
+  sync: { title: "nav.sync", sub: "Channel connections, nothing fails silently", el: Channels },
   concierge: { title: "nav.concierge", sub: "Knowledge, autopilot & scheduled messages", el: Concierge },
   reviews: { title: "nav.reviews", sub: "Aggregate ratings & reply workflows", el: Reviews },
   customers: { title: "nav.customers", sub: "Guests deduplicated across channels", el: Customers },
@@ -59,7 +59,7 @@ function ModuleGated({ name }: { name: string }) {
         <span className="mx-auto flex h-12 w-12 items-center justify-center rounded-xl bg-brand-soft text-brand"><Ic name="lock" size={22} /></span>
         <h2 className="mt-4 font-display text-[20px] font-extrabold text-ink">{label} isn't on your plan</h2>
         <p className="mt-2 text-[13px] leading-relaxed text-mute">
-          Your platform operator switched this module off for your workspace — or your tier doesn't include it.
+          Your platform operator switched this module off for your workspace, or your tier doesn't include it.
           Nothing was deleted; it reappears the moment it's enabled.
         </p>
         <p className="mt-3 rounded-md bg-paper px-3 py-2 font-mono text-[10.5px] text-faint">HTTP 402 · PLAN_LIMIT · module="{name}"</p>
@@ -106,6 +106,16 @@ export default function App() {
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
   }, [theme]);
+
+  // surface an expired-session drop once, right after boot
+  useEffect(() => {
+    try {
+      if (localStorage.getItem("derzen.sessionExpired") === "1") {
+        localStorage.removeItem("derzen.sessionExpired");
+        window.setTimeout(() => useApp.getState().toast("warn", "Session expired", "For your security, please sign in again."), 400);
+      }
+    } catch { /* private mode */ }
+  }, []);
 
   // tenant font injection — heading + body fonts from the tenant's own URLs
   const sessionState = useApp((s) => s.session);
@@ -166,7 +176,7 @@ export default function App() {
     return (
       <Shell>
         <div className="p-10 text-center">
-          <p className="font-display text-[24px] font-extrabold text-ink">404 — that route doesn't exist</p>
+          <p className="font-display text-[24px] font-extrabold text-ink">404. That route doesn't exist</p>
           <Btn className="mt-4" onClick={() => navigate("/dashboard")}>Back to dashboard</Btn>
         </div>
       </Shell>
@@ -190,7 +200,7 @@ function WrongSurface({ audience }: { audience: Surface }) {
         <h2 className="mt-4 font-display text-[20px] font-extrabold text-ink">Wrong door</h2>
         <p className="mt-2 text-[13px] leading-relaxed text-mute">
           This host does not serve the {SURFACE_LABELS[audience]}. Your session belongs there, and it lives
-          on its own subdomain — sessions are never shared between the two.
+          on its own subdomain. Sessions are never shared between the two.
         </p>
         <p className="mt-3 rounded-md bg-paper px-3 py-2 font-mono text-[10.5px] text-faint">{target}</p>
         <a

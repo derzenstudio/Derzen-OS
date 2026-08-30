@@ -81,6 +81,27 @@ export function defaultBlockContent(type: string): Record<string, string> {
   }
 }
 
+// Adjustable elements per block type — the "Elements" tab of the inspector
+// lists these; each one accepts position / scale / rotate / opacity / size /
+// colour / background / radius / padding adjustments.
+export const ELEMENTS: Record<string, { id: string; label: string; kind: "text" | "image" | "button" | "container" }[]> = {
+  hero: [{ id: "image", label: "Background image", kind: "image" }, { id: "headline", label: "Headline", kind: "text" }, { id: "badge", label: "Price badge", kind: "button" }],
+  rich_text: [{ id: "title", label: "Title", kind: "text" }, { id: "text", label: "Body text", kind: "text" }],
+  image: [{ id: "photo", label: "Photo", kind: "image" }, { id: "caption", label: "Caption", kind: "text" }],
+  gallery: [{ id: "title", label: "Title", kind: "text" }, { id: "grid", label: "Photo grid", kind: "container" }],
+  faq: [{ id: "title", label: "Title", kind: "text" }, { id: "list", label: "Q&A list", kind: "container" }],
+  guest_reviews: [{ id: "rating", label: "Stars", kind: "text" }, { id: "quote", label: "Quote", kind: "text" }, { id: "author", label: "Guest & stay", kind: "text" }],
+  table: [{ id: "title", label: "Title", kind: "text" }, { id: "grid", label: "Table", kind: "container" }],
+  collection_grid: [{ id: "title", label: "Heading", kind: "text" }, { id: "cta", label: "Button", kind: "button" }],
+  collection_list: [{ id: "title", label: "Heading", kind: "text" }],
+  featured_offering: [{ id: "image", label: "Image", kind: "image" }, { id: "title", label: "Name", kind: "text" }, { id: "text", label: "Description", kind: "text" }, { id: "price", label: "Price line", kind: "text" }],
+  offerings_grid: [{ id: "title", label: "Heading", kind: "text" }],
+  search_bar: [{ id: "field", label: "Search field", kind: "container" }, { id: "button", label: "Button", kind: "button" }],
+  cta_banner: [{ id: "banner", label: "Banner", kind: "container" }, { id: "headline", label: "Headline", kind: "text" }, { id: "button", label: "Button", kind: "button" }],
+  contact_form: [{ id: "title", label: "Form title", kind: "text" }, { id: "button", label: "Submit button", kind: "button" }],
+  icon_highlights: [{ id: "title", label: "Heading", kind: "text" }, { id: "list", label: "Highlights", kind: "container" }],
+};
+
 export const parseLines = (s: string) => s.split("\n").map((l) => l.trim()).filter(Boolean);
 export const parseQA = (s: string) =>
   parseLines(s).map((l) => {

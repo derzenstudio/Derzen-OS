@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { cx } from "../lib/format";
 import { Ic } from "./icons";
+import { LEN_UNITS, parseUnitValue, type LenUnit } from "../lib/unit";
 
 // ── NumStepper — editable value with tiny up/down arrows (replaces sliders) ─
 export function NumStepper({
@@ -119,5 +120,47 @@ export function Segmented<T extends string>({ options, value, onChange, label }:
         ))}
       </span>
     </div>
+  );
+}
+
+// ── UnitField — a length in ANY unit: px · % · em · rem · vh · vw · dvh · dvw ─
+// Type "60vh", "1.2em", "85%" or plain "12". The unit dropdown stays in sync,
+// and vh/vw resolve against the simulated device in the builder canvas.
+export function UnitField({
+  value, onChange, label, allowEmpty = true, units = LEN_UNITS,
+}: {
+  value: string; onChange: (v: string) => void; label?: string; allowEmpty?: boolean; units?: LenUnit[];
+}) {
+  const p = parseUnitValue(value);
+  const [num, setNum] = useState(p.n);
+  const [unit, setUnit] = useState<LenUnit>(p.u);
+  useEffect(() => { const q = parseUnitValue(value); setNum(q.n); setUnit(q.u); }, [value]);
+  const commit = (n: string, u: LenUnit) => {
+    if (n === "" || n === "-") { if (allowEmpty) onChange(""); return; }
+    onChange(`${n}${u}`);
+  };
+  return (
+    <label className="block" onClick={(e) => e.stopPropagation()}>
+      {label && <span className="mb-1 block text-[10px] font-bold uppercase tracking-wider text-faint">{label}</span>}
+      <span className="flex items-stretch overflow-hidden rounded-sm border border-line2 bg-card focus-within:border-brand">
+        <input
+          value={num}
+          onChange={(e) => { const v = e.target.value.replace(/[^\d.\-]/g, ""); setNum(v); commit(v, unit); }}
+          onKeyDown={(e) => { if (e.key === "Enter") (e.target as HTMLInputElement).blur(); e.stopPropagation(); }}
+          placeholder={allowEmpty ? "auto" : "0"}
+          className="w-full min-w-0 bg-transparent px-1.5 py-1 text-right font-mono text-[11px] font-bold text-ink outline-none"
+          aria-label={label ?? "length"}
+          inputMode="decimal"
+        />
+        <select
+          value={unit}
+          onChange={(e) => { const u = e.target.value as LenUnit; setUnit(u); commit(num, u); }}
+          className="border-l border-line bg-paper px-1 font-mono text-[9.5px] font-bold text-mute outline-none"
+          aria-label={`${label ?? "length"} unit`}
+        >
+          {units.map((u) => <option key={u} value={u}>{u}</option>)}
+        </select>
+      </span>
+    </label>
   );
 }

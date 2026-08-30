@@ -1,15 +1,16 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { cx, money, copyText, toCSV, download, dayKey, addDays, today } from "../lib/format";
 import { Ic, type IconName } from "../components/icons";
 import { Badge, Btn, Dot, Field, Input, Modal, Select, Spark, Tabs, Toggle } from "../components/ui";
 import { EditableText, EditableImage, FloatingToolbar, ToolBtn, InspectorPanel, Ifield, TextInput, SegBtns, toHtml } from "../components/editor";
-import { NumStepper, ColorField } from "../components/controls";
+import { NumStepper, ColorField, UnitField } from "../components/controls";
 import { useApp, DEFAULT_BLOCK_STYLE } from "../store";
 import { PROPERTIES, propertyById } from "../lib/data";
 import { embedJsSnippet, embedIframeSnippet, widgetCssVars } from "../lib/widgetTheme";
 import { ChatbotPreview } from "./ChatWidget";
-import { defaultBlockContent, parseQA, parseCSV, parseLines, CONTENT_SCHEMA, type ContentField } from "../lib/blockContent";
-import type { Block, BlockStyle, SiteLink } from "../lib/types";
+import { defaultBlockContent, parseQA, parseCSV, parseLines, CONTENT_SCHEMA, ELEMENTS, type ContentField } from "../lib/blockContent";
+import { DeviceCtx, useDevice, resolveCss, DEVICE_PRESETS } from "../lib/unit";
+import type { Block, BlockStyle, ElAdjust, SiteLink } from "../lib/types";
 
 const BLOCK_LIB: { group: string; items: { type: string; label: string; icon: IconName }[] }[] = [
   { group: "Content", items: [
@@ -55,6 +56,29 @@ export default function Websites() {
   const [newPageOpen, setNewPageOpen] = useState(false);
   const [newPageName, setNewPageName] = useState("");
   const [tplPreview, setTplPreview] = useState<string | null>(null);
+
+  // ── Device simulation: vh/vw resolve against THIS frame, not the browser ──
+  const [devPreset, setDevPreset] = useState("desktop");
+  const [devW, setDevW] = useState(1280);
+  const [devH, setDevH] = useState(832);
+  const [fitZoom, setFitZoom] = useState(1);
+  const canvasWrapRef = useRef<HTMLDivElement>(null);
+  const [winSize, setWinSize] = useState({ w: window.innerWidth, h: window.innerHeight });
+  useEffect(() => {
+    const el = canvasWrapRef.current;
+    if (!el) return;
+    const measure = () => setFitZoom(Math.min(1, Math.max(0.2, (el.clientWidth - 2) / devW)));
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [devW, tab]);
+  useEffect(() => {
+    const onR = () => setWinSize({ w: window.innerWidth, h: window.innerHeight });
+    window.addEventListener("resize", onR);
+    return () => window.removeEventListener("resize", onR);
+  }, []);
+
   const page = website.pages.find((p) => p.id === website.activePageId)!;
   const sel = page.blocks.find((b) => b.id === selected) ?? null;
 
@@ -235,6 +259,28 @@ export default function Websites() {
               </div>
             </div>
 
+            {/* Device frame — canvas width IS the device; vh/vw scale with it */}
+            <div className="flex flex-wrap items-center gap-2 border-b border-line bg-paper px-3 py-2">
+              <div className="flex items-center gap-0.5">
+                {DEVICE_PRESETS.map((dp) => (
+                  <button key={dp.id} onClick={() => { setDevPreset(dp.id); setDevW(dp.w); setDevH(dp.h); }}
+                    className={cx("flex items-center gap-1.5 rounded-sm px-2 py-1 text-[10.5px] font-bold transition-colors", devPreset === dp.id ? "bg-ink text-white" : "text-mute hover:text-ink")}
+                    aria-label={`${dp.label} frame · ${dp.w} by ${dp.h}`} title={`${dp.w}×${dp.h}`}>
+                    <Ic name={dp.icon} size={12} /> {dp.label}
+                  </button>
+                ))}
+              </div>
+              <span className="mx-0.5 h-4 w-px bg-line2" aria-hidden="true" />
+              <NumStepper value={devW} onChange={(v) => { setDevW(v); setDevPreset("custom"); }} min={320} max={1920} step={10} suffix="w" w={92} label="" allowNegative={false} />
+              <NumStepper value={devH} onChange={(v) => { setDevH(v); setDevPreset("custom"); }} min={480} max={1600} step={10} suffix="h" w={92} label="" allowNegative={false} />
+              <span className="ml-auto hidden font-mono text-[9.5px] font-semibold text-faint md:inline">vh · vw resolve against this frame · zoom {Math.round(fitZoom * 100)}%</span>
+            </div>
+
+            <div ref={canvasWrapRef} className="overflow-x-auto bg-[repeating-linear-gradient(45deg,transparent_0_10px,rgba(20,24,17,0.018)_10px_20px)] p-3">
+              <div style={{ zoom: fitZoom, width: devW * fitZoom }}>
+                <DeviceCtx.Provider value={{ w: devW, h: devH }}>
+                  <div className="overflow-hidden bg-card shadow-[0_0_0_1px_var(--color-line),0_18px_40px_-24px_rgba(20,24,17,0.35)]" style={{ width: devW }}>
+
             {/* Editable header — logo, menu links, CTA */}
             <ChromeStrip target="header" selected={selected} onSelect={setSelected} />
 
@@ -268,6 +314,11 @@ export default function Websites() {
 
             {/* Editable footer */}
             <ChromeStrip target="footer" selected={selected} onSelect={setSelected} />
+
+                  </div>
+                </DeviceCtx.Provider>
+              </div>
+            </div>
 
             <p className="border-t border-line bg-paper px-4 py-2.5 text-[10.5px] leading-relaxed text-mute">
               <b className="text-ink">Click any text to type directly.</b> Click an image (or its corner badge) to swap it from your library or upload.
@@ -414,11 +465,20 @@ export default function Websites() {
         </div>
       </Modal>
 
-      {/* Real preview */}
-      <Modal open={previewOpen} onClose={() => setPreviewOpen(false)} title={`Live preview — ${website.subdomain}/${page.slug}`} w={980}
-        footer={<><Btn variant="ghost" onClick={() => setPreviewOpen(false)}>Close</Btn><Btn variant="solid" icon="external" onClick={() => toast("ok", "Opening published site", `https://${website.subdomain}/${page.slug}`)}>Open guest view</Btn></>}>
-        <div className="max-h-[70vh] overflow-y-auto rounded-sm border border-line bg-[#f4f5f0]">
-          <div className="sticky top-0 z-10 px-6 py-3" style={{ background: siteChrome.headerBg, color: siteChrome.headerColor }}>
+      {/* Real preview — full screen, units resolve against the actual window */}
+      {previewOpen && (
+        <div className="fixed inset-0 z-[100] overflow-y-auto bg-[#f4f5f0]" role="dialog" aria-modal="true" aria-label={`Full-screen preview of ${page.name}`}
+          onKeyDown={(e) => { if (e.key === "Escape") setPreviewOpen(false); }}>
+          <DeviceCtx.Provider value={{ w: winSize.w, h: winSize.h }}>
+            <div className="pointer-events-none fixed left-1/2 top-3 z-20 -translate-x-1/2">
+              <div className="pointer-events-auto flex items-center gap-2 rounded-sm border border-line bg-card px-3 py-1.5 shadow-lg">
+                <span className="font-mono text-[10px] font-bold text-mute">{website.subdomain}.derzen.site/{page.slug} · {winSize.w}×{winSize.h} · real viewport</span>
+                <Btn size="xs" icon="external" onClick={() => toast("ok", "Opening published site", `https://${website.subdomain}.derzen.site/${page.slug}`)}>Guest view</Btn>
+                <button onClick={() => setPreviewOpen(false)} className="rounded-sm bg-ink px-2.5 py-1 text-[10px] font-bold text-white transition-colors hover:bg-brand" aria-label="Close preview (Esc)">Close · Esc</button>
+              </div>
+            </div>
+            <div className="px-0" style={{ background: siteChrome.headerBg, color: siteChrome.headerColor }}>
+              <div className="px-6 py-3">
             <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
               {siteChrome.logoMode !== "none" && (
                 <span className="flex items-baseline gap-2">
@@ -433,8 +493,9 @@ export default function Websites() {
               </span>
               {siteChrome.showCta && <span className="ml-auto rounded-sm bg-brand px-3 py-1 text-[10px] font-bold text-white">{siteChrome.ctaLabel}</span>}
             </div>
-          </div>
-          <div className="min-h-[300px] py-2">
+              </div>
+            </div>
+          <div className="min-h-[300px] py-2 bg-[#f4f5f0]">
             {siteChrome.headerBlocks.map((b) => <BlockView key={b.id} b={b} />)}
             {page.blocks.map((b) => <BlockView key={b.id} b={b} />)}
             {page.blocks.length === 0 && <p className="p-10 text-center text-[12px] font-bold text-mute">Empty page — add blocks to see them here.</p>}
@@ -443,8 +504,9 @@ export default function Websites() {
             {siteChrome.footerBlocks.map((b) => <BlockView key={b.id} b={b} />)}
             <p className="text-[10.5px] opacity-70">{siteChrome.footer}</p>
           </div>
+          </DeviceCtx.Provider>
         </div>
-      </Modal>
+      )}
 
       {/* Page settings — every field writes through updatePage on Save */}
       <PageSettingsModal key={page.id} open={pageSettings} onClose={() => setPageSettings(false)} page={page}
@@ -610,9 +672,37 @@ function ChromeStrip({ target, selected, onSelect }: { target: "header" | "foote
 
 // ── Content-driven, inline-editable block renderer (canvas + preview) ──────
 function BlockView({ b, edit = false, onContent }: { b: Block; edit?: boolean; onContent?: (patch: Record<string, string>) => void }) {
+  const dev = useDevice();
   const s: BlockStyle = { ...DEFAULT_BLOCK_STYLE, ...b.style };
   const c: Record<string, string> = { ...defaultBlockContent(b.type), ...b.content };
   const set = (k: string) => (v: string) => onContent?.({ [k]: v });
+  // Unit-aware lengths: vh/vw/dvh/dvw resolve against the simulated device.
+  const len = (v: string | number | undefined): string | number | undefined => {
+    if (v === undefined || v === null || v === "") return undefined;
+    const r = resolveCss(v, dev);
+    return r === "" ? undefined : r;
+  };
+  // Per-element adjustments — position / scale / rotate / opacity / size / colour.
+  const es = (k: string): React.CSSProperties | undefined => {
+    const a: ElAdjust | undefined = s.els?.[k];
+    if (!a || Object.keys(a).length === 0) return undefined;
+    const tr: string[] = [];
+    if (a.x) tr.push(`translateX(${resolveCss(a.x, dev, "0px")})`);
+    if (a.y) tr.push(`translateY(${resolveCss(a.y, dev, "0px")})`);
+    if (a.scale !== undefined && a.scale !== 1) tr.push(`scale(${a.scale})`);
+    if (a.rot) tr.push(`rotate(${a.rot}deg)`);
+    return {
+      position: "relative", zIndex: 2,
+      opacity: a.opacity !== undefined ? a.opacity / 100 : undefined,
+      transform: tr.length ? tr.join(" ") : undefined,
+      fontSize: a.fs ? resolveCss(a.fs, dev) : undefined,
+      color: a.color || undefined,
+      background: a.bg || undefined,
+      borderRadius: a.radius ? resolveCss(a.radius, dev) : undefined,
+      padding: a.padX || a.padY ? `${resolveCss(a.padY ?? "0", dev)} ${resolveCss(a.padX ?? "0", dev)}` : undefined,
+      textAlign: a.align,
+    };
+  };
   // Function-call helpers (not JSX components) so the underlying EditableText /
   // EditableImage keep a stable component identity and never remount mid-typing.
   const t = (p: { k: string; as?: "span" | "p" | "h1" | "h2" | "h3" | "div"; className?: string; style?: React.CSSProperties; multiline?: boolean; placeholder?: string }) =>
@@ -628,26 +718,26 @@ function BlockView({ b, edit = false, onContent }: { b: Block; edit?: boolean; o
     switch (b.type) {
       case "hero": return (
         <div className="relative flex items-end overflow-hidden" style={{ borderRadius: s.radius, minHeight: `${s.heightVh || 45}vh` }}>
-          <div className="absolute inset-0">{im({ k: "image", className: "h-full w-full" })}</div>
+          <div className="absolute inset-0" style={es("image")}>{im({ k: "image", className: "h-full w-full" })}</div>
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-pine-950/80 via-pine-950/25 to-transparent" />
           {/* Text layer is click-transparent so the image underneath stays
               clickable edge-to-edge; only the editable texts re-enable hits. */}
           <div className="pointer-events-none relative flex w-full items-end justify-between gap-3 p-5">
-            {t({ k: "headline", as: "h2", className: "pointer-events-auto font-display text-[26px] font-bold leading-tight text-white", placeholder: "Headline" })}
-            {t({ k: "badge", className: "pointer-events-auto hidden shrink-0 rounded-sm bg-white/95 px-3 py-1.5 text-[11px] font-bold text-ink sm:block", placeholder: "Price" })}
+            {t({ k: "headline", as: "h2", className: "pointer-events-auto font-display text-[26px] font-bold leading-tight text-white", style: es("headline"), placeholder: "Headline" })}
+            {t({ k: "badge", className: "pointer-events-auto hidden shrink-0 rounded-sm bg-white/95 px-3 py-1.5 text-[11px] font-bold text-ink sm:block", style: es("badge"), placeholder: "Price" })}
           </div>
         </div>
       );
       case "rich_text": return (
         <div>
-          {t({ k: "title", as: "h3", className: "font-display text-[16px] font-bold text-ink", placeholder: "Title" })}
-          {t({ k: "text", as: "p", className: "mt-1 text-[12px] leading-relaxed text-mute", multiline: true, placeholder: "Body text" })}
+          {t({ k: "title", as: "h3", className: "font-display text-[16px] font-bold text-ink", style: es("title"), placeholder: "Title" })}
+          {t({ k: "text", as: "p", className: "mt-1 text-[12px] leading-relaxed text-mute", style: es("text"), multiline: true, placeholder: "Body text" })}
         </div>
       );
       case "image": return (
         <figure>
-          {im({ k: "src", className: "h-32 w-full rounded-sm", style: { borderRadius: s.radius } })}
-          {t({ k: "caption", as: "p", className: "mt-1 text-[10px] italic text-faint", placeholder: "Caption" })}
+          <div style={es("photo")}>{im({ k: "src", className: "h-32 w-full rounded-sm", style: { borderRadius: s.radius } })}</div>
+          {t({ k: "caption", as: "p", className: "mt-1 text-[10px] italic text-faint", style: es("caption"), placeholder: "Caption" })}
         </figure>
       );
       case "gallery": {
@@ -655,8 +745,8 @@ function BlockView({ b, edit = false, onContent }: { b: Block; edit?: boolean; o
         const list = imgs.length ? imgs : PROPERTIES.slice(0, 4).map((p) => p.image);
         return (
           <div>
-            {t({ k: "title", as: "h3", className: "mb-1.5 font-display text-[15px] font-bold text-ink", placeholder: "Gallery title" })}
-            <div className="grid grid-cols-2 gap-1 sm:grid-cols-4">
+            {t({ k: "title", as: "h3", className: "mb-1.5 font-display text-[15px] font-bold text-ink", style: es("title"), placeholder: "Gallery title" })}
+            <div className="grid grid-cols-2 gap-1 sm:grid-cols-4" style={es("grid")}>
               {list.map((src, i) => edit
                 ? <EditableImage key={i} src={src} onCommit={(v) => { const arr = [...list]; arr[i] = v; set("images")(arr.join(", ")); }} className="h-16 w-full rounded-sm" style={{ borderRadius: s.radius }} />
                 : <img key={i} src={src} alt="" className="h-16 w-full rounded-sm object-cover" style={{ borderRadius: s.radius }} />)}
@@ -669,8 +759,8 @@ function BlockView({ b, edit = false, onContent }: { b: Block; edit?: boolean; o
         const write = (arr: { q: string; a: string }[]) => set("items")(arr.map((x) => `${x.q} | ${x.a}`).join("\n"));
         return (
           <div>
-            {t({ k: "title", as: "h3", className: "mb-1.5 font-display text-[15px] font-bold text-ink", placeholder: "FAQ title" })}
-            <div className="space-y-1">
+            {t({ k: "title", as: "h3", className: "mb-1.5 font-display text-[15px] font-bold text-ink", style: es("title"), placeholder: "FAQ title" })}
+            <div className="space-y-1" style={es("list")}>
               {items.map((it, i) => (
                 <details key={i} className="group rounded-sm bg-paper px-2.5 py-2" style={{ borderRadius: s.radius }}>
                   <summary className="flex cursor-pointer list-none items-center justify-between gap-2 text-[11px] font-bold text-ink">
@@ -696,17 +786,17 @@ function BlockView({ b, edit = false, onContent }: { b: Block; edit?: boolean; o
       }
       case "guest_reviews": return (
         <div>
-          {t({ k: "rating", as: "p", className: "text-[12px] font-bold text-gold", placeholder: "★★★★★" })}
-          {t({ k: "quote", as: "p", className: "mt-0.5 text-[12px] italic text-ink/80", multiline: true, placeholder: "Review quote" })}
-          {t({ k: "author", as: "p", className: "mt-0.5 text-[10px] font-bold text-faint", placeholder: "Guest · stay" })}
+          {t({ k: "rating", as: "p", className: "text-[12px] font-bold text-gold", style: es("rating"), placeholder: "★★★★★" })}
+          {t({ k: "quote", as: "p", className: "mt-0.5 text-[12px] italic text-ink/80", style: es("quote"), multiline: true, placeholder: "Review quote" })}
+          {t({ k: "author", as: "p", className: "mt-0.5 text-[10px] font-bold text-faint", style: es("author"), placeholder: "Guest · stay" })}
         </div>
       );
       case "table": {
         const rows = parseCSV(c.rows ?? "");
         return (
           <div>
-            {t({ k: "title", as: "h3", className: "mb-1.5 font-display text-[15px] font-bold text-ink", placeholder: "Table title" })}
-            <div className="rounded-sm border border-line2 text-[10.5px] font-bold" style={{ borderRadius: s.radius }}>
+            {t({ k: "title", as: "h3", className: "mb-1.5 font-display text-[15px] font-bold text-ink", style: es("title"), placeholder: "Table title" })}
+            <div className="rounded-sm border border-line2 text-[10.5px] font-bold" style={{ borderRadius: s.radius, ...es("grid") }}>
               {rows.map((r, i) => (
                 <div key={i} className={cx("flex px-2.5 py-1.5", i === 0 && "border-b border-line2 bg-paper")}>
                   {r.map((cell, j) => (
@@ -721,16 +811,16 @@ function BlockView({ b, edit = false, onContent }: { b: Block; edit?: boolean; o
         );
       }
       case "search_bar": return (
-        <div className="flex flex-wrap items-center gap-1.5 rounded-sm border border-line2 bg-white p-1.5" style={{ borderRadius: s.radius }}>
+        <div className="flex flex-wrap items-center gap-1.5 rounded-sm border border-line2 bg-white p-1.5" style={{ borderRadius: s.radius, ...es("field") }}>
           <span className="flex-1 rounded-sm bg-paper px-2 py-1.5 text-[10px] font-bold text-faint">{c.placeholder || "Dates · guests · area"}</span>
-          {t({ k: "button", className: "rounded-sm bg-brand px-3 py-1.5 text-[10px] font-bold text-white", style: { borderRadius: s.radius }, placeholder: "Search" })}
+          {t({ k: "button", className: "rounded-sm bg-brand px-3 py-1.5 text-[10px] font-bold text-white", style: { borderRadius: s.radius, ...es("button") }, placeholder: "Search" })}
         </div>
       );
       case "collection_grid": case "offerings_grid": return (
         <div>
           <div className="mb-1.5 flex items-center justify-between">
-            {t({ k: "title", as: "h3", className: "font-display text-[15px] font-bold text-ink", placeholder: "Heading" })}
-            {b.type === "collection_grid" && t({ k: "cta", className: "text-[10px] font-bold text-brand-deep", placeholder: "View all" })}
+            {t({ k: "title", as: "h3", className: "font-display text-[15px] font-bold text-ink", style: es("title"), placeholder: "Heading" })}
+            {b.type === "collection_grid" && t({ k: "cta", className: "text-[10px] font-bold text-brand-deep", style: es("cta"), placeholder: "View all" })}
           </div>
           <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
             {[0, 1, 2].map((i) => <img key={i} src={PROPERTIES[i].image} alt={PROPERTIES[i].name} className="h-20 w-full rounded-sm object-cover" style={{ borderRadius: s.radius }} />)}
@@ -739,7 +829,7 @@ function BlockView({ b, edit = false, onContent }: { b: Block; edit?: boolean; o
       );
       case "collection_list": return (
         <div>
-          {t({ k: "title", as: "h3", className: "mb-1.5 font-display text-[15px] font-bold text-ink", placeholder: "Heading" })}
+          {t({ k: "title", as: "h3", className: "mb-1.5 font-display text-[15px] font-bold text-ink", style: es("title"), placeholder: "Heading" })}
           <div className="space-y-1.5">
             {[0, 1].map((i) => (
               <div key={i} className="flex items-center gap-2.5">
@@ -752,18 +842,18 @@ function BlockView({ b, edit = false, onContent }: { b: Block; edit?: boolean; o
         </div>
       );
       case "cta_banner": return (
-        <div className="flex flex-wrap items-center justify-between gap-2 rounded-sm bg-pine-900 px-4 py-3" style={{ borderRadius: s.radius }}>
-          {t({ k: "headline", as: "p", className: "text-[12.5px] font-bold text-white", placeholder: "Headline" })}
-          {t({ k: "button", className: "rounded-sm bg-brand px-3 py-1.5 text-[10.5px] font-bold text-white", style: { borderRadius: s.radius }, placeholder: "Button" })}
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-sm bg-pine-900 px-4 py-3" style={{ borderRadius: s.radius, ...es("banner") }}>
+          {t({ k: "headline", as: "p", className: "text-[12.5px] font-bold text-white", style: es("headline"), placeholder: "Headline" })}
+          {t({ k: "button", className: "rounded-sm bg-brand px-3 py-1.5 text-[10.5px] font-bold text-white", style: { borderRadius: s.radius, ...es("button") }, placeholder: "Button" })}
         </div>
       );
       case "contact_form": return (
         <div>
-          {t({ k: "title", as: "h3", className: "mb-1.5 font-display text-[15px] font-bold text-ink", placeholder: "Form title" })}
+          {t({ k: "title", as: "h3", className: "mb-1.5 font-display text-[15px] font-bold text-ink", style: es("title"), placeholder: "Form title" })}
           <div className="space-y-1.5">
             <div className="h-7 rounded-sm border border-line2 bg-white" style={{ borderRadius: s.radius }} />
             <div className="h-14 rounded-sm border border-line2 bg-white" style={{ borderRadius: s.radius }} />
-            {t({ k: "button", className: "inline-block rounded-sm bg-brand px-4 py-1.5 text-[10.5px] font-bold text-white", style: { borderRadius: s.radius }, placeholder: "Submit" })}
+            {t({ k: "button", className: "inline-block rounded-sm bg-brand px-4 py-1.5 text-[10.5px] font-bold text-white", style: { borderRadius: s.radius, ...es("button") }, placeholder: "Submit" })}
           </div>
         </div>
       );
@@ -771,8 +861,8 @@ function BlockView({ b, edit = false, onContent }: { b: Block; edit?: boolean; o
         const items = parseLines(c.items ?? "");
         return (
           <div>
-            {t({ k: "title", as: "h3", className: "mb-2 text-center font-display text-[15px] font-bold text-ink", placeholder: "Heading" })}
-            <div className="flex flex-wrap justify-around gap-2">
+            {t({ k: "title", as: "h3", className: "mb-2 text-center font-display text-[15px] font-bold text-ink", style: es("title"), placeholder: "Heading" })}
+            <div className="flex flex-wrap justify-around gap-2" style={es("list")}>
               {items.map((x, i) => (
                 <div key={i} className="text-center">
                   <span className="mx-auto mb-1 flex h-8 w-8 items-center justify-center rounded-full bg-brand-soft text-brand-deep"><Ic name="sparkle" size={13} /></span>
@@ -785,11 +875,11 @@ function BlockView({ b, edit = false, onContent }: { b: Block; edit?: boolean; o
       }
       case "featured_offering": return (
         <div className="flex gap-3">
-          {im({ k: "image", className: "h-20 w-28 shrink-0 rounded-sm", style: { borderRadius: s.radius } })}
+          <div style={es("image")}>{im({ k: "image", className: "h-20 w-28 shrink-0 rounded-sm", style: { borderRadius: s.radius } })}</div>
           <div className="min-w-0">
-            {t({ k: "title", as: "p", className: "text-[12.5px] font-bold text-ink", placeholder: "Offering name" })}
-            {t({ k: "text", as: "p", className: "text-[10px] text-mute", multiline: true, placeholder: "Description" })}
-            {t({ k: "price", as: "p", className: "mt-1 font-mono text-[12px] font-bold text-brand-deep", placeholder: "from Rp …" })}
+            {t({ k: "title", as: "p", className: "text-[12.5px] font-bold text-ink", style: es("title"), placeholder: "Offering name" })}
+            {t({ k: "text", as: "p", className: "text-[10px] text-mute", style: es("text"), multiline: true, placeholder: "Description" })}
+            {t({ k: "price", as: "p", className: "mt-1 font-mono text-[12px] font-bold text-brand-deep", style: es("price"), placeholder: "from Rp …" })}
           </div>
         </div>
       );
@@ -801,11 +891,12 @@ function BlockView({ b, edit = false, onContent }: { b: Block; edit?: boolean; o
     <div
       className={cx(WIDTH_CLASS[s.width], "transition-all duration-200")}
       style={{
-        paddingTop: s.py, paddingBottom: s.py, paddingLeft: s.px, paddingRight: s.px,
-        marginTop: s.mt, marginBottom: s.mb,
+        paddingTop: len(s.padYU) ?? s.py, paddingBottom: len(s.padYU) ?? s.py,
+        paddingLeft: len(s.padXU) ?? s.px, paddingRight: len(s.padXU) ?? s.px,
+        marginTop: len(s.mtU) ?? s.mt, marginBottom: len(s.mbU) ?? s.mb,
         background: s.bg || undefined, color: s.color || undefined,
         fontSize: `${s.scale}em`, textAlign: s.align,
-        minHeight: s.heightVh ? `${s.heightVh}vh` : undefined,
+        minHeight: len(s.hU ?? (s.heightVh ? `${s.heightVh}vh` : undefined)),
         mixBlendMode: (s.blend as React.CSSProperties["mixBlendMode"]) || undefined,
       }}
     >
@@ -849,10 +940,12 @@ function QaEditor({ value, onChange }: { value: string; onChange: (v: string) =>
 
 // ── Inspector: Content + Style tabs for the selected block ────────────────
 function InspectorTabs({ b, onContent, onStyle }: { b: Block; onContent: (patch: Record<string, string>) => void; onStyle: (patch: Partial<BlockStyle>) => void }) {
-  const [tab, setTab] = useState<"content" | "style">("content");
+  const [tab, setTab] = useState<"content" | "style" | "elements">("content");
   const s: BlockStyle = { ...DEFAULT_BLOCK_STYLE, ...b.style };
   const c: Record<string, string> = { ...defaultBlockContent(b.type), ...b.content };
   const schema: ContentField[] = CONTENT_SCHEMA[b.type] ?? [{ key: "text", label: "Text", multiline: true }];
+  const els: Record<string, ElAdjust> = s.els ?? {};
+  const setEls = (next: Record<string, ElAdjust>) => onStyle({ els: next });
 
   const Stepper = ({ label, k, min, max, suffix, allowNegative }: { label: string; k: "py" | "px" | "mt" | "mb" | "scale" | "radius" | "heightVh"; min: number; max: number; suffix: string; allowNegative?: boolean }) => (
     <div className="flex items-center justify-between gap-2">
@@ -864,7 +957,7 @@ function InspectorTabs({ b, onContent, onStyle }: { b: Block; onContent: (patch:
   return (
     <div>
       <div className="mb-3 flex rounded-sm border border-line bg-paper p-0.5">
-        {(["content", "style"] as const).map((t) => (
+        {(["content", "style", "elements"] as const).map((t) => (
           <button key={t} onClick={() => setTab(t)} className={cx("flex-1 rounded-sm px-2 py-1.5 text-[10.5px] font-bold capitalize transition-colors", tab === t ? "bg-ink text-white" : "text-mute hover:text-ink")}>{t}</button>
         ))}
       </div>
@@ -893,7 +986,7 @@ function InspectorTabs({ b, onContent, onStyle }: { b: Block; onContent: (patch:
             ),
           )}
         </div>
-      ) : (
+      ) : tab === "style" ? (
         <div className="space-y-2.5">
           <Ifield label="Width">
             <SegBtns options={[{ v: "full" as const, l: "Full" }, { v: "wide" as const, l: "Wide" }, { v: "mid" as const, l: "Mid" }, { v: "half" as const, l: "Half" }]} value={s.width} onChange={(v) => onStyle({ width: v })} />
@@ -902,14 +995,19 @@ function InspectorTabs({ b, onContent, onStyle }: { b: Block; onContent: (patch:
             <SegBtns options={[{ v: "left" as const, l: "L" }, { v: "center" as const, l: "C" }, { v: "right" as const, l: "R" }]} value={s.align} onChange={(v) => onStyle({ align: v })} />
           </Ifield>
           <div className="space-y-2 rounded-sm border border-line bg-paper/60 p-2.5">
-            <p className="text-[9px] font-bold uppercase tracking-wider text-faint">Spacing & size</p>
-            <Stepper label="Padding V" k="py" min={0} max={120} suffix="px" />
-            <Stepper label="Padding H" k="px" min={0} max={120} suffix="px" />
-            <Stepper label="Margin top" k="mt" min={-80} max={80} suffix="px" allowNegative />
-            <Stepper label="Margin bottom" k="mb" min={-80} max={80} suffix="px" allowNegative />
+            <p className="text-[9px] font-bold uppercase tracking-wider text-faint">Spacing & size — any unit: px · % · em · rem · vh · vw</p>
+            <div className="grid grid-cols-2 gap-1.5">
+              <UnitField label="Height" value={s.hU ?? (s.heightVh ? `${s.heightVh}vh` : "")} onChange={(v) => onStyle({ hU: v, heightVh: undefined })} />
+              <UnitField label="Radius" value={s.radius ? `${s.radius}px` : ""} onChange={(v) => onStyle({ radius: Number(v.replace(/[^\d.]/g, "")) || 0 })} units={["px", "rem", "%"]} />
+              <UnitField label="Padding V" value={s.padYU ?? (s.py ? `${s.py}px` : "")} onChange={(v) => onStyle({ padYU: v })} />
+              <UnitField label="Padding H" value={s.padXU ?? (s.px ? `${s.px}px` : "")} onChange={(v) => onStyle({ padXU: v })} />
+              <UnitField label="Margin top" value={s.mtU ?? (s.mt ? `${s.mt}px` : "")} onChange={(v) => onStyle({ mtU: v })} />
+              <UnitField label="Margin bottom" value={s.mbU ?? (s.mb ? `${s.mb}px` : "")} onChange={(v) => onStyle({ mbU: v })} />
+            </div>
             <Stepper label="Type scale" k="scale" min={0.7} max={1.6} suffix="×" />
-            <Stepper label="Corner radius" k="radius" min={0} max={32} suffix="px" />
-            <Stepper label="Height (vh)" k="heightVh" min={0} max={100} suffix="vh" />
+            <p className="rounded-sm bg-brand-soft/50 px-2 py-1.5 text-[9px] font-semibold leading-relaxed text-brand-deep">
+              <Ic name="monitor" size={10} className="mr-1 inline" />vh / vw resolve against the simulated device frame in the canvas — set 100vh and it fills exactly one screen-height of that device.
+            </p>
           </div>
           <div className="space-y-2 rounded-sm border border-line bg-paper/60 p-2.5">
             <p className="text-[9px] font-bold uppercase tracking-wider text-faint">Colour & blend</p>
@@ -918,7 +1016,76 @@ function InspectorTabs({ b, onContent, onStyle }: { b: Block; onContent: (patch:
           </div>
           <Btn size="xs" variant="ghost" icon="undo" onClick={() => onStyle({ ...DEFAULT_BLOCK_STYLE })}>Reset styling</Btn>
         </div>
+      ) : (
+        <ElementsTab b={b} els={els} setEls={setEls} />
       )}
+    </div>
+  );
+}
+
+// ── Elements tab: adjust every text / image / button / container in a block ─
+function ElementsTab({ b, els, setEls }: { b: Block; els: Record<string, ElAdjust>; setEls: (e: Record<string, ElAdjust>) => void }) {
+  const defs = ELEMENTS[b.type] ?? [];
+  const [selEl, setSelEl] = useState(defs[0]?.id ?? "");
+  const a: ElAdjust = els[selEl] ?? {};
+  const set = (patch: Partial<ElAdjust>) => setEls({ ...els, [selEl]: { ...a, ...patch } });
+  const kindIcon: Record<string, IconName> = { text: "doc", image: "image", button: "bolt", container: "grid" };
+
+  if (!defs.length) return <p className="text-[11px] text-mute">This block has no individually adjustable elements.</p>;
+
+  return (
+    <div className="space-y-2.5">
+      <div className="flex flex-wrap gap-1">
+        {defs.map((d) => (
+          <button key={d.id} onClick={() => setSelEl(d.id)}
+            className={cx("flex items-center gap-1 rounded-sm border px-2 py-1 text-[10px] font-bold transition-colors",
+              selEl === d.id ? "border-brand bg-brand-soft text-brand-deep" : "border-line bg-card text-mute hover:text-ink")}
+            aria-pressed={selEl === d.id}>
+            <Ic name={kindIcon[d.kind]} size={10} /> {d.label}
+            {els[d.id] && Object.keys(els[d.id]).length > 0 && <span className="h-1.5 w-1.5 rounded-full bg-gold" aria-label="adjusted" />}
+          </button>
+        ))}
+      </div>
+
+      <div className="space-y-2 rounded-sm border border-line bg-paper/60 p-2.5">
+        <p className="text-[9px] font-bold uppercase tracking-wider text-faint">Position & transform — {defs.find((d) => d.id === selEl)?.label}</p>
+        <div className="grid grid-cols-2 gap-1.5">
+          <UnitField label="Offset X" value={a.x ?? ""} onChange={(v) => set({ x: v || undefined })} units={["px", "%", "em", "rem"]} />
+          <UnitField label="Offset Y" value={a.y ?? ""} onChange={(v) => set({ y: v || undefined })} units={["px", "%", "em", "rem"]} />
+        </div>
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-[10px] font-bold text-mute">Scale</span>
+          <NumStepper value={a.scale ?? 1} onChange={(v) => set({ scale: v })} min={0.1} max={3} step={0.05} suffix="×" w={92} allowNegative={false} label="Scale" />
+        </div>
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-[10px] font-bold text-mute">Rotate</span>
+          <NumStepper value={a.rot ?? 0} onChange={(v) => set({ rot: v })} min={-180} max={180} step={5} suffix="°" w={92} label="Rotate" />
+        </div>
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-[10px] font-bold text-mute">Opacity</span>
+          <NumStepper value={a.opacity ?? 100} onChange={(v) => set({ opacity: v })} min={0} max={100} step={5} suffix="%" w={92} allowNegative={false} label="Opacity" />
+        </div>
+      </div>
+
+      <div className="space-y-2 rounded-sm border border-line bg-paper/60 p-2.5">
+        <p className="text-[9px] font-bold uppercase tracking-wider text-faint">Appearance</p>
+        <UnitField label="Font size" value={a.fs ?? ""} onChange={(v) => set({ fs: v || undefined })} />
+        <div className="grid grid-cols-2 gap-1.5">
+          <UnitField label="Pad X" value={a.padX ?? ""} onChange={(v) => set({ padX: v || undefined })} units={["px", "em", "rem", "%"]} />
+          <UnitField label="Pad Y" value={a.padY ?? ""} onChange={(v) => set({ padY: v || undefined })} units={["px", "em", "rem", "%"]} />
+        </div>
+        <UnitField label="Corner radius" value={a.radius ?? ""} onChange={(v) => set({ radius: v || undefined })} units={["px", "rem", "%"]} />
+        <div className="grid grid-cols-2 gap-1.5">
+          <ColorField label="Text colour" value={a.color ?? ""} onChange={(v) => set({ color: v || undefined })} allowNone />
+          <ColorField label="Background" value={a.bg ?? ""} onChange={(v) => set({ bg: v || undefined })} allowNone />
+        </div>
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-[10px] font-bold text-mute">Alignment</span>
+          <SegBtns options={[{ v: "left" as const, l: "L" }, { v: "center" as const, l: "C" }, { v: "right" as const, l: "R" }]} value={a.align ?? "left"} onChange={(v) => set({ align: v })} />
+        </div>
+      </div>
+
+      <Btn size="xs" variant="ghost" icon="undo" onClick={() => { const next = { ...els }; delete next[selEl]; setEls(next); }}>Reset this element</Btn>
     </div>
   );
 }

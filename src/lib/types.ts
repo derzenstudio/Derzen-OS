@@ -395,8 +395,33 @@ export interface BlockStyle {
   scale: number;// font-size multiplier 0.8–1.4
   align: "left" | "center" | "right";
   radius: number;
-  heightVh?: number; // min-height in viewport units — 0/undefined = auto
+  heightVh?: number; // legacy min-height (vh) — superseded by hU
   blend?: string;    // CSS mix-blend-mode for the block
+  // Unit-aware lengths (px · % · em · rem · vh · vw · dvh · dvw). When set,
+  // these take precedence over the numeric fields above.
+  hU?: string;    // min-height, any unit
+  padXU?: string; // horizontal padding, any unit
+  padYU?: string; // vertical padding, any unit
+  mtU?: string;   // margin-top, any unit (negatives ok)
+  mbU?: string;   // margin-bottom, any unit
+  // Per-element adjustments — every text, image, button, badge inside the
+  // block can be positioned, scaled, rotated, recoloured, resized.
+  els?: Record<string, ElAdjust>;
+}
+
+export interface ElAdjust {
+  x?: string;        // translateX — px or %
+  y?: string;        // translateY
+  scale?: number;    // 0.1 – 3
+  rot?: number;      // degrees
+  opacity?: number;  // 0 – 100 (%)
+  fs?: string;       // font-size, any unit
+  color?: string;    // text colour (hex, alpha ok)
+  bg?: string;       // element background
+  radius?: string;   // corner radius, any unit
+  padX?: string;     // element horizontal padding
+  padY?: string;     // element vertical padding
+  align?: "left" | "center" | "right";
 }
 export const DEFAULT_BLOCK_STYLE: BlockStyle = {
   width: "full", py: 12, px: 12, mt: 0, mb: 10, bg: "", color: "", scale: 1, align: "left", radius: 3,

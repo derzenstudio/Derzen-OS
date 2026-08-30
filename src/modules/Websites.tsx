@@ -630,9 +630,11 @@ function BlockView({ b, edit = false, onContent }: { b: Block; edit?: boolean; o
         <div className="relative flex items-end overflow-hidden" style={{ borderRadius: s.radius, minHeight: `${s.heightVh || 45}vh` }}>
           <div className="absolute inset-0">{im({ k: "image", className: "h-full w-full" })}</div>
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-pine-950/80 via-pine-950/25 to-transparent" />
-          <div className="relative flex w-full items-end justify-between gap-3 p-5">
-            {t({ k: "headline", as: "h2", className: "font-display text-[26px] font-bold leading-tight text-white", placeholder: "Headline" })}
-            {t({ k: "badge", className: "hidden shrink-0 rounded-sm bg-white/95 px-3 py-1.5 text-[11px] font-bold text-ink sm:block", placeholder: "Price" })}
+          {/* Text layer is click-transparent so the image underneath stays
+              clickable edge-to-edge; only the editable texts re-enable hits. */}
+          <div className="pointer-events-none relative flex w-full items-end justify-between gap-3 p-5">
+            {t({ k: "headline", as: "h2", className: "pointer-events-auto font-display text-[26px] font-bold leading-tight text-white", placeholder: "Headline" })}
+            {t({ k: "badge", className: "pointer-events-auto hidden shrink-0 rounded-sm bg-white/95 px-3 py-1.5 text-[11px] font-bold text-ink sm:block", placeholder: "Price" })}
           </div>
         </div>
       );

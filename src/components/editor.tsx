@@ -252,24 +252,34 @@ export function EditableImage({
   ].filter((a, i, arr) => arr.findIndex((x) => x.url === a.url) === i).slice(0, 16);
 
   return (
-    <div ref={boxRef} className={cx("group/img relative overflow-hidden", className)} style={style}>
-      <img src={effective} alt={alt} className="h-full w-full" style={{ objectFit: fit }} onError={(e) => ((e.target as HTMLImageElement).src = PROPERTIES[0].image)} />
-      <button
-        onClick={(e) => { e.stopPropagation(); toggle(); }}
-        className="absolute inset-0 flex items-center justify-center gap-1.5 bg-pine-950/0 text-[11px] font-bold text-white opacity-0 transition-all hover:bg-pine-950/45 hover:opacity-100 focus-visible:opacity-100"
-        aria-label="Replace image"
-      >
+    // The WHOLE image is the click target — a single, unmissable hit area.
+    // The photo and the affordance layers are pointer-events-none visuals, so
+    // nothing stacked above or below can intercept or double-fire the click.
+    <div
+      ref={boxRef}
+      role="button"
+      tabIndex={0}
+      aria-label="Change image"
+      title="Click to change image"
+      onClick={(e) => { e.stopPropagation(); toggle(); }}
+      onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); toggle(); } }}
+      className={cx("group/img relative cursor-pointer overflow-hidden", className)}
+      style={style}
+    >
+      <img src={effective} alt={alt} className="pointer-events-none h-full w-full select-none" style={{ objectFit: fit }} draggable={false} onError={(e) => ((e.target as HTMLImageElement).src = PROPERTIES[0].image)} />
+      {/* hover scrim — visual only */}
+      <span className="pointer-events-none absolute inset-0 flex items-center justify-center gap-1.5 bg-pine-950/0 text-[11px] font-bold text-white opacity-0 transition-all group-hover/img:bg-pine-950/45 group-hover/img:opacity-100">
         <Ic name="image" size={14} /> Replace
-      </button>
-      {/* always-visible affordance — works without hover (touch, keyboards) */}
-      <button
-        onClick={(e) => { e.stopPropagation(); toggle(); }}
-        className="absolute bottom-1 right-1 flex h-6 w-6 items-center justify-center rounded-sm bg-pine-950/70 text-white opacity-80 transition-opacity hover:opacity-100"
-        aria-label="Change image"
-        title="Change image"
-      >
+      </span>
+      {/* always-visible corner affordance — visual only */}
+      <span className="pointer-events-none absolute bottom-1 right-1 flex h-6 w-6 items-center justify-center rounded-sm bg-pine-950/70 text-white opacity-90">
         <Ic name="image" size={12} />
-      </button>
+      </span>
+      {open && createPortal(
+        // click-away backdrop sits under the picker; it closes the library
+        <div className="fixed inset-0 z-[95]" onClick={(e) => { e.stopPropagation(); setOpen(false); }} aria-hidden="true" />,
+        document.body,
+      )}
       {open && createPortal(
         <div className="anim-pop fixed z-[96] w-[290px] rounded-md border border-line bg-card p-2.5 shadow-2xl" style={{ left: pos.x, top: pos.y }} onClick={(e) => e.stopPropagation()}>
           <p className="mb-1.5 flex items-center justify-between text-[10px] font-bold uppercase tracking-wider text-mute">

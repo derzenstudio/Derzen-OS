@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import type { Locale } from "./lib/i18n";
 import { t as tr } from "./lib/i18n";
-import { uid, addDays, dayKey, today, nightsBetween, parseKey } from "./lib/format";
+import { uid, addDays, dayKey, today, nightsBetween, parseKey, moneyRaw } from "./lib/format";
 import type {
   AuditEntry, Block, BlockStyle, Collection, Conversation, Expense, Guidebook, IssueReport, OnboardStep, Property,
   QueuedMessage, Quote, Reservation, Review, SavedAsset, SiteChrome, SitePage, SyncState, Task, Toast, WebsiteState, Message,
@@ -227,6 +227,8 @@ interface App {
   editQuoteItem: (id: string, idx: number, amount: number) => void;
   addQuoteItem: (id: string, label: string, amount: number) => void;
   removeQuoteItem: (id: string, idx: number) => void;
+  addQuote: (input: { propertyId: string; guestId: string; checkIn: string; checkOut: string; adults: number }) => string;
+  addChildUnit: (parentId: string, label: string) => string;
 
   setQueuedState: (id: string, state: QueuedMessage["state"]) => void;
   resolveActionItem: (id: string, mode: "saved" | "tasked") => void;
@@ -804,6 +806,47 @@ export const useApp = create<App>((set, get) => ({
     set((st) => ({ quotes: st.quotes.map((q) => (q.id === id ? { ...q, items: [...q.items, { label, kind: "fee", amount }], total: q.total + amount } : q)) })),
   removeQuoteItem: (id, idx) =>
     set((st) => ({ quotes: st.quotes.map((q) => (q.id === id ? { ...q, items: q.items.filter((_, i) => i !== idx), total: q.items.reduce((s, it, i) => (i === idx ? s : s + it.amount), 0) } : q)) })),
+  addQuote: (input) => {
+    const id = uid("q");
+    const p = propertyById(input.propertyId);
+    const base = p.pricing.plans.find((pl) => pl.kind === "base")?.nightly ?? 3_000_000;
+    const nights = Math.max(1, Math.round((+new Date(input.checkOut) - +new Date(input.checkIn)) / 86_400_000));
+    const cleaning = p.pricing.cleaningFee ?? 350_000;
+    const service = Math.round(base * nights * ((p.pricing.serviceFeePct ?? 5) / 100));
+    const total = base * nights + cleaning + service;
+    const ref = `Q-${1200 + get().quotes.length + 1}`;
+    const q: Quote = {
+      id, ref, guestId: input.guestId, propertyId: input.propertyId, serviceIds: [],
+      checkIn: input.checkIn, checkOut: input.checkOut, adults: input.adults,
+      items: [
+        { label: `${p.name} · ${nights} night${nights > 1 ? "s" : ""} @ ${moneyRaw(base, p.currency, { compact: true })}`, kind: "night", amount: base * nights },
+        { label: "Cleaning fee", kind: "fee", amount: cleaning },
+        { label: `Service fee (${p.pricing.serviceFeePct ?? 5}%)`, kind: "fee", amount: service },
+      ],
+      total, currency: p.currency,
+      depositTerms: "30% deposit due on acceptance", paymentTerms: "Balance due 14 days before arrival.",
+      expiresAt: Date.now() + 7 * 86_400_000, status: "draft", createdAt: Date.now(),
+    };
+    set((st) => ({ quotes: [q, ...st.quotes] }));
+    get().markPending("Quotes");
+    get().audit(`Quote ${ref} drafted for ${GUESTS.find((g) => g.id === input.guestId)?.name ?? "guest"} · ${p.name}`, "ui");
+    get().toast("ok", `${ref} created`, "It's a draft — add line items, then send it to the guest.");
+    return id;
+  },
+  addChildUnit: (parentId, label) => {
+    const id = uid("p");
+    const parent = propertyById(parentId);
+    const prop: Property = {
+      ...parent, id, name: `${parent.name} — ${label}`, code: `${parent.code}-${get().properties.filter((x) => x.parentId === parentId).length + 1}`,
+      parentId, isParent: false, archived: false, order: get().properties.length,
+    };
+    if (!PROPERTIES.some((x) => x.id === id)) PROPERTIES.push(prop);
+    get().markPending("Listings");
+    set((st) => ({ properties: [...st.properties, prop] }));
+    get().audit(`Child unit added under ${parent.name}: ${label}`, "ui");
+    get().toast("ok", `${label} added`, "Inherits the parent's timezone, currency and channel mapping.");
+    return id;
+  },
 
   setQueuedState: (id, state) => set((st) => ({ msgQueue: st.msgQueue.map((m) => (m.id === id ? { ...m, state } : m)) })),
   resolveActionItem: (id, mode) => {

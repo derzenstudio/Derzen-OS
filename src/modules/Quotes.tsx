@@ -3,14 +3,14 @@ import { cx, money, moneyRaw, fmtDate, timeAgo, hoursLeft, relDay } from "../lib
 import { Ic } from "../components/icons";
 import { Badge, Btn, Empty, Field, Input, Modal, Select, Textarea, Toggle } from "../components/ui";
 import { useApp } from "../store";
-import { guestById, propertyById, serviceById } from "../lib/data";
+import { GUESTS, PROPERTIES, guestById, propertyById, serviceById } from "../lib/data";
 import type { Quote, QuoteStatus } from "../lib/types";
 import InvoiceDesigner from "./InvoiceDesigner";
 
 const TONE: Record<QuoteStatus, string> = { draft: "mute", sent: "info", viewed: "plum", accepted: "ok", expired: "danger", converted: "ok", declined: "danger" };
 
 export default function Quotes() {
-  const { navigate, quotes, setQuoteStatus, convertQuote, editQuoteItem, addQuoteItem, removeQuoteItem, toast, brand, route } = useApp();
+  const { navigate, quotes, setQuoteStatus, convertQuote, editQuoteItem, addQuoteItem, removeQuoteItem, addQuote, toast, brand, route } = useApp();
   const [view, setView] = useState<"quotes" | "design">(route.query.get("tab") === "design" ? "design" : "quotes");
   const [filter, setFilter] = useState("all");
   const [openId, setOpenId] = useState<string | null>(null);
@@ -18,6 +18,8 @@ export default function Quotes() {
   const [brandSync, setBrandSync] = useState(true);
   const [addOpen, setAddOpen] = useState(false);
   const [newItem, setNewItem] = useState({ label: "", amount: "" });
+  const [nqOpen, setNqOpen] = useState(false);
+  const [nq, setNq] = useState({ propertyId: "p-anggrek", guestId: "g-01", checkIn: "", checkOut: "", adults: 2 });
   const q = quotes.find((x) => x.id === openId) ?? null;
   const list = quotes.filter((x) => filter === "all" || x.status === filter);
 
@@ -41,7 +43,7 @@ export default function Quotes() {
             <button key={s} onClick={() => setFilter(s)} className={cx("rounded-md px-2.5 py-1.5 text-[11.5px] font-bold capitalize", filter === s ? "bg-pine-900 text-white" : "text-mute hover:text-ink")}>{s}</button>
           ))}
         </div>
-        <Btn className="ml-auto" variant="solid" icon="plus" onClick={() => toast("info", "Quote builder", "Start from calendar availability — pick nights, party mix, optional services.")}>New quote</Btn>
+        <Btn className="ml-auto" variant="solid" icon="plus" onClick={() => { setNq({ propertyId: PROPERTIES[0].id, guestId: GUESTS[0].id, checkIn: "", checkOut: "", adults: 2 }); setNqOpen(true); }}>New quote</Btn>
       </div>
 
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
@@ -123,6 +125,35 @@ export default function Quotes() {
         <div className="space-y-3">
           <Field label="Label"><Input value={newItem.label} onChange={(e) => setNewItem({ ...newItem, label: e.target.value })} placeholder="Welcome basket" /></Field>
           <Field label="Amount (IDR)"><Input type="number" value={newItem.amount} onChange={(e) => setNewItem({ ...newItem, amount: e.target.value })} placeholder="450000" /></Field>
+        </div>
+      </Modal>
+
+      {/* New quote */}
+      <Modal open={nqOpen} onClose={() => setNqOpen(false)} title="New quote" w={460}
+        footer={<><Btn variant="ghost" onClick={() => setNqOpen(false)}>Cancel</Btn><Btn variant="solid" icon="check" onClick={() => {
+          if (!nq.checkIn || !nq.checkOut) { toast("warn", "Pick both dates", "A quote needs a stay window."); return; }
+          if (nq.checkOut <= nq.checkIn) { toast("warn", "Check-out is before check-in", "Swap the dates."); return; }
+          const id = addQuote(nq); setNqOpen(false); setOpenId(id);
+        }}>Create draft</Btn></>}>
+        <div className="space-y-3">
+          <Field label="Property">
+            <Select value={nq.propertyId} onChange={(e) => setNq({ ...nq, propertyId: e.target.value })}>
+              {PROPERTIES.filter((p) => !p.archived && !p.isParent).map((p) => <option key={p.id} value={p.id}>{p.name} — {p.city}</option>)}
+            </Select>
+          </Field>
+          <Field label="Guest">
+            <Select value={nq.guestId} onChange={(e) => setNq({ ...nq, guestId: e.target.value })}>
+              {GUESTS.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}
+            </Select>
+          </Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Check-in"><Input type="date" value={nq.checkIn} onChange={(e) => setNq({ ...nq, checkIn: e.target.value })} /></Field>
+            <Field label="Check-out"><Input type="date" value={nq.checkOut} onChange={(e) => setNq({ ...nq, checkOut: e.target.value })} /></Field>
+          </div>
+          <Field label="Adults"><Input type="number" min={1} value={String(nq.adults)} onChange={(e) => setNq({ ...nq, adults: Math.max(1, Number(e.target.value)) })} /></Field>
+          <p className="rounded-sm bg-paper px-3 py-2 text-[10.5px] leading-relaxed text-mute">
+            Nightly rate, cleaning and service fees are pre-filled from the property's rate plan — adjust any line after creating.
+          </p>
         </div>
       </Modal>
 

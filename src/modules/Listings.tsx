@@ -260,9 +260,11 @@ function PhotoManager({ p }: { p: Property }) {
 
 // ── Property detail ────────────────────────────────────────────────────────
 function PropertyDetail({ p, onOpenServices }: { p: Property; onOpenServices: () => void }) {
-  const { navigate, toggleArchive, togglePublishDirect, setCheckoutEnabled, toast } = useApp();
+  const { navigate, toggleArchive, togglePublishDirect, setCheckoutEnabled, addChildUnit, toast } = useApp();
   const properties = useApp((s) => s.properties);
   const [tab, setTab] = useState("details");
+  const [unitOpen, setUnitOpen] = useState(false);
+  const [unitLabel, setUnitLabel] = useState("");
   const children = properties.filter((x) => x.parentId === p.id);
   const tabs = [
     { id: "details", label: "Details" }, { id: "pricing", label: "Price settings" }, { id: "pcal", label: "Pricing calendar" },
@@ -438,7 +440,7 @@ function PropertyDetail({ p, onOpenServices }: { p: Property; onOpenServices: ()
               <h3 className="font-display text-[13.5px] font-bold text-ink">Units under {p.name}</h3>
               <p className="text-[11px] text-mute">“One channel, many units” — Booking.com maps room types to these children via the parent connection.</p>
             </div>
-            <Btn size="sm" variant="solid" icon="plus" onClick={() => toast("info", "Add child unit", "Inherits timezone, currency and parent channel mapping.")}>Add unit</Btn>
+            <Btn size="sm" variant="solid" icon="plus" onClick={() => { setUnitLabel(""); setUnitOpen(true); }}>Add unit</Btn>
           </div>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
             {children.map((c) => (
@@ -456,6 +458,19 @@ function PropertyDetail({ p, onOpenServices }: { p: Property; onOpenServices: ()
       )}
 
       {tab === "checkout" && <CheckoutCard name={p.name} code={p.code} enabled={p.checkoutEnabled} onToggle={(v) => setCheckoutEnabled(p.id, v)} />}
+
+      <Modal open={unitOpen} onClose={() => setUnitOpen(false)} title={`Add unit under ${p.name}`} w={400}
+        footer={<><Btn variant="ghost" onClick={() => setUnitOpen(false)}>Cancel</Btn><Btn variant="solid" icon="check" onClick={() => {
+          if (!unitLabel.trim()) { toast("warn", "Name the unit", "e.g. Garden Suite"); return; }
+          addChildUnit(p.id, unitLabel.trim()); setUnitOpen(false);
+        }}>Add unit</Btn></>}>
+        <div className="space-y-3">
+          <Field label="Unit name"><Input value={unitLabel} onChange={(e) => setUnitLabel(e.target.value)} placeholder="Garden Suite" autoFocus /></Field>
+          <p className="rounded-sm bg-paper px-3 py-2 text-[10.5px] leading-relaxed text-mute">
+            Inherits the parent's timezone, currency and channel mapping — then shows up on the calendar and in the Booking.com room-type map.
+          </p>
+        </div>
+      </Modal>
     </div>
   );
 }
@@ -550,6 +565,8 @@ function CheckoutCard({ name, code, enabled, onToggle }: { name: string; code: s
 function ServicesView({ back }: { back: () => void }) {
   const { setCheckoutEnabled, toast } = useApp();
   const [services, setServices] = useState(SERVICES);
+  const [nsOpen, setNsOpen] = useState(false);
+  const [ns, setNs] = useState({ name: "", category: "experience", price: "", durationMin: 120, capacity: 4 });
   const catIcons: Record<string, IconName> = { experience: "sparkle", chauffeur: "nav", spa: "heart", activities: "trendUp", equipment: "clock" };
   return (
     <div className="space-y-3">
@@ -557,7 +574,7 @@ function ServicesView({ back }: { back: () => void }) {
         <button onClick={back} className="flex items-center gap-1 text-[12px] font-bold text-mute hover:text-ink"><Ic name="chevL" size={13} /> Listings</button>
         <span className="text-line2">/</span>
         <span className="text-[12px] font-bold text-ink">Sellable services</span>
-        <Btn className="ml-auto" variant="solid" icon="plus" onClick={() => toast("info", "New service", "Category taxonomy is extensible.")}>New service</Btn>
+        <Btn className="ml-auto" variant="solid" icon="plus" onClick={() => { setNs({ name: "", category: "experience", price: "", durationMin: 120, capacity: 4 }); setNsOpen(true); }}>New service</Btn>
       </div>
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-3">
         {services.map((s) => (
@@ -586,6 +603,28 @@ function ServicesView({ back }: { back: () => void }) {
           </div>
         ))}
       </div>
+
+      <Modal open={nsOpen} onClose={() => setNsOpen(false)} title="New service" w={440}
+        footer={<><Btn variant="ghost" onClick={() => setNsOpen(false)}>Cancel</Btn><Btn variant="solid" icon="check" onClick={() => {
+          if (!ns.name.trim() || !Number(ns.price)) { toast("warn", "Name and price required", "e.g. Sunrise Surf Lesson · 650000"); return; }
+          setServices((arr) => [{ id: `svc-${Date.now()}`, name: ns.name.trim(), category: ns.category, durationMin: ns.durationMin, capacity: ns.capacity, price: Math.round(Number(ns.price)), currency: "IDR", deposit: 0, location: "On-site", leadTimeH: 24, image: SERVICES[0].image, active: true, checkoutEnabled: false }, ...arr]);
+          toast("ok", `${ns.name.trim()} created`, "Enable “sell” to publish its checkout page.");
+          setNsOpen(false);
+        }}>Create</Btn></>}>
+        <div className="space-y-3">
+          <Field label="Service name"><Input value={ns.name} onChange={(e) => setNs({ ...ns, name: e.target.value })} placeholder="Sunrise Surf Lesson" autoFocus /></Field>
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Category">
+              <Select value={ns.category} onChange={(e) => setNs({ ...ns, category: e.target.value })}>
+                {["experience", "chauffeur", "spa", "activities", "equipment"].map((c) => <option key={c} value={c}>{c}</option>)}
+              </Select>
+            </Field>
+            <Field label="Price (IDR)"><Input type="number" value={ns.price} onChange={(e) => setNs({ ...ns, price: e.target.value })} placeholder="650000" /></Field>
+            <Field label="Duration (min)"><Input type="number" value={String(ns.durationMin)} onChange={(e) => setNs({ ...ns, durationMin: Math.max(15, Number(e.target.value)) })} /></Field>
+            <Field label="Capacity / slot"><Input type="number" value={String(ns.capacity)} onChange={(e) => setNs({ ...ns, capacity: Math.max(1, Number(e.target.value)) })} /></Field>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 }

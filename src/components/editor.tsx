@@ -420,27 +420,39 @@ export function IconPicker({
   );
 }
 
-// ── FloatPanel — draggable inspector popup anchored near a block ────────────
-// Re-anchors beside the selected block whenever it changes; then the tenant
-// can drag it anywhere on screen and keep adjusting while watching the canvas.
+// ── FloatPanel — draggable inspector popup that opens at the pointer ───────
+// Prefers the exact pointer location (where the tenant clicked); falls back to
+// the block's bounding rect. Flips left/above near the viewport edges so the
+// panel never opens off-screen. Remount via key= to re-anchor on each click.
+const PANEL_W = 290;
+const PANEL_H = 360; // nominal; the panel scrolls beyond this
 export function FloatPanel({
-  anchor, title, onClose, children, footer,
+  anchor, title, onClose, children, footer, at,
 }: {
   anchor: string; title: string; onClose: () => void;
   children: ReactNode; footer?: ReactNode;
+  at?: { x: number; y: number } | null;
 }) {
   const { pos, setPos, dragging, onHandleDown } = useDraggable({ x: 40, y: 90 });
-  // anchor beside the block when the selection changes
+  // anchor once per (re)mount — near the pointer, else beside the block
   useEffect(() => {
-    const el = document.getElementById(`blk-${anchor}`);
-    if (!el) return;
-    const r = el.getBoundingClientRect();
-    const x = Math.min(Math.max(8, r.right + 14), window.innerWidth - 300);
-    const y = Math.min(Math.max(60, r.top), window.innerHeight - 200);
-    // jump only on a fresh selection, not on every render
+    let x: number, y: number;
+    if (at) {
+      // open to the right of the pointer; flip left when there's no room
+      x = at.x + 16 + PANEL_W <= window.innerWidth - 8 ? at.x + 16 : Math.max(8, at.x - PANEL_W - 16);
+      // below the pointer; flip above when near the bottom edge
+      y = at.y + 12 + PANEL_H <= window.innerHeight - 8 ? at.y + 12 : Math.max(56, at.y - PANEL_H - 8);
+    } else {
+      const el = document.getElementById(`blk-${anchor}`);
+      if (el) {
+        const r = el.getBoundingClientRect();
+        x = Math.min(Math.max(8, r.right + 14), window.innerWidth - PANEL_W - 8);
+        y = Math.min(Math.max(56, r.top), window.innerHeight - 220);
+      } else { x = 40; y = 90; }
+    }
     setPos({ x, y });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [anchor]);
+  }, []);
 
   return (
     <div

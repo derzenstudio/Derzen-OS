@@ -48,6 +48,13 @@ export default function Websites() {
   const [delOpen, setDelOpen] = useState(false);
   const [delName, setDelName] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
+  const [ptr, setPtr] = useState<{ x: number; y: number } | null>(null);
+  const [selEpoch, setSelEpoch] = useState(0); // bump on every fresh select so the panel re-anchors at the pointer
+  const selectBlock = (id: string, at?: { x: number; y: number }) => {
+    if (id === selected && !at) { setSelected(null); return; } // re-click deselects
+    if (at) { setPtr(at); setSelEpoch((e) => e + 1); }
+    setSelected(id);
+  };
   const [previewOpen, setPreviewOpen] = useState(false);
   const [pageSettings, setPageSettings] = useState(false);
   const [metric, setMetric] = useState<"traffic" | "bookings">("traffic");
@@ -294,7 +301,7 @@ export default function Websites() {
                     b={b} idx={idx} total={page.blocks.length}
                     selected={selected === b.id}
                     dragging={dragId === b.id}
-                    onSelect={() => setSelected(selected === b.id ? null : b.id)}
+                    onSelect={(at) => (at || selected !== b.id ? selectBlock(b.id, at) : setSelected(null))}
                     onDragStart={() => setDragId(b.id)}
                     onDragEnd={() => { setDragId(null); setDropAt(null); }}
                     onMove={(dir) => moveBlock(page.id, b.id, dir)}
@@ -332,7 +339,7 @@ export default function Websites() {
 
         {/* Floating block inspector — draggable, anchored beside the selected block */}
         {sel && (
-          <FloatPanel anchor={sel.id} title={BLOCK_LABEL[sel.type] ?? sel.type} onClose={() => setSelected(null)}>
+          <FloatPanel key={`${sel.id}:${selEpoch}`} anchor={sel.id} at={ptr} title={BLOCK_LABEL[sel.type] ?? sel.type} onClose={() => setSelected(null)}>
             <InspectorTabs
               b={sel}
               onContent={(patch) => updateBlock(page.id, sel.id, { content: { ...sel.content, ...patch } })}
@@ -553,14 +560,14 @@ function PageSettingsModal({ open, onClose, page, onSave, onDelete }: {
 // ── Inline block: renders editable content + a floating toolbar on select ──
 function InlineBlock({ b, idx, total, selected, dragging, onSelect, onDragStart, onDragEnd, onMove, onDuplicate, onRemove, onContent }: {
   b: Block; idx: number; total: number; selected: boolean; dragging: boolean;
-  onSelect: () => void; onDragStart: () => void; onDragEnd: () => void;
+  onSelect: (at?: { x: number; y: number }) => void; onDragStart: () => void; onDragEnd: () => void;
   onMove: (d: "up" | "down") => void; onDuplicate: () => void; onRemove: () => void;
   onContent: (patch: Record<string, string>) => void;
 }) {
   return (
     <div
       id={`blk-${b.id}`}
-      onClick={(e) => { e.stopPropagation(); onSelect(); }}
+      onClick={(e) => { e.stopPropagation(); onSelect({ x: e.clientX, y: e.clientY }); }}
       onFocusCapture={() => { if (!selected) onSelect(); }}
       className={cx(
         "group relative rounded-sm border transition-all",

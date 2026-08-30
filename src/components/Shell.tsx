@@ -1,7 +1,8 @@
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { cx, timeAgo, addDays, dayKey, today, fmtShort } from "../lib/format";
 import { fxInfo } from "../lib/fx";
 import { Ic, type IconName } from "./icons";
+import { CommandPalette } from "./CommandPalette";
 import { Avatar, Badge, Btn, IconBtn, Kbd, Modal, Ring, Toggle } from "./ui";
 import { useApp, useOverdue, useSyncAlerts, useUnreadTotal, nightsInRange, arrivalsOn } from "../store";
 import { channelDef, MEMBERS, MONTHLY, propertyById, WORKSPACE, RESERVATIONS } from "../lib/data";
@@ -151,7 +152,7 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
   );
 }
 
-function Topbar({ title, sub, onMenu }: { title: string; sub?: string; onMenu: () => void }) {
+function Topbar({ title, sub, onMenu, onPalette }: { title: string; sub?: string; onMenu: () => void; onPalette: () => void }) {
   const { route, navigate, t, chatOpen, setChatOpen, copilotOpen, setCopilotOpen, displayCurrency, setWorkspaceCurrency, refreshRates, fxTick, session, tenants, logout, toast, theme, setTheme } = useApp();
   const syncAlerts = useSyncAlerts();
   const creditsUsed = useApp((s) => s.creditsUsed);
@@ -179,6 +180,23 @@ function Topbar({ title, sub, onMenu }: { title: string; sub?: string; onMenu: (
         {sub && <p className="truncate text-[10.5px] text-mute">{sub}</p>}
       </div>
       <div className="ml-auto flex items-center gap-1.5">
+        <button
+          onClick={onPalette}
+          className="hidden items-center gap-2 rounded-md border border-line bg-card px-2.5 py-1.5 text-[11.5px] font-semibold text-faint transition-colors hover:border-brand hover:text-brand-deep md:flex"
+          aria-label="Open command palette"
+          title="Jump to any tool, property or booking (Ctrl/Cmd+K)"
+        >
+          <Ic name="search" size={13} />
+          <span className="max-w-[150px] truncate">Search anything…</span>
+          <kbd className="hidden lg:inline">⌘K</kbd>
+        </button>
+        <button
+          onClick={onPalette}
+          className="flex h-8 w-8 items-center justify-center rounded-md border border-line bg-card text-mute transition-colors hover:border-brand hover:text-brand-deep md:hidden"
+          aria-label="Open command palette"
+        >
+          <Ic name="search" size={15} />
+        </button>
         <button
           onClick={() => navigate("/sync")}
           className={cx(
@@ -496,14 +514,24 @@ const TITLES: Record<string, [string, string]> = {
 export function Shell({ children }: { children: ReactNode }) {
   const route = useApp((s) => s.route);
   const [mobileNav, setMobileNav] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
   const page = route.path[0] ?? "dashboard";
   const [title, sub] = TITLES[page] ?? ["Derzen", ""];
+  // Global command palette — Ctrl/Cmd+K from anywhere
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); setPaletteOpen((o) => !o); }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
   return (
     <div className="flex h-screen overflow-hidden">
+      <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
       {mobileNav && <div className="fixed inset-0 z-[71] bg-pine-950/55 backdrop-blur-[2px] lg:hidden" onClick={() => setMobileNav(false)} aria-hidden="true" />}
       <Sidebar open={mobileNav} onClose={() => setMobileNav(false)} />
       <div className="flex min-w-0 flex-1 flex-col">
-        <Topbar title={title} sub={sub} onMenu={() => setMobileNav(true)} />
+        <Topbar title={title} sub={sub} onMenu={() => setMobileNav(true)} onPalette={() => setPaletteOpen(true)} />
         <main className="flex-1 overflow-y-auto">
           <div key={route.path.join("/") + route.query.toString()} className="anim-rise mx-auto w-full max-w-[1300px] px-4 py-6 pb-20 md:px-7 lg:px-9">
             {children}

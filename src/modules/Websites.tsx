@@ -629,7 +629,7 @@ function BlockView({ b, edit = false, onContent }: { b: Block; edit?: boolean; o
       case "hero": return (
         <div className="relative flex items-end overflow-hidden" style={{ borderRadius: s.radius, minHeight: `${s.heightVh || 45}vh` }}>
           <div className="absolute inset-0">{im({ k: "image", className: "h-full w-full" })}</div>
-          <div className="absolute inset-0 bg-gradient-to-t from-pine-950/80 via-pine-950/25 to-transparent" />
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-pine-950/80 via-pine-950/25 to-transparent" />
           <div className="relative flex w-full items-end justify-between gap-3 p-5">
             {t({ k: "headline", as: "h2", className: "font-display text-[26px] font-bold leading-tight text-white", placeholder: "Headline" })}
             {t({ k: "badge", className: "hidden shrink-0 rounded-sm bg-white/95 px-3 py-1.5 text-[11px] font-bold text-ink sm:block", placeholder: "Price" })}
@@ -807,8 +807,10 @@ function BlockView({ b, edit = false, onContent }: { b: Block; edit?: boolean; o
         mixBlendMode: (s.blend as React.CSSProperties["mixBlendMode"]) || undefined,
       }}
     >
-      {/* Visual blocks bleed edge-to-edge; text/content blocks keep a readable gutter */}
-      <div className={cx(["hero", "image", "gallery"].includes(b.type) ? "" : "px-4 py-4 sm:px-6")}>{inner}</div>
+      {/* Content fills the block edge-to-edge — no gap between content and the
+          block boundary. Spacing is a per-block style choice (Vertical /
+          Horizontal padding in the inspector), not a forced wrapper inset. */}
+      <div>{inner}</div>
     </div>
   );
 }

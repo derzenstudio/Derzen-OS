@@ -999,6 +999,43 @@ function QaEditor({ value, onChange }: { value: string; onChange: (v: string) =>
   );
 }
 
+// ── Structured icon-list editor (Icon Highlights blocks) ──────────────────
+// Every row gets its own tappable icon chip + picker, so icons are changeable
+// from the inspector as well as from the canvas.
+function IconRowsEditor({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const items = parseIconItems(value);
+  const write = (arr: { icon: string; label: string }[]) => onChange(arr.map((x) => `${x.icon} | ${x.label}`).join("\n"));
+  const [openFor, setOpenFor] = useState<number | null>(null);
+  const [pos, setPos] = useState({ x: 0, y: 0 });
+  return (
+    <div className="space-y-1.5">
+      {items.map((it, i) => (
+        <div key={i} className="flex items-center gap-1.5 rounded-sm border border-line bg-paper/60 p-1.5">
+          <button
+            onClick={(e) => {
+              const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+              setPos({ x: Math.max(8, Math.min(r.left, window.innerWidth - 270)), y: r.bottom + 6 });
+              setOpenFor(openFor === i ? null : i);
+            }}
+            aria-label={`Change icon for ${it.label}`} title="Change icon"
+            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand-soft text-brand-deep transition-all hover:scale-110 hover:ring-2 hover:ring-brand"
+          >
+            <Ic name={(ICON_NAMES.includes(it.icon as IconName) ? it.icon : "sparkle") as IconName} size={14} />
+          </button>
+          <TextInput value={it.label} onChange={(v: string) => { const arr = [...items]; arr[i] = { ...arr[i], label: v }; write(arr); }} placeholder="Highlight label" />
+          <button onClick={() => write(items.filter((_, j) => j !== i))} aria-label={`Remove ${it.label}`} className="rounded-sm p-1 text-faint transition-colors hover:bg-danger-soft hover:text-danger"><Ic name="trash" size={11} /></button>
+        </div>
+      ))}
+      <button onClick={() => write([...items, { icon: "sparkle", label: "New highlight" }])} className="flex w-full items-center justify-center gap-1.5 rounded-sm border border-dashed border-line2 py-1.5 text-[10px] font-bold text-mute transition-colors hover:border-brand hover:text-brand-deep">
+        <Ic name="plus" size={11} /> Add highlight
+      </button>
+      <IconPicker open={openFor !== null} pos={pos} value={openFor !== null ? items[openFor]?.icon ?? "sparkle" : "sparkle"}
+        onPick={(n) => { if (openFor !== null) { const arr = [...items]; arr[openFor] = { ...arr[openFor], icon: n }; write(arr); } setOpenFor(null); }}
+        onClose={() => setOpenFor(null)} />
+    </div>
+  );
+}
+
 // ── Inspector: Content + Style tabs for the selected block ────────────────
 function InspectorTabs({ b, onContent, onStyle }: { b: Block; onContent: (patch: Record<string, string>) => void; onStyle: (patch: Partial<BlockStyle>) => void }) {
   const [tab, setTab] = useState<"content" | "style" | "elements">("content");
@@ -1039,6 +1076,10 @@ function InspectorTabs({ b, onContent, onStyle }: { b: Block; onContent: (patch:
             ) : f.kind === "qa" ? (
               <Ifield key={f.key} label={f.label}>
                 <QaEditor value={c[f.key] ?? ""} onChange={(v) => onContent({ [f.key]: v })} />
+              </Ifield>
+            ) : f.kind === "icons" ? (
+              <Ifield key={f.key} label={f.label} hint="Tap the circle to swap an icon · labels edit in place">
+                <IconRowsEditor value={c[f.key] ?? ""} onChange={(v) => onContent({ [f.key]: v })} />
               </Ifield>
             ) : (
               <Ifield key={f.key} label={f.label} hint={f.hint}>

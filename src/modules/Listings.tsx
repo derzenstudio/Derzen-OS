@@ -608,6 +608,20 @@ const REMOTE: Record<string, OtaListing[]> = {
   agoda: [
     { id: "ag-1", name: "Seminyak Luxe Stay", city: "Seminyak", nightly: 4_800_000, guests: 6, photos: 22, rating: 8.7 },
   ],
+  expedia: [
+    { id: "ex-1", name: "Nusa Dua Family Estate", city: "Nusa Dua", nightly: 5_400_000, guests: 10, photos: 26, rating: 4.6 },
+    { id: "ex-2", name: "Jimbaran Bay House", city: "Jimbaran", nightly: 3_300_000, guests: 5, photos: 17, rating: 4.5 },
+  ],
+  trip: [
+    { id: "tr-1", name: "Ubud Jungle Hideaway", city: "Ubud", nightly: 2_900_000, guests: 4, photos: 19, rating: 4.8 },
+  ],
+  mmt: [
+    { id: "mm-1", name: "Sanur Beach Cottage", city: "Sanur", nightly: 2_400_000, guests: 4, photos: 14, rating: 4.4 },
+  ],
+  traveloka: [
+    { id: "tl-1", name: "Canggu Surf Villa", city: "Canggu", nightly: 3_800_000, guests: 7, photos: 21, rating: 8.5 },
+    { id: "tl-2", name: "Amed Sunrise Bungalow", city: "Amed", nightly: 1_900_000, guests: 3, photos: 12, rating: 8.8 },
+  ],
 };
 const AUTH_LABEL: Record<string, string> = {
   airbnb: "One-click OAuth sign-in", booking: "Extranet + property ID", vrbo: "Login + emailed code",
@@ -669,7 +683,7 @@ function AddListingWizard({ onClose, onDone }: { onClose: () => void; onDone: (i
         <div className="grid grid-cols-1 gap-2.5">
           {([
             { id: "manual", icon: "plus" as IconName, title: "Create manually", desc: "Start from scratch. We'll sync photos from your connected channels and you can set rates, rooms and calendars.", tag: "Fastest" },
-            { id: "channel", icon: "download" as IconName, title: "Import from a connected OTA", desc: "Pull an existing listing off Airbnb, Booking.com, VRBO or Agoda — photos, rate and capacity come with it.", tag: "Recommended" },
+            { id: "channel", icon: "download" as IconName, title: "Import from a connected OTA", desc: "Pull an existing listing off Airbnb, Booking.com, VRBO, Agoda, Expedia, Trip.com, MakeMyTrip or Traveloka — photos, rate and capacity come with it.", tag: "Recommended" },
           ] as const).map((o) => (
             <button key={o.id} onClick={() => setStep(o.id as "manual" | "channel")}
               className="flex items-start gap-3 rounded-lg border border-line bg-card p-4 text-left transition-all hover:-translate-y-0.5 hover:border-brand hover:shadow-md">

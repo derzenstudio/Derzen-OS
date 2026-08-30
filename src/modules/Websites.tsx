@@ -559,6 +559,7 @@ function InlineBlock({ b, idx, total, selected, dragging, onSelect, onDragStart,
 }) {
   return (
     <div
+      id={`blk-${b.id}`}
       onClick={(e) => { e.stopPropagation(); onSelect(); }}
       onFocusCapture={() => { if (!selected) onSelect(); }}
       className={cx(

@@ -216,15 +216,13 @@ export default function CalendarModule() {
     const sel = selRef.current;
     anchorRef.current = null;
     setAnchoring(false);
-    // Normal mode: a drag across ≥2 nights opens the range editor directly
+    // Normal mode: a drag across ≥2 nights keeps the selection — the floating
+    // range action bar takes over (Block / Rate / Open / Close / Edit).
     if (!bulkMode && a && movedRef.current && sel && sel[1] > sel[0]) {
       const p = rows[a.r];
       if (p && !p.isParent) {
-        const ks = keys.slice(sel[0], sel[1] + 1);
         setFocus({ r: a.r, c: sel[1] });
-        setEditor({ keys: ks, label: `${p.name} · ${ks.length} nights selected`, isBlock: true });
-        setSel(null);
-        return;
+        return; // keep selRange → floating bar appears
       }
     }
     if (!bulkMode) setSel(null); // plain click — the single-night editor opens via onClick
@@ -303,21 +301,42 @@ export default function CalendarModule() {
         </div>
       )}
 
-      {/* Floating range action bar — appears the moment a range is selected */}
-      {bulkMode && selRange && (
-        <div className="anim-pop fixed bottom-5 left-1/2 z-[80] flex -translate-x-1/2 items-center gap-1.5 rounded-lg border border-line bg-card px-2.5 py-2 shadow-2xl">
-          <span className="flex items-center gap-1.5 rounded-md bg-brand-soft px-2.5 py-1.5 text-[12px] font-bold text-brand-deep">
-            <Ic name="calendar" size={14} />
-            {selRange[1] - selRange[0] + 1} night{selRange[1] - selRange[0] + 1 > 1 ? "s" : ""} · {effectiveChecked.length} listing{effectiveChecked.length > 1 ? "s" : ""}
-          </span>
-          <span className="mx-0.5 h-5 w-px bg-line" aria-hidden="true" />
-          <Btn size="xs" icon="pencil" onClick={() => { const ks = keys.slice(selRange[0], selRange[1] + 1); setEditor({ keys: ks, label: `${effectiveChecked.length} listings × ${ks.length} nights` }); }}>Edit</Btn>
-          <Btn size="xs" icon="lock" onClick={() => { const ks = keys.slice(selRange[0], selRange[1] + 1); bulkApply(effectiveChecked.map((r) => r.id), ks, { closed: true }); setSel(null); }}>Close</Btn>
-          <Btn size="xs" icon="check" onClick={() => { const ks = keys.slice(selRange[0], selRange[1] + 1); bulkApply(effectiveChecked.map((r) => r.id), ks, { closed: false }); setSel(null); }}>Open</Btn>
-          <span className="mx-0.5 h-5 w-px bg-line" aria-hidden="true" />
-          <Btn size="xs" variant="ghost" icon="x" onClick={() => setSel(null)}>Clear</Btn>
-        </div>
-      )}
+      {/* Floating range action bar — appears when a range is selected.
+          In normal mode it shows for a genuine multi-night drag (a single click
+          already opens the night editor); in bulk mode any selection is actionable.
+          Scope-aware: single listing in normal mode, all checked listings in bulk. */}
+      {tab === "properties" && selRange && (bulkMode || selRange[1] > selRange[0]) && (() => {
+        const ks = keys.slice(selRange[0], selRange[1] + 1);
+        const n = ks.length;
+        const focusedProp = rows[focus.r];
+        const isBulk = bulkMode;
+        const canAct = isBulk ? effectiveChecked.length > 0 : !!focusedProp && !focusedProp.isParent;
+        const scope = isBulk ? `${effectiveChecked.length} listing${effectiveChecked.length > 1 ? "s" : ""}` : focusedProp?.name ?? "—";
+        const apply = (patch: Parameters<typeof manualBlock>[2], doneMsg: string) => {
+          if (!canAct) { toast("warn", "Nothing selected", isBulk ? "Tick at least one listing on the left." : "Pick a single listing row."); return; }
+          if (isBulk) {
+            bulkApply(effectiveChecked.map((r) => r.id), ks, patch); // bulkApply announces itself
+          } else {
+            manualBlock(focusedProp!.id, ks, patch);
+            toast("ok", doneMsg, `${scope} · ${n} night${n > 1 ? "s" : ""} · pushed to live channels`);
+          }
+          setSel(null);
+        };
+        return (
+          <div className="anim-pop fixed bottom-5 left-1/2 z-[80] flex -translate-x-1/2 flex-wrap items-center justify-center gap-1.5 rounded-lg border border-line bg-card px-2.5 py-2 shadow-2xl">
+            <span className="flex items-center gap-1.5 rounded-md bg-brand-soft px-2.5 py-1.5 text-[12px] font-bold text-brand-deep">
+              <Ic name="calendar" size={14} />
+              {n} night{n > 1 ? "s" : ""} · <span className="max-w-[150px] truncate">{scope}</span>
+            </span>
+            <span className="mx-0.5 hidden h-5 w-px bg-line sm:block" aria-hidden="true" />
+            <Btn size="xs" icon="pencil" onClick={() => setEditor({ keys: ks, label: `${scope} · ${n} night${n > 1 ? "s" : ""}`, isBlock: n > 1 || undefined })}>Rate & rules</Btn>
+            <Btn size="xs" icon="lock" onClick={() => apply({ closed: true, blockType: "manual", blockLabel: "Manual block" }, "Range blocked")}>Block</Btn>
+            <Btn size="xs" icon="check" onClick={() => apply({ closed: false, blockType: undefined, blockLabel: undefined }, "Range opened")}>Open</Btn>
+            <span className="mx-0.5 hidden h-5 w-px bg-line sm:block" aria-hidden="true" />
+            <Btn size="xs" variant="ghost" icon="x" onClick={() => setSel(null)}>Clear</Btn>
+          </div>
+        );
+      })()}
 
       {tab === "properties" ? (
         <>

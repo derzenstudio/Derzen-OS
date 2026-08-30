@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { cx, money, copyText, toCSV, download, dayKey, addDays, today } from "../lib/format";
-import { Ic, type IconName } from "../components/icons";
+import { Ic, ICON_NAMES, type IconName } from "../components/icons";
 import { Badge, Btn, Dot, Field, Input, Modal, Select, Spark, Tabs, Toggle } from "../components/ui";
-import { EditableText, EditableImage, FloatingToolbar, ToolBtn, InspectorPanel, Ifield, TextInput, SegBtns, toHtml } from "../components/editor";
+import { EditableText, EditableImage, FloatingToolbar, ToolBtn, InspectorPanel, Ifield, TextInput, SegBtns, toHtml, IconPicker, FloatPanel } from "../components/editor";
 import { NumStepper, ColorField, UnitField } from "../components/controls";
 import { useApp, DEFAULT_BLOCK_STYLE } from "../store";
 import { PROPERTIES, propertyById } from "../lib/data";
 import { embedJsSnippet, embedIframeSnippet, widgetCssVars } from "../lib/widgetTheme";
 import { ChatbotPreview } from "./ChatWidget";
-import { defaultBlockContent, parseQA, parseCSV, parseLines, CONTENT_SCHEMA, ELEMENTS, type ContentField } from "../lib/blockContent";
+import { defaultBlockContent, parseQA, parseCSV, parseLines, parseIconItems, CONTENT_SCHEMA, ELEMENTS, type ContentField } from "../lib/blockContent";
 import { DeviceCtx, useDevice, resolveCss, DEVICE_PRESETS } from "../lib/unit";
 import type { Block, BlockStyle, ElAdjust, SiteLink } from "../lib/types";
 
@@ -56,6 +56,7 @@ export default function Websites() {
   const [newPageOpen, setNewPageOpen] = useState(false);
   const [newPageName, setNewPageName] = useState("");
   const [tplPreview, setTplPreview] = useState<string | null>(null);
+  const [designOpen, setDesignOpen] = useState(false);
 
   // ── Device simulation: vh/vw resolve against THIS frame, not the browser ──
   const [devPreset, setDevPreset] = useState("desktop");
@@ -196,8 +197,8 @@ export default function Websites() {
 
       <Tabs tabs={[{ id: "builder", label: "Page builder" }, { id: "collections", label: "Collections" }, { id: "analytics", label: "Analytics" }, { id: "embed", label: "Embeddable widgets" }, { id: "settings", label: "Website settings" }]} active={tab} onChange={setTab} />
 
-      {tab === "builder" && (
-        <div className="grid grid-cols-1 gap-4 xl:grid-cols-[230px_1fr_280px]">
+      {tab === "builder" && (<>
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-[230px_1fr]">
           {/* Pages + chrome */}
           <div className="space-y-2.5">
             {website.pages.map((p) => (
@@ -255,6 +256,7 @@ export default function Websites() {
               <p className="font-display text-[14px] font-bold text-ink">Page: {page.name} <span className="font-mono text-[10px] font-semibold text-faint">/{page.slug}</span></p>
               <div className="flex gap-1.5">
                 <Btn size="xs" icon="plus" onClick={() => setLibOpen(true)}>Add block</Btn>
+                <Btn size="xs" variant={designOpen && !sel ? "solid" : "ghost"} icon="palette" onClick={() => { setDesignOpen(!designOpen); setSelected(null); }}>Design</Btn>
                 <Btn size="xs" variant="solid" icon="eye" onClick={() => setPreviewOpen(true)}>Preview</Btn>
               </div>
             </div>
@@ -326,47 +328,46 @@ export default function Websites() {
             </p>
           </div>
 
-          {/* Inspector — content & style for the selected block, else theme */}
-          <div className="space-y-3">
-            {sel ? (
-              <InspectorPanel key={sel.id} title={`${BLOCK_LABEL[sel.type] ?? sel.type}`} icon="pencil" onClose={() => setSelected(null)}>
-                <InspectorTabs
-                  b={sel}
-                  onContent={(patch) => updateBlock(page.id, sel.id, { content: { ...sel.content, ...patch } })}
-                  onStyle={(patch) => updateBlock(page.id, sel.id, { style: { ...DEFAULT_BLOCK_STYLE, ...sel.style, ...patch } })}
-                />
-              </InspectorPanel>
-            ) : (
-              <div className="rounded-lg border border-line bg-card p-4">
-                <p className="mb-2 text-[10.5px] font-bold uppercase tracking-wider text-mute">Site theme</p>
-                <Ifield label="Palette">
-                  <div className="grid grid-cols-3 gap-1.5">
-                    {["Palm & Sand", "Ocean Light", "Volcanic"].map((p) => (
-                      <button key={p} onClick={() => setSiteTheme({ palette: p })} className={cx("rounded-sm border px-2 py-1.5 text-[10px] font-bold", website.theme.palette === p ? "border-brand bg-brand-soft text-brand-deep" : "border-line text-mute")}>{p}</button>
-                    ))}
-                  </div>
-                </Ifield>
-                <Ifield label="Corner radius">
-                  <NumStepper value={website.theme.radius} onChange={(v) => setSiteTheme({ radius: v })} min={0} max={20} suffix="px" label="radius" w={110} />
-                </Ifield>
-                <p className="mt-2 rounded-sm bg-paper px-3 py-2 text-[10.5px] leading-relaxed text-mute">Select any block on the canvas to edit its content and styling. Everything you type is saved live.</p>
-              </div>
-            )}
-            <div className="rounded-lg border border-line bg-card p-4">
-              <p className="mb-2 text-[10.5px] font-bold uppercase tracking-wider text-mute">Starter templates</p>
-              {TEMPLATES.map((tp) => (
-                <button key={tp.name} onClick={() => setTplPreview(tp.name)} className="mb-1.5 flex w-full items-center gap-2 rounded-sm border border-line px-2.5 py-2 text-left text-[11.5px] font-bold text-ink transition-colors hover:border-brand">
-                  <span className="flex h-8 w-12 shrink-0 items-end gap-0.5 rounded-sm border border-line p-1" style={{ background: tp.swatchBg }} aria-hidden="true">
-                    <span className="h-3 w-2" style={{ background: tp.swatchA }} /><span className="h-4 w-2" style={{ background: tp.swatchB }} /><span className="h-2 w-2" style={{ background: tp.swatchA }} />
-                  </span>
-                  {tp.name} <span className="ml-auto text-[9px] font-semibold uppercase text-faint">{tp.vibe}</span>
-                </button>
-              ))}
-              <p className="mt-1 text-[9px] leading-snug text-faint">Click to preview — nothing changes until you press Apply.</p>
-            </div>
-          </div>
         </div>
-      )}
+
+        {/* Floating block inspector — draggable, anchored beside the selected block */}
+        {sel && (
+          <FloatPanel anchor={sel.id} title={BLOCK_LABEL[sel.type] ?? sel.type} onClose={() => setSelected(null)}>
+            <InspectorTabs
+              b={sel}
+              onContent={(patch) => updateBlock(page.id, sel.id, { content: { ...sel.content, ...patch } })}
+              onStyle={(patch) => updateBlock(page.id, sel.id, { style: { ...DEFAULT_BLOCK_STYLE, ...sel.style, ...patch } })}
+            />
+          </FloatPanel>
+        )}
+
+        {/* Floating design panel — theme + starter templates, draggable anywhere */}
+        {designOpen && !sel && (
+          <FloatPanel anchor="" title="Site design" onClose={() => setDesignOpen(false)}>
+            <Ifield label="Palette">
+              <div className="grid grid-cols-3 gap-1.5">
+                {["Palm & Sand", "Ocean Light", "Volcanic"].map((p) => (
+                  <button key={p} onClick={() => setSiteTheme({ palette: p })} className={cx("rounded-sm border px-2 py-1.5 text-[10px] font-bold", website.theme.palette === p ? "border-brand bg-brand-soft text-brand-deep" : "border-line text-mute")}>{p}</button>
+                ))}
+              </div>
+            </Ifield>
+            <Ifield label="Corner radius">
+              <NumStepper value={website.theme.radius} onChange={(v) => setSiteTheme({ radius: v })} min={0} max={20} suffix="px" label="radius" w={110} />
+            </Ifield>
+            <p className="rounded-sm bg-paper px-3 py-2 text-[10.5px] leading-relaxed text-mute">Select any block on the canvas to edit it. This panel is draggable — drag the header to park it anywhere.</p>
+            <p className="mb-1 mt-2 text-[10.5px] font-bold uppercase tracking-wider text-mute">Starter templates</p>
+            {TEMPLATES.map((tp) => (
+              <button key={tp.name} onClick={() => setTplPreview(tp.name)} className="mb-1.5 flex w-full items-center gap-2 rounded-sm border border-line px-2.5 py-2 text-left text-[11.5px] font-bold text-ink transition-colors hover:border-brand">
+                <span className="flex h-8 w-12 shrink-0 items-end gap-0.5 rounded-sm border border-line p-1" style={{ background: tp.swatchBg }} aria-hidden="true">
+                  <span className="h-3 w-2" style={{ background: tp.swatchA }} /><span className="h-4 w-2" style={{ background: tp.swatchB }} /><span className="h-2 w-2" style={{ background: tp.swatchA }} />
+                </span>
+                {tp.name} <span className="ml-auto text-[9px] font-semibold uppercase text-faint">{tp.vibe}</span>
+              </button>
+            ))}
+            <p className="text-[9px] leading-snug text-faint">Click to preview — nothing changes until you press Apply.</p>
+          </FloatPanel>
+        )}
+      </>)}
 
       {tab === "collections" && <CollectionsTab />}
 
@@ -670,6 +671,51 @@ function ChromeStrip({ target, selected, onSelect }: { target: "header" | "foote
   );
 }
 
+// ── Highlight chip — an icon + label whose icon is swappable via picker ─────
+function HighlightChip({
+  icon, label, edit, chipStyle, onIcon, onLabel, onRemove,
+}: {
+  icon: IconName; label: string; edit: boolean; chipStyle?: React.CSSProperties;
+  onIcon: (n: IconName) => void; onLabel: (v: string) => void; onRemove: () => void;
+}) {
+  const [picker, setPicker] = useState(false);
+  const [pos, setPos] = useState({ x: 0, y: 0 });
+  const openPicker = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    setPos({ x: Math.max(8, Math.min(r.left, window.innerWidth - 270)), y: r.bottom + 8 });
+    setPicker(true);
+  };
+  return (
+    <div className="group/chip relative text-center">
+      {edit && (
+        <button onClick={openPicker} aria-label="Change icon" title="Change icon"
+          className="mx-auto mb-1 flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-brand-soft text-brand-deep transition-all hover:scale-110 hover:ring-2 hover:ring-brand"
+          style={chipStyle}>
+          <Ic name={icon} size={14} />
+        </button>
+      )}
+      {!edit && (
+        <span className="mx-auto mb-1 flex h-8 w-8 items-center justify-center rounded-full bg-brand-soft text-brand-deep" style={chipStyle}>
+          <Ic name={icon} size={14} />
+        </span>
+      )}
+      {edit ? (
+        <EditableText as="p" value={label} onCommit={onLabel} className="text-[10px] font-bold text-ink" placeholder="Highlight" />
+      ) : (
+        <p className="text-[10px] font-bold text-ink">{label}</p>
+      )}
+      {edit && (
+        <button onClick={(e) => { e.stopPropagation(); onRemove(); }} aria-label="Remove highlight"
+          className="absolute -right-1 -top-1 hidden h-4 w-4 items-center justify-center rounded-full bg-danger text-white group-hover/chip:flex">
+          <Ic name="x" size={9} sw={3} />
+        </button>
+      )}
+      <IconPicker open={picker} pos={pos} value={icon} onPick={onIcon} onClose={() => setPicker(false)} />
+    </div>
+  );
+}
+
 // ── Content-driven, inline-editable block renderer (canvas + preview) ──────
 function BlockView({ b, edit = false, onContent }: { b: Block; edit?: boolean; onContent?: (patch: Record<string, string>) => void }) {
   const dev = useDevice();
@@ -858,17 +904,31 @@ function BlockView({ b, edit = false, onContent }: { b: Block; edit?: boolean; o
         </div>
       );
       case "icon_highlights": {
-        const items = parseLines(c.items ?? "");
+        const items = parseIconItems(c.items ?? "");
+        const write = (arr: { icon: string; label: string }[]) => set("items")(arr.map((x) => `${x.icon} | ${x.label}`).join("\n"));
+        const chipStyle = es("chip");
         return (
           <div>
             {t({ k: "title", as: "h3", className: "mb-2 text-center font-display text-[15px] font-bold text-ink", style: es("title"), placeholder: "Heading" })}
-            <div className="flex flex-wrap justify-around gap-2" style={es("list")}>
+            <div className="flex flex-wrap items-start justify-around gap-3" style={es("list")}>
               {items.map((x, i) => (
-                <div key={i} className="text-center">
-                  <span className="mx-auto mb-1 flex h-8 w-8 items-center justify-center rounded-full bg-brand-soft text-brand-deep"><Ic name="sparkle" size={13} /></span>
-                  {edit ? <EditableText as="p" value={x} onCommit={(v) => { const arr = [...items]; arr[i] = v; set("items")(arr.join("\n")); }} className="text-[10px] font-bold text-ink" placeholder="Item" /> : <p className="text-[10px] font-bold text-ink">{x}</p>}
-                </div>
+                <HighlightChip
+                  key={i}
+                  icon={(ICON_NAMES.includes(x.icon as IconName) ? x.icon : "sparkle") as IconName}
+                  label={x.label}
+                  edit={edit}
+                  chipStyle={chipStyle}
+                  onIcon={(n) => { const arr = [...items]; arr[i] = { ...arr[i], icon: n }; write(arr); }}
+                  onLabel={(v) => { const arr = [...items]; arr[i] = { ...arr[i], label: v }; write(arr); }}
+                  onRemove={() => write(items.filter((_, j) => j !== i))}
+                />
               ))}
+              {edit && (
+                <button onClick={(e) => { e.stopPropagation(); write([...items, { icon: "sparkle", label: "New highlight" }]); }}
+                  className="mt-1 flex h-8 items-center gap-1 rounded-full border border-dashed border-line2 px-3 text-[10px] font-bold text-mute transition-colors hover:border-brand hover:text-brand-deep">
+                  <Ic name="plus" size={11} /> Add highlight
+                </button>
+              )}
             </div>
           </div>
         );

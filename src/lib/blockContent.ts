@@ -2,7 +2,7 @@
 // Lists are stored as delimited strings so the inline editor stays simple
 // (one line per item, "Q | A" pairs for FAQ, comma-separated URLs for galleries).
 
-export interface ContentField { key: string; label: string; multiline?: boolean; kind?: "text" | "image" | "lines" | "qa" | "csv" | "url"; hint?: string; }
+export interface ContentField { key: string; label: string; multiline?: boolean; kind?: "text" | "image" | "lines" | "qa" | "csv" | "url" | "icons"; hint?: string; }
 export const CONTENT_SCHEMA: Record<string, ContentField[]> = {
   hero: [
     { key: "headline", label: "Headline" },
@@ -56,9 +56,24 @@ export const CONTENT_SCHEMA: Record<string, ContentField[]> = {
   ],
   icon_highlights: [
     { key: "title", label: "Heading" },
-    { key: "items", label: "Highlights", multiline: true, kind: "lines", hint: "one per line" },
+    { key: "items", label: "Highlights", multiline: true, kind: "icons", hint: "one per line — click the icon chip on canvas to change it" },
   ],
 };
+
+// Parse an icon-highlight line "iconName | label" → { icon, label }.
+export function parseIconItems(raw: string): { icon: string; label: string }[] {
+  return raw
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .map((l) => {
+      const [a, ...rest] = l.split("|");
+      const head = (a ?? "").trim();
+      const label = rest.join("|").trim();
+      // "icon | label" — head is an icon name; plain "label" defaults to sparkle
+      return rest.length ? { icon: head || "sparkle", label } : { icon: "sparkle", label: head };
+    });
+}
 
 export function defaultBlockContent(type: string): Record<string, string> {
   switch (type) {
@@ -76,7 +91,7 @@ export function defaultBlockContent(type: string): Record<string, string> {
     case "search_bar": return { button: "Search stays", placeholder: "Dates · guests · area" };
     case "cta_banner": return { headline: "Direct bookings save ~15%, always.", button: "Book direct", url: "/search" };
     case "contact_form": return { title: "Talk to a human", button: "Send message" };
-    case "icon_highlights": return { title: "Why guests return", items: "Private staff on call\nMarket-fresh chef menus\nHonest direct pricing" };
+    case "icon_highlights": return { title: "Why guests return", items: "heart | Private staff on call\nbag | Market-fresh chef menus\ncoins | Honest direct pricing" };
     default: return { text: "New block — click to edit." };
   }
 }
@@ -99,7 +114,7 @@ export const ELEMENTS: Record<string, { id: string; label: string; kind: "text" 
   search_bar: [{ id: "field", label: "Search field", kind: "container" }, { id: "button", label: "Button", kind: "button" }],
   cta_banner: [{ id: "banner", label: "Banner", kind: "container" }, { id: "headline", label: "Headline", kind: "text" }, { id: "button", label: "Button", kind: "button" }],
   contact_form: [{ id: "title", label: "Form title", kind: "text" }, { id: "button", label: "Submit button", kind: "button" }],
-  icon_highlights: [{ id: "title", label: "Heading", kind: "text" }, { id: "list", label: "Highlights", kind: "container" }],
+  icon_highlights: [{ id: "title", label: "Heading", kind: "text" }, { id: "list", label: "Highlights row", kind: "container" }, { id: "chip", label: "Icon chips", kind: "container" }],
 };
 
 export const parseLines = (s: string) => s.split("\n").map((l) => l.trim()).filter(Boolean);

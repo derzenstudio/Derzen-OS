@@ -116,6 +116,16 @@ const P: Record<string, ReactNode> = {
 
 export type IconName = keyof typeof P;
 
+// Every glyph name, for pickers. Semantic, tenant-relevant ones first.
+export const ICON_NAMES: IconName[] = [
+  "heart", "sparkle", "star", "home", "bed", "bath", "users", "wifi", "phone", "mail", "whatsapp",
+  "pin", "map", "nav", "calendar", "clock", "ticket", "wrench", "shield", "lock", "key", "door",
+  "image", "camera", "palette", "droplet", "globe", "bolt", "zap", "coins", "wallet", "card", "bag", "tag",
+  "book", "doc", "folder", "chat", "send", "msg", "quote", "translate", "bell", "flag", "lifeBuoy",
+  "grid", "kanban", "layers", "list", "filter", "search", "pencil", "copy", "link", "external", "eye",
+  "chart", "trendUp", "calc", "receipt", "bank", "archive", "sun", "moon", "play", "check", "x", "info",
+];
+
 export function Ic({
   name,
   size = 16,

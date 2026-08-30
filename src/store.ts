@@ -274,6 +274,7 @@ interface App {
   movePhoto: (propId: string, photoId: string, dir: "up" | "down") => void;
   resyncOtaPhotos: (propId: string) => void;
   addProperty: (name: string, city: string) => string;
+  importFromOta: (input: { name: string; city: string; channel: string; nightly: number; guests: number }) => string;
   siteChrome: SiteChrome;
   setSiteChrome: (patch: Partial<SiteChrome>) => void;
   reorderSiteLinks: (target: "header" | "footer", fromId: string, toIdx: number) => void;
@@ -1270,6 +1271,32 @@ export const useApp = create<App>((set, get) => ({
     }));
     get().audit(`Property created: ${name} (${city}) · OTA photos synced`, "ui");
     get().toast("ok", `${name} created`, `${seeded.length} photos synced from your connected channels — edit them in the photo manager.`);
+    return id;
+  },
+
+  // Import a listing discovered on a connected OTA channel.
+  importFromOta: (input) => {
+    const id = uid("p");
+    const base = PROPERTIES[0];
+    const prop: Property = {
+      ...base,
+      id, name: input.name, code: input.name.slice(0, 3).toUpperCase(), city: input.city,
+      parentId: null, isParent: false, archived: false,
+      maxGuests: input.guests,
+      channels: { [input.channel]: "live", direct: "live" },
+      pricing: { ...base.pricing, plans: base.pricing.plans.map((pl) => (pl.kind === "base" ? { ...pl, nightly: input.nightly } : pl)) },
+      order: get().properties.length,
+    };
+    const seeded = otaSeedPhotos(id, [prop, ...get().properties]);
+    writeLibrary(id, seeded);
+    if (!PROPERTIES.some((x) => x.id === id)) PROPERTIES.push(prop);
+    get().markPending("Listings");
+    set((st) => ({
+      properties: [...st.properties, prop],
+      propertyPhotos: { ...st.propertyPhotos, [id]: seeded },
+    }));
+    get().audit(`Listing imported from ${input.channel}: ${input.name} (${input.city})`, "channel_sync");
+    get().toast("ok", `${input.name} imported from ${input.channel}`, "Photos, rate plan and availability are now live on your calendar.");
     return id;
   },
 

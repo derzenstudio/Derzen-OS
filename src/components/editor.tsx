@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { cx } from "../lib/format";
-import { Ic, type IconName } from "./icons";
+import { Ic, ICON_NAMES, type IconName } from "./icons";
 import { useApp } from "../store";
 import { PROPERTIES, propertyById } from "../lib/data";
 import { compressImage } from "../lib/photoStore";
+import { useDraggable } from "./controls";
 
 // ── Inline editable text — true Canva behaviour ────────────────────────────
 // Always contentEditable. The initial HTML is frozen at mount so React never
@@ -376,3 +377,88 @@ export function SegBtns<T extends string>({ options, value, onChange }: { option
 
 // helper to read a property safely
 export { propertyById };
+
+// ── IconPicker — searchable glyph grid, portal-rendered ─────────────────────
+export function IconPicker({
+  open, pos, value, onPick, onClose,
+}: {
+  open: boolean; pos: { x: number; y: number }; value: string;
+  onPick: (name: IconName) => void; onClose: () => void;
+}) {
+  const [q, setQ] = useState("");
+  useEffect(() => { if (open) setQ(""); }, [open]);
+  if (!open) return null;
+  const names = ICON_NAMES.filter((n) => !q || n.toLowerCase().includes(q.toLowerCase()));
+  return createPortal(
+    <>
+      <div className="fixed inset-0 z-[95]" onClick={onClose} aria-hidden="true" />
+      <div className="anim-pop fixed z-[96] w-[260px] rounded-lg border border-line bg-card p-2.5 shadow-2xl" style={{ left: pos.x, top: pos.y }} onClick={(e) => e.stopPropagation()}>
+        <div className="mb-2 flex items-center gap-2">
+          <p className="flex-1 text-[10px] font-bold uppercase tracking-wider text-mute">Pick an icon</p>
+          <button onClick={onClose} aria-label="Close icon picker" className="text-faint hover:text-ink"><Ic name="x" size={12} /></button>
+        </div>
+        <input
+          value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search…"
+          className="mb-2 h-7 w-full rounded-sm border border-line bg-paper px-2 text-[11px] outline-none focus:border-brand"
+          aria-label="Search icons"
+        />
+        <div className="grid max-h-[180px] grid-cols-7 gap-1 overflow-y-auto">
+          {names.map((n) => (
+            <button
+              key={n} onClick={() => { onPick(n); onClose(); }}
+              title={n} aria-label={`Icon ${n}`}
+              className={cx("flex h-8 w-8 items-center justify-center rounded-sm border transition-all hover:scale-110 hover:border-brand", n === value ? "border-brand bg-brand-soft text-brand-deep" : "border-line text-mute hover:text-ink")}
+            >
+              <Ic name={n} size={15} />
+            </button>
+          ))}
+          {names.length === 0 && <p className="col-span-7 py-3 text-center text-[10.5px] text-faint">No icons match “{q}”.</p>}
+        </div>
+      </div>
+    </>,
+    document.body,
+  );
+}
+
+// ── FloatPanel — draggable inspector popup anchored near a block ────────────
+// Re-anchors beside the selected block whenever it changes; then the tenant
+// can drag it anywhere on screen and keep adjusting while watching the canvas.
+export function FloatPanel({
+  anchor, title, onClose, children, footer,
+}: {
+  anchor: string; title: string; onClose: () => void;
+  children: ReactNode; footer?: ReactNode;
+}) {
+  const { pos, setPos, dragging, onHandleDown } = useDraggable({ x: 40, y: 90 });
+  // anchor beside the block when the selection changes
+  useEffect(() => {
+    const el = document.getElementById(`blk-${anchor}`);
+    if (!el) return;
+    const r = el.getBoundingClientRect();
+    const x = Math.min(Math.max(8, r.right + 14), window.innerWidth - 300);
+    const y = Math.min(Math.max(60, r.top), window.innerHeight - 200);
+    // jump only on a fresh selection, not on every render
+    setPos({ x, y });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [anchor]);
+
+  return (
+    <div
+      className={cx("fixed z-[90] flex w-[290px] max-w-[92vw] flex-col overflow-hidden rounded-lg border border-line bg-card shadow-2xl", dragging && "cursor-grabbing")}
+      style={{ left: pos.x, top: pos.y, maxHeight: "min(72vh, 640px)" }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <div
+        onPointerDown={onHandleDown}
+        className="flex shrink-0 cursor-grab items-center gap-2 border-b border-line bg-gradient-to-r from-brand-soft/70 to-card px-3 py-2"
+        title="Drag to move"
+      >
+        <Ic name="grip" size={13} className="text-brand-deep" />
+        <p className="flex-1 truncate text-[11px] font-bold uppercase tracking-wider text-brand-deep">{title}</p>
+        <button onClick={onClose} aria-label="Close panel" className="rounded-sm p-0.5 text-mute hover:text-ink"><Ic name="x" size={13} /></button>
+      </div>
+      <div className="flex-1 space-y-3 overflow-y-auto p-3">{children}</div>
+      {footer && <div className="shrink-0 border-t border-line bg-paper/60 px-3 py-2">{footer}</div>}
+    </div>
+  );
+}

@@ -296,22 +296,26 @@ export default function CalendarModule() {
         </div>
       </div>
 
-      {bulkMode && (
+      {bulkMode && !selRange && (
         <div className="anim-rise flex flex-wrap items-center gap-2 rounded-lg border border-gold/50 bg-gold-soft/60 px-3 py-2 text-[12px] font-semibold text-[#8a5c07]">
           <Ic name="info" size={14} />
-          Drag across nights to size the range, then press <Kbd>Enter</Kbd> (or click Apply) to push rate & restrictions to {effectiveChecked.length} listings. <Kbd>Esc</Kbd> cancels · <Kbd>Shift</Kbd>+<Kbd>←→</Kbd> extends.
-          {selRange && (
-            <Btn
-              size="xs"
-              icon="check"
-              onClick={() => {
-                const ks = keys.slice(selRange[0], selRange[1] + 1);
-                setEditor({ keys: ks, label: `${effectiveChecked.length} listings × ${ks.length} nights` });
-              }}
-            >
-              Apply to {selRange[1] - selRange[0] + 1} night{selRange[1] - selRange[0] + 1 > 1 ? "s" : ""}
-            </Btn>
-          )}
+          Drag across nights to size a range. <Kbd>Shift</Kbd>+<Kbd>←→</Kbd> fine-tunes · <Kbd>Esc</Kbd> exits bulk mode.
+        </div>
+      )}
+
+      {/* Floating range action bar — appears the moment a range is selected */}
+      {bulkMode && selRange && (
+        <div className="anim-pop fixed bottom-5 left-1/2 z-[80] flex -translate-x-1/2 items-center gap-1.5 rounded-lg border border-line bg-card px-2.5 py-2 shadow-2xl">
+          <span className="flex items-center gap-1.5 rounded-md bg-brand-soft px-2.5 py-1.5 text-[12px] font-bold text-brand-deep">
+            <Ic name="calendar" size={14} />
+            {selRange[1] - selRange[0] + 1} night{selRange[1] - selRange[0] + 1 > 1 ? "s" : ""} · {effectiveChecked.length} listing{effectiveChecked.length > 1 ? "s" : ""}
+          </span>
+          <span className="mx-0.5 h-5 w-px bg-line" aria-hidden="true" />
+          <Btn size="xs" icon="pencil" onClick={() => { const ks = keys.slice(selRange[0], selRange[1] + 1); setEditor({ keys: ks, label: `${effectiveChecked.length} listings × ${ks.length} nights` }); }}>Edit</Btn>
+          <Btn size="xs" icon="lock" onClick={() => { const ks = keys.slice(selRange[0], selRange[1] + 1); bulkApply(effectiveChecked.map((r) => r.id), ks, { closed: true }); setSel(null); }}>Close</Btn>
+          <Btn size="xs" icon="check" onClick={() => { const ks = keys.slice(selRange[0], selRange[1] + 1); bulkApply(effectiveChecked.map((r) => r.id), ks, { closed: false }); setSel(null); }}>Open</Btn>
+          <span className="mx-0.5 h-5 w-px bg-line" aria-hidden="true" />
+          <Btn size="xs" variant="ghost" icon="x" onClick={() => setSel(null)}>Clear</Btn>
         </div>
       )}
 

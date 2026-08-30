@@ -57,26 +57,7 @@ export default function Listings() {
         <Btn className="ml-auto" variant="solid" icon="plus" onClick={() => setAddOpen(true)}>Add listing</Btn>
       </div>
 
-      <Modal open={addOpen} onClose={() => setAddOpen(false)} title="Add a new listing" w={440}
-        footer={<>
-          <Btn variant="ghost" onClick={() => setAddOpen(false)}>Cancel</Btn>
-          <Btn variant="solid" icon="check" onClick={() => {
-            if (!newName.trim()) { toast("warn", "Give it a name", "e.g. Villa Serenity"); return; }
-            const id = addProperty(newName.trim(), newCity.trim() || "Canggu");
-            setAddOpen(false); setNewName(""); setNewCity("");
-            navigate(`/listings?property=${id}`);
-          }}>Create & sync photos</Btn>
-        </>}>
-        <div className="space-y-3">
-          <Field label="Listing name"><Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Villa Serenity" autoFocus /></Field>
-          <Field label="City / area"><Input value={newCity} onChange={(e) => setNewCity(e.target.value)} placeholder="Canggu" /></Field>
-          <p className="rounded-sm bg-paper px-3 py-2 text-[11px] leading-relaxed text-mute">
-            On creation, DERZEN pulls the media your connected channels already hold for this
-            property and seeds the <b className="text-ink">property photo library</b> with it — then you can
-            rename, reorder, replace or delete every shot and upload your own.
-          </p>
-        </div>
-      </Modal>
+      {addOpen && <AddListingWizard onClose={() => setAddOpen(false)} onDone={(id) => { setAddOpen(false); navigate(`/listings?property=${id}`); }} />}
 
       {view === "table" ? (
         <div className="overflow-x-auto rounded-xl border border-line bg-card">
@@ -606,5 +587,176 @@ function ServicesView({ back }: { back: () => void }) {
         ))}
       </div>
     </div>
+  );
+}
+
+// ── Add Listing wizard — manual, import from OTA, or connect a channel ─────
+type OtaListing = { id: string; name: string; city: string; nightly: number; guests: number; photos: number; rating: number };
+const REMOTE: Record<string, OtaListing[]> = {
+  airbnb: [
+    { id: "ab-1", name: "Villa Serenity", city: "Canggu", nightly: 4_200_000, guests: 8, photos: 24, rating: 4.9 },
+    { id: "ab-2", name: "The Palm House", city: "Ubud", nightly: 3_600_000, guests: 6, photos: 18, rating: 4.8 },
+    { id: "ab-3", name: "Oceanfront Escape", city: "Uluwatu", nightly: 6_800_000, guests: 10, photos: 31, rating: 5.0 },
+  ],
+  booking: [
+    { id: "bdc-1", name: "Canggu Garden Villa", city: "Canggu", nightly: 3_900_000, guests: 6, photos: 20, rating: 8.9 },
+    { id: "bdc-2", name: "Riverside Retreat", city: "Ubud", nightly: 3_100_000, guests: 4, photos: 15, rating: 9.1 },
+  ],
+  vrbo: [
+    { id: "vr-1", name: "Sunset Cliff Villa", city: "Uluwatu", nightly: 7_200_000, guests: 12, photos: 27, rating: 4.7 },
+  ],
+  agoda: [
+    { id: "ag-1", name: "Seminyak Luxe Stay", city: "Seminyak", nightly: 4_800_000, guests: 6, photos: 22, rating: 8.7 },
+  ],
+};
+const AUTH_LABEL: Record<string, string> = {
+  airbnb: "One-click OAuth sign-in", booking: "Extranet + property ID", vrbo: "Login + emailed code",
+  expedia: "Extranet + property ID", agoda: "Extranet + property ID", trip: "Extranet + property ID",
+  mmt: "API credentials", traveloka: "Extranet + property ID", direct: "Already built-in", ical: "Feed URL",
+};
+
+function AddListingWizard({ onClose, onDone }: { onClose: () => void; onDone: (id: string) => void }) {
+  const { addProperty, importFromOta, toast } = useApp();
+  const [step, setStep] = useState<"source" | "manual" | "channel" | "fetch" | "pick">("source");
+  const [name, setName] = useState("");
+  const [city, setCity] = useState("");
+  const [channel, setChannel] = useState("airbnb");
+  const [authing, setAuthing] = useState(false);
+  const [fetching, setFetching] = useState(false);
+  const [remote, setRemote] = useState<OtaListing[]>([]);
+  const connected = CHANNEL_DEFS.filter((c) => c.id !== "ical");
+
+  const startFetch = (ch: string) => {
+    setChannel(ch);
+    setAuthing(true);
+    setTimeout(() => {
+      setAuthing(false);
+      setFetching(true);
+      setTimeout(() => {
+        setRemote(REMOTE[ch] ?? []);
+        setFetching(false);
+        setStep("pick");
+      }, 900);
+    }, 1100);
+    setStep("fetch");
+  };
+
+  const importOne = (l: OtaListing) => {
+    const id = importFromOta({ name: l.name, city: l.city, channel, nightly: l.nightly, guests: l.guests });
+    onDone(id);
+  };
+
+  return (
+    <Modal open onClose={onClose} w={640}
+      title={
+        <span className="flex items-center gap-3">
+          <span>Add a listing</span>
+          <span className="flex items-center gap-1">
+            {(["source", "manual", "channel", "fetch", "pick"] as const).indexOf(step) >= 0 && (
+              <>
+                {step === "source" ? <span className="font-mono text-[10px] font-bold text-brand-deep">1 · Choose a source</span> :
+                  step === "manual" ? <span className="font-mono text-[10px] font-bold text-brand-deep">2 · New listing</span> :
+                  step === "channel" ? <span className="font-mono text-[10px] font-bold text-brand-deep">2 · Pick a channel</span> :
+                  <span className="font-mono text-[10px] font-bold text-brand-deep">{step === "fetch" ? "Connecting…" : "3 · Import"}</span>}
+              </>
+            )}
+          </span>
+        </span>
+      }
+      footer={step === "source" ? <Btn variant="ghost" onClick={onClose}>Cancel</Btn> : undefined}
+    >
+      {step === "source" && (
+        <div className="grid grid-cols-1 gap-2.5">
+          {([
+            { id: "manual", icon: "plus" as IconName, title: "Create manually", desc: "Start from scratch. We'll sync photos from your connected channels and you can set rates, rooms and calendars.", tag: "Fastest" },
+            { id: "channel", icon: "download" as IconName, title: "Import from a connected OTA", desc: "Pull an existing listing off Airbnb, Booking.com, VRBO or Agoda — photos, rate and capacity come with it.", tag: "Recommended" },
+          ] as const).map((o) => (
+            <button key={o.id} onClick={() => setStep(o.id as "manual" | "channel")}
+              className="flex items-start gap-3 rounded-lg border border-line bg-card p-4 text-left transition-all hover:-translate-y-0.5 hover:border-brand hover:shadow-md">
+              <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-brand-soft text-brand-deep"><Ic name={o.icon} size={17} /></span>
+              <span className="min-w-0 flex-1">
+                <span className="flex items-center gap-2 text-[13.5px] font-bold text-ink">{o.title} <Badge tone={o.id === "channel" ? "ok" : "mute"}>{o.tag}</Badge></span>
+                <span className="mt-0.5 block text-[11.5px] leading-relaxed text-mute">{o.desc}</span>
+              </span>
+              <Ic name="chevR" size={15} className="mt-1 text-faint" />
+            </button>
+          ))}
+          <p className="rounded-md bg-paper px-3 py-2 text-[10.5px] leading-relaxed text-mute">
+            <b className="text-ink">No channel connected yet?</b> Pick “Import from a connected OTA” and choose a channel — the
+            wizard authenticates it first ({connected.map((c) => c.name).join(", ")}), then pulls your listings so nothing is re-typed.
+          </p>
+        </div>
+      )}
+
+      {step === "manual" && (
+        <div className="space-y-3">
+          <Field label="Listing name"><Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Villa Serenity" autoFocus /></Field>
+          <Field label="City / area"><Input value={city} onChange={(e) => setCity(e.target.value)} placeholder="Canggu" /></Field>
+          <p className="rounded-md bg-paper px-3 py-2 text-[11px] leading-relaxed text-mute">
+            On creation, DERZEN pulls the media your connected channels already hold for this property and seeds the
+            <b className="text-ink"> property photo library</b> — then you can rename, reorder, replace or upload your own.
+          </p>
+          <div className="flex justify-end gap-2">
+            <Btn variant="ghost" onClick={() => setStep("source")}>Back</Btn>
+            <Btn variant="solid" icon="check" onClick={() => {
+              if (!name.trim()) { toast("warn", "Give it a name", "e.g. Villa Serenity"); return; }
+              onDone(addProperty(name.trim(), city.trim() || "Canggu"));
+            }}>Create & sync photos</Btn>
+          </div>
+        </div>
+      )}
+
+      {step === "channel" && (
+        <div className="space-y-2">
+          <p className="text-[11.5px] text-mute">Pick the channel your listing lives on. Each uses its own sign-in method — we handle it, then pull your listings.</p>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+            {connected.filter((c) => c.id !== "direct").map((c) => (
+              <button key={c.id} onClick={() => startFetch(c.id)}
+                className="flex flex-col items-start gap-1.5 rounded-lg border border-line bg-card p-3 text-left transition-all hover:-translate-y-0.5 hover:border-brand hover:shadow-md">
+                <ChannelMark id={c.id} size={26} />
+                <span className="text-[12.5px] font-bold text-ink">{c.name}</span>
+                <span className="text-[9.5px] leading-snug text-faint">{AUTH_LABEL[c.id] ?? "Extranet"}</span>
+              </button>
+            ))}
+          </div>
+          <div className="flex justify-end"><Btn variant="ghost" onClick={() => setStep("source")}>Back</Btn></div>
+        </div>
+      )}
+
+      {step === "fetch" && (
+        <div className="flex flex-col items-center gap-3 py-8">
+          <span className="flex h-12 w-12 items-center justify-center rounded-full bg-brand-soft text-brand-deep">
+            <ChannelMark id={channel} size={28} />
+          </span>
+          <p className="text-[13px] font-bold text-ink">{authing ? `Authenticating with ${channelDef(channel as never).name}…` : `Fetching your listings from ${channelDef(channel as never).name}…`}</p>
+          <p className="flex items-center gap-2 font-mono text-[10.5px] text-faint">
+            <span className="h-3 w-3 anim-spin rounded-full border-2 border-line2 border-t-brand" /> {authing ? AUTH_LABEL[channel] : "Reading remote inventory"}
+          </p>
+        </div>
+      )}
+
+      {step === "pick" && (
+        <div className="space-y-2">
+          <p className="text-[11.5px] text-mute">Found <b className="text-ink">{remote.length}</b> listing{remote.length !== 1 ? "s" : ""} on {channelDef(channel as never).name}. Pick one to import — rates, capacity and photos come across.</p>
+          {remote.length === 0 && <p className="rounded-md bg-paper px-3 py-3 text-[11.5px] text-mute">No listings found on this channel yet. Create one manually instead.</p>}
+          {remote.map((l) => (
+            <button key={l.id} onClick={() => importOne(l)}
+              className="flex w-full items-center gap-3 rounded-lg border border-line bg-card p-3 text-left transition-all hover:-translate-y-0.5 hover:border-brand hover:shadow-md">
+              <span className="flex h-10 w-14 shrink-0 items-center justify-center rounded-md bg-brand-soft text-brand-deep"><Ic name="home" size={18} /></span>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-[13px] font-bold text-ink">{l.name}</span>
+                <span className="block text-[10.5px] text-mute">{l.city} · {l.guests} guests · {l.photos} photos · ★ {l.rating}</span>
+              </span>
+              <span className="text-right">
+                <span className="block font-mono text-[12.5px] font-bold text-brand-deep">{money(l.nightly, "IDR", { compact: true })}</span>
+                <span className="block text-[9.5px] text-faint">per night</span>
+              </span>
+              <Ic name="chevR" size={15} className="text-faint" />
+            </button>
+          ))}
+          <div className="flex justify-end gap-2"><Btn variant="ghost" onClick={() => setStep("channel")}>Back</Btn><Btn variant="ghost" onClick={() => setStep("manual")}>Create manually instead</Btn></div>
+        </div>
+      )}
+    </Modal>
   );
 }

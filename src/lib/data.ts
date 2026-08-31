@@ -979,5 +979,4 @@ export function syncModulesFromSlice(slice: Record<string, unknown>): void {
     }
   }
   if (slice.website && typeof slice.website === "object") Object.assign(WEBSITE, slice.website);
-  if (slice.siteChrome && typeof slice.siteChrome === "object") Object.assign(SITE_CHROME_REF, slice.siteChrome);
 }

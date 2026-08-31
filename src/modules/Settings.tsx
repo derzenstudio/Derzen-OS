@@ -166,23 +166,43 @@ function Team() {
 }
 
 function General() {
-  const { toast } = useApp();
-  const [support, setSupport] = useState(WORKSPACE.supportAccess);
+  const { toast, workspacePrefs, setWorkspacePrefs } = useApp();
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       <div className="space-y-3 rounded-xl border border-line bg-card p-4">
         <h3 className="font-display text-[13.5px] font-bold text-ink">Workspace</h3>
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Workspace name"><Input defaultValue={WORKSPACE.name} /></Field>
-          <Field label="Country"><Select defaultValue="Indonesia"><option>Indonesia</option><option>Netherlands</option><option>Australia</option></Select></Field>
+          <Field label="Workspace name"><Input value={workspacePrefs.name} onChange={(e) => setWorkspacePrefs({ name: e.target.value })} /></Field>
+          <Field label="Country">
+            <Select value={workspacePrefs.country} onChange={(e) => setWorkspacePrefs({ country: e.target.value })}>
+              <option>Indonesia</option><option>Netherlands</option><option>Australia</option>
+            </Select>
+          </Field>
           <Field label="Reporting currency" hint="Dashboards roll up here at timestamped FX rates. Listing & channel currencies stay separate.">
             <ReportingCurrencyControl />
           </Field>
-          <Field label="Workspace timezone"><Select defaultValue="Europe/Amsterdam"><option>Europe/Amsterdam</option><option>Asia/Makassar</option></Select></Field>
-          <Field label="Date format"><Select defaultValue="D MMM YYYY"><option>D MMM YYYY</option><option>DD/MM/YYYY</option><option>MM/DD/YYYY</option></Select></Field>
-          <Field label="Time format"><Select defaultValue="24h"><option>24h</option><option>12h</option></Select></Field>
+          <Field label="Workspace timezone">
+            <Select value={workspacePrefs.tz} onChange={(e) => setWorkspacePrefs({ tz: e.target.value })}>
+              <option>Europe/Amsterdam</option><option>Asia/Makassar</option>
+            </Select>
+          </Field>
+          <Field label="Date format">
+            <Select value={workspacePrefs.dateFormat} onChange={(e) => setWorkspacePrefs({ dateFormat: e.target.value })}>
+              <option>D MMM YYYY</option><option>DD/MM/YYYY</option><option>MM/DD/YYYY</option>
+            </Select>
+          </Field>
+          <Field label="Time format">
+            <Select value={workspacePrefs.timeFormat} onChange={(e) => setWorkspacePrefs({ timeFormat: e.target.value })}>
+              <option>24h</option><option>12h</option>
+            </Select>
+          </Field>
         </div>
-        <Field label="Week starts on"><Select defaultValue="Monday"><option>Monday</option><option>Sunday</option></Select></Field>
+        <Field label="Week starts on">
+          <Select value={workspacePrefs.weekStart} onChange={(e) => setWorkspacePrefs({ weekStart: e.target.value })}>
+            <option>Monday</option><option>Sunday</option>
+          </Select>
+        </Field>
+        <p className="text-[10.5px] leading-relaxed text-faint">Changes save automatically to your workspace and are restored on your next sign-in.</p>
       </div>
       <div className="space-y-4">
         <div className="rounded-xl border border-gold/50 bg-card p-4">
@@ -193,8 +213,8 @@ function General() {
               <p className="text-[11.5px] text-mute">Lets the DERZEN team troubleshoot your account. Every session is logged and visible.</p>
               <p className="mt-1.5 text-[11px] font-bold text-mute">Last accessed: {timeAgo(WORKSPACE.supportLastAccess)} · agent Mira K. · 12 min</p>
               <div className="mt-2 flex items-center gap-3">
-                <Toggle checked={support} onChange={(v) => { setSupport(v); toast(v ? "ok" : "warn", v ? "Support access granted" : "Support access revoked instantly"); }} label="Support access" />
-                {!support && <Btn size="xs" variant="danger" icon="lock" onClick={() => toast("ok", "All active support sessions terminated")}>Revoke now</Btn>}
+                <Toggle checked={workspacePrefs.supportAccess} onChange={(v) => { setWorkspacePrefs({ supportAccess: v }); toast(v ? "ok" : "warn", v ? "Support access granted" : "Support access revoked instantly"); }} label="Support access" />
+                {!workspacePrefs.supportAccess && <Btn size="xs" variant="danger" icon="lock" onClick={() => toast("ok", "All active support sessions terminated")}>Revoke now</Btn>}
               </div>
             </div>
           </div>
@@ -203,7 +223,7 @@ function General() {
           <h3 className="font-display text-[13.5px] font-bold text-ink">Owner portal</h3>
           <label className="mt-2 flex items-center justify-between rounded-lg border border-line px-3 py-2.5">
             <span className="text-[12.5px] font-bold text-ink">Owners can see financial figures</span>
-            <Toggle checked={WORKSPACE.ownerFinancialsVisible} onChange={() => toast("info", "Saved", "Applies to every owner login immediately.")} label="Owner financial visibility" />
+            <Toggle checked={workspacePrefs.ownerFinancialsVisible} onChange={(v) => setWorkspacePrefs({ ownerFinancialsVisible: v })} label="Owner financial visibility" />
           </label>
         </div>
         <div className="rounded-xl border border-line bg-card p-4">

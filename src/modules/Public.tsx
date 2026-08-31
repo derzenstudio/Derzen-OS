@@ -516,7 +516,7 @@ export function LoginPage() {
           ) : (
             <>
               <h2 className="font-display text-[26px] font-extrabold tracking-tight text-ink">Start your free workspace</h2>
-              <p className="mt-1 text-[13px] text-mute">14-day trial, no card. You get a full portfolio to play with — replace it with your own via the importer anytime.</p>
+              <p className="mt-1 text-[13px] text-mute">14-day trial, no card. You get a clean workspace of your own — every listing, booking and setting you add is saved securely to your account. Want sample data first? Try a demo workspace on the Sign in tab.</p>
               <form onSubmit={submitSignup} className="mt-6 space-y-3">
                 <label className="block">
                   <span className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-mute">Your name</span>

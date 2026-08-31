@@ -156,7 +156,21 @@ export default function Listings() {
           ))}
         </div>
       )}
-      {list.length === 0 && <Empty icon="home" title="No listings match" />}
+      {list.length === 0 && (
+        properties.length === 0 ? (
+          <div className="flex flex-col items-center rounded-xl border border-dashed border-line2 bg-card px-6 py-12 text-center">
+            <span className="flex h-14 w-14 items-center justify-center rounded-xl bg-brand-soft text-brand"><Ic name="home" size={26} /></span>
+            <p className="mt-4 font-display text-[18px] font-bold text-ink">Add your first listing</p>
+            <p className="mt-1 max-w-[46ch] text-[12.5px] leading-relaxed text-mute">
+              Connect a channel to import what you already have live, or create one from scratch.
+              Everything you add is saved to your workspace.
+            </p>
+            <Btn className="mt-5" variant="solid" icon="plus" onClick={() => setAddOpen(true)}>Add a listing</Btn>
+          </div>
+        ) : (
+          <Empty icon="home" title="No listings match" body="Try a different search, or clear the filter." />
+        )
+      )}
     </div>
   );
 }

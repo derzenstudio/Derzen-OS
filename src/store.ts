@@ -5,6 +5,7 @@ import { uid, addDays, dayKey, today, nightsBetween, parseKey, moneyRaw } from "
 import type {
   AuditEntry, Block, BlockStyle, Collection, Conversation, Expense, Guidebook, IssueReport, MsgConnection, OnboardStep, Property,
   QueuedMessage, Quote, Reservation, Review, SavedAsset, SiteChrome, SitePage, SyncState, Task, Toast, WebsiteState, Message,
+  WorkspacePrefs,
 } from "./lib/types";
 import { MSG_PLATFORMS } from "./lib/types";
 import { DEFAULT_WIDGET_STYLE, type WidgetStyle } from "./lib/widgetTheme";
@@ -22,11 +23,13 @@ import {
   ACTION_ITEMS, AUDIT, CONFLICTS, CONVERSATIONS, EXPENSES, GUIDEBOOKS, ISSUES, MEMBERS,
   MSG_QUEUE, ONBOARD_STEPS, PROPERTIES, QUOTES, RESERVATIONS, REVIEWS, SYNC, TASKS,
   WEBHOOKS, WEBSITE, WORKSPACE, channelDef, propertyById, FX_TO_EUR, COLLECTIONS, GUESTS,
+  syncModulesFromSlice,
 } from "./lib/data";
 import { setDisplayCurrency, refreshFx, type CurrencyCode } from "./lib/fx";
 import { compressImage, readLibrary, writeLibrary, QUOTA_BYTES, type PhotoEntry } from "./lib/photoStore";
+import { saveTenantState, loadTenantState, pickTenantSlice, TENANT_SLICE_KEYS } from "./lib/tenantPersist";
 import {
-  AI_DEFAULTS, DEVELOPER, PLATFORM_INTEGRATIONS, TENANTS, hydrateTenantData,
+  AI_DEFAULTS, DEVELOPER, PLATFORM_INTEGRATIONS, TENANTS, hydrateTenantData, hydrateCustomerTenant,
   ensureRuntimeTenant, findCustomer, hashPassword, saveCustomer, listCustomers,
   type CustomerAccount, type PlatformIntegration, type TenantMeta,
 } from "./lib/tenants";
@@ -68,15 +71,17 @@ function saveSession(s: Session | null) {
   } catch { /* private mode */ }
 }
 const bootSession = loadSession();
+// Is the booting session a registered customer (vs a seeded demo tenant)?
+// Customers get the empty scaffold + their restored data — never demo placeholders.
+let bootCustomer: CustomerAccount | null = null;
 if (bootSession?.kind === "tenant" && bootSession.tenantId) {
   let meta = TENANTS.find((t) => t.id === bootSession.tenantId);
+  bootCustomer = listCustomers().find((x) => x.tenantId === bootSession.tenantId) ?? null;
   // A registered customer's tenant is created at sign-up; re-inject it on boot
   // so their workspace name, currency and feature flags survive a reload.
-  if (!meta) {
-    const c = listCustomers().find((x) => x.tenantId === bootSession.tenantId);
-    if (c) meta = ensureRuntimeTenant(c);
-  }
-  hydrateTenantData(bootSession.tenantId);
+  if (!meta && bootCustomer) meta = ensureRuntimeTenant(bootCustomer);
+  if (bootCustomer) hydrateCustomerTenant(bootCustomer);
+  else hydrateTenantData(bootSession.tenantId);
   if (meta) setDisplayCurrency(meta.currency);
 }
 export const flagsFor = (s: Session | null): Record<string, boolean> | null =>
@@ -307,6 +312,8 @@ interface App {
   setInvoiceTemplate: (patch: Partial<InvoiceTemplate>) => void;
   emailTemplate: EmailTemplate;
   setEmailTemplate: (patch: Partial<EmailTemplate>) => void;
+  workspacePrefs: WorkspacePrefs;
+  setWorkspacePrefs: (patch: Partial<WorkspacePrefs>) => void;
 
   // global brand styling + reusable asset library
   brand: BrandState;
@@ -394,6 +401,7 @@ export const useApp = create<App>((set, get) => ({
     if (t) {
       if (pw !== t.password) return { ok: false, error: "Incorrect password for this workspace." };
       if (t.suspended) return { ok: false, error: "This workspace is suspended — contact platform support." };
+      tenantPersisted = false; // demo tenants re-seed from pristine data every visit
       hydrateTenantData(t.id);
       setDisplayCurrency(t.currency);
       const session: Session = { kind: "tenant", tenantId: t.id };
@@ -407,12 +415,16 @@ export const useApp = create<App>((set, get) => ({
     const hash = await hashPassword(pw);
     if (hash !== c.hash) return { ok: false, error: "Incorrect password for this workspace." };
     const meta = ensureRuntimeTenant(c);
-    hydrateTenantData(meta.id);
+    // Registered customers get the empty scaffold (no demo placeholders),
+    // then their saved workspace is restored on top.
+    hydrateCustomerTenant(c);
     setDisplayCurrency(meta.currency);
+    tenantPersisted = true;
+    const restored = applyStoredSlice(meta.id);
     const session: Session = { kind: "tenant", tenantId: meta.id };
     saveSession(session);
     set({ session, features: { ...meta.features }, displayCurrency: meta.currency, fxTick: get().fxTick + 1, tenants: [...TENANTS] });
-    get().toast("ok", `Welcome back, ${c.name.split(" ")[0]}`, c.workspace);
+    get().toast("ok", `Welcome back, ${c.name.split(" ")[0]}`, restored ? "Your workspace was restored from secure storage." : c.workspace);
     return { ok: true };
   },
   signupCustomer: async (input) => {
@@ -427,11 +439,14 @@ export const useApp = create<App>((set, get) => ({
     };
     saveCustomer(c);
     const meta = ensureRuntimeTenant(c);
-    hydrateTenantData(meta.id);
+    hydrateCustomerTenant(c); // empty scaffold — no placeholders
     setDisplayCurrency(meta.currency);
+    tenantPersisted = true;
     const session: Session = { kind: "tenant", tenantId: meta.id };
     saveSession(session);
     set({ session, features: { ...meta.features }, displayCurrency: meta.currency, fxTick: get().fxTick + 1, tenants: [...TENANTS] });
+    // Persist the initial empty state so the customer's workspace exists durably.
+    saveTenantState(meta.id, pickTenantSlice(useApp.getState() as unknown as Record<string, unknown>));
     get().audit(`Workspace created via self-serve signup: ${c.workspace}`, "ui");
     return { ok: true };
   },
@@ -1140,6 +1155,23 @@ export const useApp = create<App>((set, get) => ({
   emailTemplate: { accent: "#0e6b4e", bandInk: "#141811", bodyFamily: "Atkinson Hyperlegible", headingFamily: "Big Shoulders Display", radius: 3, brandSync: true, footerNote: "You're receiving this because you booked with Sanggraha Villas." },
   setEmailTemplate: (patch) => set((st) => ({ emailTemplate: { ...st.emailTemplate, ...patch } })),
 
+  workspacePrefs: {
+    name: WORKSPACE.name, country: "Indonesia", tz: WORKSPACE.tz, dateFormat: WORKSPACE.dateFormat,
+    timeFormat: WORKSPACE.timeFormat, weekStart: WORKSPACE.weekStart,
+    supportAccess: WORKSPACE.supportAccess, ownerFinancialsVisible: WORKSPACE.ownerFinancialsVisible,
+  },
+  setWorkspacePrefs: (patch) => {
+    set((st) => {
+      const next = { ...st.workspacePrefs, ...patch };
+      // Keep the shared WORKSPACE object in sync for module-level readers.
+      WORKSPACE.name = next.name; WORKSPACE.tz = next.tz; WORKSPACE.dateFormat = next.dateFormat;
+      WORKSPACE.timeFormat = next.timeFormat; WORKSPACE.weekStart = next.weekStart;
+      WORKSPACE.supportAccess = next.supportAccess; WORKSPACE.ownerFinancialsVisible = next.ownerFinancialsVisible;
+      return { workspacePrefs: next };
+    });
+    get().markPending("Settings");
+  },
+
   brand: { ...DEFAULT_BRAND },
   setBrand: (patch) => {
     const next = { ...get().brand, ...patch };
@@ -1256,8 +1288,14 @@ export const useApp = create<App>((set, get) => ({
     const p = get().pending;
     if (p.count === 0) return;
     set({ pending: { count: 0, modules: [], savedAt: Date.now() } });
+    // Registered customers: force a synchronous persist so "Saved" is truthful.
+    const s = get().session;
+    const durable = !!(tenantPersisted && s && s.kind === "tenant");
+    if (durable) {
+      try { saveTenantState(s!.tenantId, pickTenantSlice(useApp.getState() as unknown as Record<string, unknown>)); } catch { /* ignore */ }
+    }
     get().audit(`Saved changes · ${p.count} edit${p.count > 1 ? "s" : ""} across ${p.modules.join(", ")}`, "ui");
-    get().toast("ok", "All changes saved", `${p.count} edit${p.count > 1 ? "s" : ""} · ${p.modules.join(", ")} · pushed to your live site.`);
+    get().toast("ok", durable ? "All changes saved securely" : "All changes saved", `${p.count} edit${p.count > 1 ? "s" : ""} · ${p.modules.join(", ")}${durable ? " · stored to your workspace" : ""}`);
   },
 
   // ── Per-property photo libraries ────────────────────────────────────────
@@ -1455,6 +1493,47 @@ export const useApp = create<App>((set, get) => ({
     }, 900);
   },
 }));
+
+// ── registered-customer persistence ────────────────────────────────────────
+// Only a signed-in REGISTERED customer's workspace is durable. Demo tenants
+// (Sanggraha / Ambara) re-seed from pristine data on every visit.
+let tenantPersisted = false;
+
+function applyStoredSlice(tenantId: string): boolean {
+  const slice = loadTenantState(tenantId);
+  if (!slice) return false;
+  useApp.setState(slice as Partial<App>);
+  syncModulesFromSlice(slice as Record<string, unknown>);
+  // Keep the shared WORKSPACE object aligned with the restored prefs so
+  // module-level readers (invoices, integrations) see the tenant's settings.
+  const prefs = slice.workspacePrefs as WorkspacePrefs | undefined;
+  if (prefs) {
+    WORKSPACE.name = prefs.name; WORKSPACE.tz = prefs.tz; WORKSPACE.dateFormat = prefs.dateFormat;
+    WORKSPACE.timeFormat = prefs.timeFormat; WORKSPACE.weekStart = prefs.weekStart;
+    WORKSPACE.supportAccess = prefs.supportAccess; WORKSPACE.ownerFinancialsVisible = prefs.ownerFinancialsVisible;
+  }
+  return true;
+}
+
+// Boot restore: layer the customer's saved workspace over the empty scaffold.
+if (bootCustomer) {
+  tenantPersisted = true;
+  applyStoredSlice(bootCustomer.tenantId);
+}
+
+// Debounced auto-save: every state change for a registered customer is
+// serialized to their private, tenant-scoped key.
+let saveTimer: ReturnType<typeof setTimeout> | null = null;
+useApp.subscribe((st) => {
+  const s = st.session;
+  if (!tenantPersisted || !s || s.kind !== "tenant") return;
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    try {
+      saveTenantState(s.tenantId, pickTenantSlice(useApp.getState() as unknown as Record<string, unknown>));
+    } catch { /* storage full — in-memory state remains authoritative for the session */ }
+  }, 600);
+});
 
 // Simulate a guest writing in through a freshly connected platform, so the
 // integration is demonstrably live end-to-end (inbox thread + unread badge).

@@ -24,7 +24,7 @@ export const TENANT_SLICE_KEYS = [
   "brand", "savedAssets", "propertyPhotos", "invoiceTemplate", "emailTemplate",
   // workspace prefs & progress
   "tenantFonts", "onboardSteps", "golive", "goliveActions",
-  "creditsUsed", "displayCurrency", "widgetStyle",
+  "creditsUsed", "displayCurrency", "widgetStyle", "workspacePrefs",
 ] as const;
 
 export type TenantSliceKey = (typeof TENANT_SLICE_KEYS)[number];

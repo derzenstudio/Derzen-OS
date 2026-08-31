@@ -497,6 +497,17 @@ export interface InvoiceTemplate {
   align: "left" | "center" | "right";
   sections: string[]; // ordered: brand · billto · items · totals · terms · footer
 }
+export interface WorkspacePrefs {
+  name: string;
+  country: string;
+  tz: string;
+  dateFormat: string;
+  timeFormat: string;
+  weekStart: string;
+  supportAccess: boolean;
+  ownerFinancialsVisible: boolean;
+}
+
 export interface EmailTemplate {
   brandSync: boolean;
   accent: string; bandInk: string;

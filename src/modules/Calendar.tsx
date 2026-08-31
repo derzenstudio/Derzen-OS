@@ -186,56 +186,67 @@ export default function CalendarModule() {
     toast("ok", "CSV exported", `${rows.length} listings × ${keys.length} nights`);
   };
 
-  // ── drag-select: works in bulk mode AND normal mode ─────────────────────
-  // Normal mode: click-drag across nights → release opens the range editor
-  // (block the range or reprice it). Bulk mode: sizes a range over the
-  // ticked listings. The anchor column is kept in a ref so leftward drags
-  // don't collapse the selection.
+  // ── drag-select: pointer-based, tracked at the window level ─────────────
+  // Using window pointermove/pointerup (not per-cell mouseenter + grid
+  // mouseup/mouseleave) makes the drag deterministic: fast drags can't skip
+  // cells, the commit fires exactly once wherever the pointer is released,
+  // and an incidental mouse-leave can never wipe a committed selection.
   const anchorRef = useRef<{ r: number; c: number } | null>(null);
   const movedRef = useRef(false);
   const selRef = useRef<[number, number] | null>(null);
   const setSel = (v: [number, number] | null) => { selRef.current = v; setSelRange(v); if (!v) setBarAt(null); };
-  const onMouseDownCell = (r: number, c: number) => {
+  const dragTeardownRef = useRef<(() => void) | null>(null);
+  const teardownDrag = () => { if (dragTeardownRef.current) { dragTeardownRef.current(); dragTeardownRef.current = null; } };
+  useEffect(() => teardownDrag, []);
+
+  const onCellPointerDown = (r: number, c: number, isParent: boolean, openSingle: () => void) => {
+    if (isParent) return;
+    teardownDrag();
+    setHover(null);
     anchorRef.current = { r, c };
     movedRef.current = false;
     setAnchoring(true);
     setSel([c, c]);
-  };
-  const onMouseEnterCell = (r: number, c: number) => {
-    const a = anchorRef.current;
-    if (!a || !anchoring) return;
-    if (bulkMode) {
-      setSel([Math.min(a.c, c), Math.max(a.c, c)]);
-      if (c !== a.c) movedRef.current = true;
-      return;
-    }
-    if (a.r !== r) return; // ranges stay within one listing's row
-    if (c !== a.c) {
-      movedRef.current = true;
-      setSel([Math.min(a.c, c), Math.max(a.c, c)]);
-    }
-  };
-  const stopDrag = () => {
-    const a = anchorRef.current;
-    // Guard: if we're not mid-drag (anchor already cleared by an earlier
-    // mouse-up), a stray mouse-leave must NOT wipe the persistent selection.
-    // This is what let the user move from the grid to the floating bar.
-    if (!a) return;
-    const sel = selRef.current;
-    anchorRef.current = null;
-    setAnchoring(false);
-    // Normal mode: a drag across ≥2 nights keeps the selection — the floating
-    // range action bar takes over (Block / Rate / Open / Close / Edit).
-    if (!bulkMode && movedRef.current && sel && sel[1] > sel[0]) {
-      const p = rows[a.r];
-      if (p && !p.isParent) {
-        setFocus({ r: a.r, c: sel[1] });
-        setBarAt(releaseRef.current); // anchor the bar where the pointer let go
-        return; // keep selRange → floating bar appears
+    setFocus({ r, c });
+    announceCell(r, c);
+
+    const onMove = (e: PointerEvent) => {
+      releaseRef.current = { x: e.clientX, y: e.clientY };
+      const a = anchorRef.current;
+      if (!a) return;
+      const el = (document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null)?.closest<HTMLElement>("[data-c]");
+      if (!el || el.dataset.c === undefined) return;
+      const cc = Number(el.dataset.c);
+      if (!bulkMode && Number(el.dataset.r) !== a.r) return; // ranges stay within one listing's row
+      if (cc !== a.c) movedRef.current = true;
+      setSel([Math.min(a.c, cc), Math.max(a.c, cc)]);
+    };
+    const onUp = (e: PointerEvent) => {
+      releaseRef.current = { x: e.clientX, y: e.clientY };
+      const a = anchorRef.current;
+      const sel = selRef.current;
+      anchorRef.current = null;
+      setAnchoring(false);
+      teardownDrag();
+      if (!a) return;
+      const isRange = !!sel && sel[1] > sel[0];
+      if (bulkMode) {
+        if (movedRef.current && sel) setBarAt(releaseRef.current); // bulk bar follows the pointer
+        return;
       }
-    }
-    if (bulkMode && movedRef.current && sel) setBarAt(releaseRef.current); // bulk bar follows the pointer too
-    if (!bulkMode) setSel(null); // plain click — the single-night editor opens via onClick
+      // Normal mode: a drag across ≥2 nights keeps the selection — the floating
+      // range bar takes over, anchored where the pointer let go.
+      if (movedRef.current && isRange) {
+        const p = rows[a.r];
+        if (p && !p.isParent) { setFocus({ r: a.r, c: sel![1] }); setBarAt(releaseRef.current); return; }
+      }
+      // Plain click → open the single-night editor for the anchor cell.
+      setSel(null);
+      openSingle();
+    };
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+    dragTeardownRef.current = () => { window.removeEventListener("pointermove", onMove); window.removeEventListener("pointerup", onUp); };
   };
 
   const monthLabels = useMemo(() => {

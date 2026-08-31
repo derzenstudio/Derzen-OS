@@ -73,6 +73,10 @@ export default function CalendarModule() {
   const [selRange, setSelRange] = useState<[number, number] | null>(null);
   const [anchoring, setAnchoring] = useState(false);
   const [editor, setEditor] = useState<{ keys: string[]; label: string; isBlock?: boolean } | null>(null);
+  // Where the floating range bar should anchor (the pointer's release point),
+  // so it opens next to the cursor instead of far away at the screen bottom.
+  const [barAt, setBarAt] = useState<{ x: number; y: number } | null>(null);
+  const releaseRef = useRef<{ x: number; y: number } | null>(null);
   const [announce, setAnnounce] = useState("");
   const gridRef = useRef<HTMLDivElement>(null);
   const [dragId, setDragId] = useState<string | null>(null);
@@ -190,7 +194,7 @@ export default function CalendarModule() {
   const anchorRef = useRef<{ r: number; c: number } | null>(null);
   const movedRef = useRef(false);
   const selRef = useRef<[number, number] | null>(null);
-  const setSel = (v: [number, number] | null) => { selRef.current = v; setSelRange(v); };
+  const setSel = (v: [number, number] | null) => { selRef.current = v; setSelRange(v); if (!v) setBarAt(null); };
   const onMouseDownCell = (r: number, c: number) => {
     anchorRef.current = { r, c };
     movedRef.current = false;
@@ -213,18 +217,24 @@ export default function CalendarModule() {
   };
   const stopDrag = () => {
     const a = anchorRef.current;
+    // Guard: if we're not mid-drag (anchor already cleared by an earlier
+    // mouse-up), a stray mouse-leave must NOT wipe the persistent selection.
+    // This is what let the user move from the grid to the floating bar.
+    if (!a) return;
     const sel = selRef.current;
     anchorRef.current = null;
     setAnchoring(false);
     // Normal mode: a drag across ≥2 nights keeps the selection — the floating
     // range action bar takes over (Block / Rate / Open / Close / Edit).
-    if (!bulkMode && a && movedRef.current && sel && sel[1] > sel[0]) {
+    if (!bulkMode && movedRef.current && sel && sel[1] > sel[0]) {
       const p = rows[a.r];
       if (p && !p.isParent) {
         setFocus({ r: a.r, c: sel[1] });
+        setBarAt(releaseRef.current); // anchor the bar where the pointer let go
         return; // keep selRange → floating bar appears
       }
     }
+    if (bulkMode && movedRef.current && sel) setBarAt(releaseRef.current); // bulk bar follows the pointer too
     if (!bulkMode) setSel(null); // plain click — the single-night editor opens via onClick
   };
 
@@ -322,8 +332,17 @@ export default function CalendarModule() {
           }
           setSel(null);
         };
+        // Anchor the bar at the pointer's release point (clamped to the
+        // viewport); fall back to bottom-center for keyboard-made selections.
+        const BAR_W = 520, BAR_H = 56;
+        const bx = barAt
+          ? Math.min(Math.max(10, barAt.x + 16), Math.max(10, window.innerWidth - BAR_W - 10))
+          : Math.max(10, window.innerWidth / 2 - BAR_W / 2);
+        const by = barAt
+          ? Math.min(Math.max(10, barAt.y + 14), Math.max(10, window.innerHeight - BAR_H - 10))
+          : Math.max(10, window.innerHeight - BAR_H - 24);
         return (
-          <div className="anim-pop fixed bottom-5 left-1/2 z-[80] flex -translate-x-1/2 flex-wrap items-center justify-center gap-1.5 rounded-lg border border-line bg-card px-2.5 py-2 shadow-2xl">
+          <div className="anim-pop fixed z-[80] flex flex-wrap items-center gap-1.5 rounded-lg border border-line bg-card px-2.5 py-2 shadow-2xl" style={{ left: bx, top: by, maxWidth: Math.min(BAR_W, window.innerWidth - 20) }}>
             <span className="flex items-center gap-1.5 rounded-md bg-brand-soft px-2.5 py-1.5 text-[12px] font-bold text-brand-deep">
               <Ic name="calendar" size={14} />
               {n} night{n > 1 ? "s" : ""} · <span className="max-w-[150px] truncate">{scope}</span>
@@ -356,7 +375,9 @@ export default function CalendarModule() {
 
           <div
             ref={gridRef} tabIndex={0} role="grid" aria-label="Availability calendar. Use arrow keys to move."
-            onKeyDown={onKeyDown} onMouseUp={stopDrag} onMouseLeave={stopDrag}
+            onKeyDown={onKeyDown}
+            onMouseUp={(e) => { releaseRef.current = { x: e.clientX, y: e.clientY }; stopDrag(); }}
+            onMouseLeave={(e) => { releaseRef.current = { x: e.clientX, y: e.clientY }; stopDrag(); }}
             className="relative select-none overflow-auto rounded-xl border border-line bg-card outline-none focus-visible:border-brand"
             style={{ maxHeight: "calc(100dvh - 292px)" }}
           >
@@ -432,6 +453,7 @@ export default function CalendarModule() {
                           const blockColor = st?.ov?.blockType === "owner" ? "#5C6357" : st?.ov?.blockType === "maintenance" ? "#B42318" : st?.ov?.blockType === "hold" ? "#9A6A0B" : "#3D4A42";
                           const showHover = (e: React.MouseEvent) => {
                             if (bulkMode || p.isParent || !st) return;
+                            if (selRange && selRange[1] > selRange[0]) return; // a range is selected — the range bar owns the interaction
                             const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
                             const x = Math.min(rect.left, window.innerWidth - 300);
                             const y = rect.bottom + 6 > window.innerHeight - 260 ? rect.top - 8 : rect.bottom + 6;

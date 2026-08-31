@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { cx, addDays, dayKey, parseKey, fmtDate, fmtShort, money, moneyRaw, isWeekend, isToday, toCSV, download, range } from "../lib/format";
 import { Ic } from "../components/icons";
 import { Badge, Btn, Dot, IconBtn, Input, Kbd, LiveRegion, Modal, Select, Toggle, Field, StatusChip } from "../components/ui";
@@ -214,10 +214,18 @@ export default function CalendarModule() {
       releaseRef.current = { x: e.clientX, y: e.clientY };
       const a = anchorRef.current;
       if (!a) return;
+      let cc: number | null = null;
       const el = (document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null)?.closest<HTMLElement>("[data-c]");
-      if (!el || el.dataset.c === undefined) return;
-      const cc = Number(el.dataset.c);
-      if (!bulkMode && Number(el.dataset.r) !== a.r) return; // ranges stay within one listing's row
+      if (el && el.dataset.c !== undefined) cc = Number(el.dataset.c);
+      else if (gridRef.current) {
+        // Fallback: derive the column from the pointer's X coordinate — keeps
+        // the drag alive over reservation bars and other overlays on the cells.
+        const rect = gridRef.current.getBoundingClientRect();
+        const xInGrid = e.clientX - rect.left + gridRef.current.scrollLeft - LABEL_W;
+        const col = Math.floor(xInGrid / COL_W);
+        if (col >= 0 && col < windowN) cc = col;
+      }
+      if (cc === null) return;
       if (cc !== a.c) movedRef.current = true;
       setSel([Math.min(a.c, cc), Math.max(a.c, cc)]);
     };
@@ -353,10 +361,12 @@ export default function CalendarModule() {
           ? Math.min(Math.max(10, barAt.y + 14), Math.max(10, window.innerHeight - BAR_H - 10))
           : Math.max(10, window.innerHeight - BAR_H - 24);
         return (
-          <div className="anim-pop fixed z-[80] flex flex-wrap items-center gap-1.5 rounded-lg border border-line bg-card px-2.5 py-2 shadow-2xl" style={{ left: bx, top: by, maxWidth: Math.min(BAR_W, window.innerWidth - 20) }}>
+          <div className="anim-pop fixed z-[80] flex flex-wrap items-center gap-1.5 rounded-lg border border-brand/40 bg-card px-2.5 py-2 shadow-[0_12px_32px_-12px_rgba(20,24,17,0.45)]" style={{ left: bx, top: by, maxWidth: Math.min(BAR_W, window.innerWidth - 20) }}>
             <span className="flex items-center gap-1.5 rounded-md bg-brand-soft px-2.5 py-1.5 text-[12px] font-bold text-brand-deep">
               <Ic name="calendar" size={14} />
-              {n} night{n > 1 ? "s" : ""} · <span className="max-w-[150px] truncate">{scope}</span>
+              {n > 1 ? <>{fmtShort(keys[selRange![0]])} → {fmtShort(keys[selRange![1]])} · {n} nights</> : <>{fmtShort(keys[selRange![0]])} · 1 night</>}
+              <span className="text-brand-deep/50">|</span>
+              <span className="max-w-[130px] truncate">{scope}</span>
             </span>
             <span className="mx-0.5 hidden h-5 w-px bg-line sm:block" aria-hidden="true" />
             <Btn size="xs" icon="pencil" onClick={() => setEditor({ keys: ks, label: `${scope} · ${n} night${n > 1 ? "s" : ""}`, isBlock: n > 1 || undefined })}>Rate & rules</Btn>
@@ -387,8 +397,6 @@ export default function CalendarModule() {
           <div
             ref={gridRef} tabIndex={0} role="grid" aria-label="Availability calendar. Use arrow keys to move."
             onKeyDown={onKeyDown}
-            onMouseUp={(e) => { releaseRef.current = { x: e.clientX, y: e.clientY }; stopDrag(); }}
-            onMouseLeave={(e) => { releaseRef.current = { x: e.clientX, y: e.clientY }; stopDrag(); }}
             className="relative select-none overflow-auto rounded-xl border border-line bg-card outline-none focus-visible:border-brand"
             style={{ maxHeight: "calc(100dvh - 292px)" }}
           >
@@ -459,6 +467,17 @@ export default function CalendarModule() {
                         {days.map((d, c) => {
                           const st = p.isParent ? null : cellState(p, keys[c], d);
                           const inSel = selRange && c >= selRange[0] && c <= selRange[1];
+                          // The range reads as one bracket: gold wash inside,
+                          // brand bookends on the edges of the selection.
+                          const selEdge = inSel && selRange
+                            ? c === selRange[0] && c === selRange[1]
+                              ? "shadow-[inset_0_0_0_2px_var(--color-brand)]"
+                              : c === selRange[0]
+                                ? "shadow-[inset_2px_0_0_var(--color-brand),inset_0_2px_0_var(--color-brand),inset_0_-2px_0_var(--color-brand)]"
+                                : c === selRange[1]
+                                  ? "shadow-[inset_-2px_0_0_var(--color-brand),inset_0_2px_0_var(--color-brand),inset_0_-2px_0_var(--color-brand)]"
+                                  : "shadow-[inset_0_2px_0_var(--color-brand),inset_0_-2px_0_var(--color-brand)]"
+                            : "";
                           const focused = focus.r === r && focus.c === c;
                           const isBlock = !!st?.ov?.blockType;
                           const blockColor = st?.ov?.blockType === "owner" ? "#5C6357" : st?.ov?.blockType === "maintenance" ? "#B42318" : st?.ov?.blockType === "hold" ? "#9A6A0B" : "#3D4A42";
@@ -480,17 +499,18 @@ export default function CalendarModule() {
                             <div
                               key={c} role="gridcell"
                               aria-label={st ? `${p.name}, ${fmtDate(d)}, ${isBlock ? `blocked (${st.ov!.blockType})` : st.closed ? "closed" : "available"}, ${moneyRaw(st.rate, p.currency)}${st.minStay > 1 ? `, min ${st.minStay} nights` : ""}` : `${p.name} group row`}
-                              onMouseDown={() => { if (p.isParent) return; onMouseDownCell(r, c); setFocus({ r, c }); announceCell(r, c); }}
-                              onMouseEnter={(e) => { if (anchoring) onMouseEnterCell(r, c); else if (!bulkMode) showHover(e); }}
+                              data-r={r} data-c={c}
+                              onMouseDown={(e) => { if (e.button !== 0) return; onCellPointerDown(r, c, !!p.isParent, () => { if (!bulkMode) setEditor({ keys: [keys[c]], label: `${p.name} · ${fmtDate(d)}`, isBlock }); }); }}
+                              onMouseEnter={(e) => { if (!anchoring && !bulkMode) showHover(e); }}
                               onMouseLeave={() => !bulkMode && !anchoring && setHover(null)}
-                              onClick={() => { if (movedRef.current) { movedRef.current = false; return; } if (!bulkMode && !p.isParent) { setFocus({ r, c }); setEditor({ keys: [keys[c]], label: `${p.name} · ${fmtDate(d)}`, isBlock }); } }}
                               className={cx(
                                 "group/cell flex shrink-0 cursor-pointer flex-col items-center justify-end border-r border-line/50 pb-1 transition-colors",
-                                isWeekend(d) && "bg-black/[0.025]",
-                                isToday(d) && "bg-brand-soft/70",
+                                isWeekend(d) && !inSel && "bg-black/[0.025]",
+                                isToday(d) && !inSel && "bg-brand-soft/70",
                                 inSel && "bg-gold-soft",
-                                focused && "ring-2 ring-inset ring-brand",
-                                st?.closed && !isBlock && "pat-hatch bg-[#E7EAE0]",
+                                selEdge,
+                                focused && !inSel && "ring-2 ring-inset ring-brand",
+                                st?.closed && !isBlock && !inSel && "pat-hatch bg-[#E7EAE0]",
                               )}
                               style={{ width: COL_W }}
                             >

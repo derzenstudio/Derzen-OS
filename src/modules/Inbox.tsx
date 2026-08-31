@@ -12,6 +12,8 @@ export default function Inbox() {
   const conversations = useApp((s) => s.conversations);
   const reservations = useApp((s) => s.reservations);
   const tasks = useApp((s) => s.tasks);
+  const msgConnections = useApp((s) => s.msgConnections);
+  const liveCount = msgConnections.filter((c) => c.status === "connected").length;
   const [q, setQ] = useState("");
   const [filter, setFilter] = useState(route.query.get("filter") ?? "all");
   const [channel, setChannel] = useState("all");
@@ -69,7 +71,27 @@ export default function Inbox() {
   const openTasks = conv ? tasks.filter((t) => t.propertyId === conv.propertyId && (t.status === "open" || t.status === "in_progress")) : [];
 
   return (
-    <div className="flex h-[calc(100vh-128px)] gap-3">
+    <div className="space-y-3">
+      {/* Live channel status — which pipes are actually delivering right now */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-lg border border-line bg-card px-3.5 py-2">
+        <span className="flex items-center gap-1.5 text-[11.5px] font-bold text-ink">
+          <span className={cx("h-2 w-2 rounded-full", liveCount ? "bg-brand dot-pulse" : "bg-danger")} />
+          {liveCount} channel{liveCount === 1 ? "" : "s"} live
+        </span>
+        <span className="hidden h-4 w-px bg-line sm:block" aria-hidden="true" />
+        {msgConnections.map((c) => (
+          <span key={c.id} className={cx("flex items-center gap-1.5 text-[10.5px] font-bold", c.status === "connected" ? "text-mute" : "text-faint line-through decoration-line2")}>
+            <ChannelMark id={c.id === "gmail" ? "email" : c.id} size={14} />
+            {c.name.split(" ")[0]}
+            {c.status === "connected" ? <span className="h-1.5 w-1.5 rounded-full bg-brand" /> : <span className="h-1.5 w-1.5 rounded-full bg-line2" />}
+          </span>
+        ))}
+        <button onClick={() => navigate("/integrations")} className="ml-auto flex items-center gap-1 text-[11px] font-bold text-brand-deep underline-offset-2 hover:underline">
+          <Ic name="plug" size={11} /> manage connections
+        </button>
+      </div>
+
+      <div className="flex h-[calc(100vh-172px)] gap-3">
       {/* Thread list */}
       <section className="flex w-[310px] shrink-0 flex-col rounded-xl border border-line bg-card" aria-label="Conversations">
         <div className="space-y-2 border-b border-line p-2.5">
@@ -213,6 +235,7 @@ export default function Inbox() {
         )}
         {!conv && <p className="px-2 text-[11.5px] text-faint">Select a thread to see the guest's full story — spend, stays, verification and open tasks.</p>}
       </aside>
+      </div>
     </div>
   );
 }

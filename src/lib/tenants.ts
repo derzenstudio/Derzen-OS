@@ -89,6 +89,64 @@ export const TENANTS: TenantMeta[] = [
 
 export const DEVELOPER = { email: "dev@derzen.site", password: "derzen-dev", name: "Platform Developer" };
 
+// ── Customer account registry (real sign-up / sign-in) ────────────────────
+// Accounts are persisted in this browser; passwords are stored as SHA-256
+// digests — never plaintext. A registered customer gets their own tenant row
+// injected at runtime so the whole workspace (flags, metering, impersonation)
+// treats them exactly like a seeded tenant.
+export interface CustomerAccount {
+  id: string; tenantId: string; workspace: string; name: string; email: string;
+  hash: string; createdAt: number; currency: CurrencyCode;
+}
+const CUSTOMERS_KEY = "derzen.customers";
+
+export async function hashPassword(pw: string): Promise<string> {
+  try {
+    const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`derzen:${pw}`));
+    return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
+  } catch {
+    // non-secure contexts (plain http) — fallback digest, still not plaintext
+    let h = 5381;
+    for (let i = 0; i < pw.length; i++) h = ((h << 5) + h + pw.charCodeAt(i)) | 0;
+    return `djb2:${(h >>> 0).toString(16)}`;
+  }
+}
+
+export function listCustomers(): CustomerAccount[] {
+  try { return JSON.parse(localStorage.getItem(CUSTOMERS_KEY) ?? "[]") as CustomerAccount[]; } catch { return []; }
+}
+export function findCustomer(email: string): CustomerAccount | null {
+  const e = email.trim().toLowerCase();
+  return listCustomers().find((c) => c.email.toLowerCase() === e) ?? null;
+}
+export function saveCustomer(c: CustomerAccount): void {
+  try {
+    localStorage.setItem(CUSTOMERS_KEY, JSON.stringify([...listCustomers().filter((x) => x.id !== c.id), c]));
+  } catch { /* storage full / private mode */ }
+}
+
+/** Inject a registered customer as a live tenant so every surface sees them. */
+export function ensureRuntimeTenant(c: CustomerAccount): TenantMeta {
+  let t = TENANTS.find((x) => x.id === c.tenantId);
+  if (!t) {
+    t = {
+      id: c.tenantId, name: c.workspace, legal: c.workspace,
+      subdomain: c.workspace.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || c.tenantId.replace("tnt-", ""),
+      email: c.email, password: "", plan: "Starter", currency: c.currency,
+      suspended: false, storageMB: 2, credits: { used: 0, limit: 1000 }, mrr: 0,
+      created: new Date(c.createdAt).toISOString().slice(0, 10), features: {},
+    };
+    TENANTS.push(t);
+  }
+  return t;
+}
+
+/** True when this page is served from the internal dev subdomain. */
+export function isDevHost(): boolean {
+  const h = window.location.hostname.toLowerCase();
+  return h === "dev" || h.startsWith("dev.");
+}
+
 // ── pristine capture (before any hydration mutates the live arrays) ────────
 const snapshotAll = () =>
   structuredClone({

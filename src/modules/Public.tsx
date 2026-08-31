@@ -346,43 +346,96 @@ function PriceCard({ name, price, per, units, feats, cta, featured, badge }: { n
   );
 }
 
-// ── Login ──────────────────────────────────────────────────────────────────
+// ── Login / Sign-up (customers) ────────────────────────────────────────────
+// The public app host is for customers only: real sign-in + self-serve sign-up.
+// The developer console is reachable ONLY from the dev.* subdomain — it is
+// deliberately absent from this page on the app host.
+const devHost = typeof window !== "undefined" && (() => {
+  const h = window.location.hostname.toLowerCase();
+  return h === "dev" || h.startsWith("dev.");
+})();
+
+function pwStrength(pw: string): number {
+  if (!pw) return 0;
+  if (pw.length < 8) return 1;
+  if (pw.length < 12) return 2;
+  return /[A-Z]/.test(pw) && /\d/.test(pw) && /[^A-Za-z0-9]/.test(pw) ? 4 : 3;
+}
+
+const PROVISION_STEPS = [
+  "Creating your workspace",
+  "Provisioning tenant schema + row-level security",
+  "Seeding a starter portfolio you can replace",
+  "Wiring inbox, calendar & channels",
+];
+
 export function LoginPage() {
-  const { navigate, loginTenant, loginDeveloper, route } = useApp();
+  const { navigate, loginTenant, signupCustomer, resetCustomerPassword, loginDeveloper } = useApp();
+  const [tab, setTab] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [pw, setPw] = useState("");
+  const [name, setName] = useState("");
+  const [workspace, setWorkspace] = useState("");
   const [showPw, setShowPw] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  // ?mode=developer (sent by dev.* subdomains) opens the Developer tab
-  const [mode, setMode] = useState<"tenant" | "developer">(route.query.get("mode") === "developer" ? "developer" : "tenant");
-  useEffect(() => {
-    if (route.query.get("mode") === "developer") setMode("developer");
-  }, [route.query]);
-  const formRef = useRef<HTMLFormElement>(null);
+  // sign-up provisioning overlay
+  const [provisioning, setProvisioning] = useState(false);
+  const [provStep, setProvStep] = useState(0);
+  // forgot-password flow
+  const [forgotOpen, setForgotOpen] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState("");
+  const [sentCode, setSentCode] = useState<string | null>(null);
+  const [codeInput, setCodeInput] = useState("");
+  const [newPw, setNewPw] = useState("");
 
-  const submit = (e?: React.FormEvent) => {
+  const submitLogin = async (e?: React.FormEvent) => {
     e?.preventDefault();
-    setErr(null);
-    setBusy(true);
-    setTimeout(() => {
-      const res = mode === "tenant" ? loginTenant(email, pw) : loginDeveloper(email, pw);
-      setBusy(false);
-      if (!res.ok) { setErr(res.error ?? "Sign-in failed."); return; }
-      navigate(mode === "tenant" ? "/dashboard" : "/dev");
-    }, 550);
+    setErr(null); setBusy(true);
+    const res = await loginTenant(email, pw);
+    setBusy(false);
+    if (!res.ok) { setErr(res.error ?? "Sign-in failed."); return; }
+    navigate("/dashboard");
   };
 
-  const quick = (em: string, p: string, dev = false) => {
-    setMode(dev ? "developer" : "tenant");
-    setEmail(em); setPw(p); setErr(null);
-    setBusy(true);
-    setTimeout(() => {
-      const res = dev ? loginDeveloper(em, p) : loginTenant(em, p);
-      setBusy(false);
-      if (res.ok) navigate(dev ? "/dev" : "/dashboard");
-      else setErr(res.error ?? "Sign-in failed.");
-    }, 550);
+  const submitSignup = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    setErr(null);
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setErr("Enter a valid email address."); return; }
+    if (pwStrength(pw) < 2) { setErr("Password needs at least 8 characters — letters and numbers."); return; }
+    if (!name.trim()) { setErr("Tell us your name — it appears on guest replies you approve."); return; }
+    // animated provisioning, then real account creation
+    setProvisioning(true);
+    for (let i = 0; i < PROVISION_STEPS.length; i++) {
+      setProvStep(i);
+      await new Promise((r) => setTimeout(r, 480));
+    }
+    const res = await signupCustomer({ name, workspace, email, pw });
+    setProvisioning(false);
+    if (!res.ok) { setErr(res.error ?? "Could not create the workspace."); return; }
+    navigate("/dashboard");
+  };
+
+  const quick = async (em: string, p: string) => {
+    setEmail(em); setPw(p); setErr(null); setBusy(true);
+    const res = await loginTenant(em, p);
+    setBusy(false);
+    if (res.ok) navigate("/dashboard");
+    else setErr(res.error ?? "Sign-in failed.");
+  };
+
+  const sendReset = () => {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(forgotEmail)) { setErr("Enter the email you signed up with."); return; }
+    const code = String(Math.floor(100000 + Math.random() * 900000));
+    setSentCode(code);
+  };
+  const confirmReset = async () => {
+    if (codeInput.trim() !== sentCode) { setErr("The code doesn't match — check the 6 digits."); return; }
+    if (pwStrength(newPw) < 2) { setErr("New password needs at least 8 characters."); return; }
+    const res = await resetCustomerPassword(forgotEmail, newPw);
+    if (!res.ok) { setErr(res.error ?? "Reset failed."); return; }
+    setForgotOpen(false); setSentCode(null); setCodeInput(""); setNewPw(""); setErr(null);
+    setEmail(forgotEmail); setTab("login");
   };
 
   return (
@@ -411,65 +464,159 @@ export function LoginPage() {
         </div>
       </aside>
 
-      {/* Form */}
+      {/* Form — customer sign-in / sign-up (developer entry only on dev.* host) */}
       <main className="flex items-center justify-center bg-surface px-5 py-10">
-        <div className="w-full max-w-[420px] anim-rise">
+        <div className="w-full max-w-[430px] anim-rise">
           <button onClick={() => navigate("/")} className="mb-6 flex items-center gap-1 text-[12.5px] font-bold text-mute hover:text-ink"><Ic name="chevL" size={13} /> Back to derzen.site</button>
+
           <div className="mb-5 flex items-center rounded-lg border border-line bg-paper p-0.5">
-            <button onClick={() => { setMode("tenant"); setErr(null); }} className={cx("flex-1 rounded-md py-2 text-[12.5px] font-bold", mode === "tenant" ? "bg-ink text-white" : "text-mute")}>Operator workspace</button>
-            <button onClick={() => { setMode("developer"); setErr(null); }} className={cx("flex-1 rounded-md py-2 text-[12.5px] font-bold", mode === "developer" ? "bg-brand text-white" : "text-mute")}>Developer</button>
+            <button onClick={() => { setTab("login"); setErr(null); }} className={cx("flex-1 rounded-md py-2 text-[12.5px] font-bold transition-colors", tab === "login" ? "bg-ink text-white" : "text-mute hover:text-ink")}>Sign in</button>
+            <button onClick={() => { setTab("signup"); setErr(null); }} className={cx("flex-1 rounded-md py-2 text-[12.5px] font-bold transition-colors", tab === "signup" ? "bg-brand text-white" : "text-mute hover:text-ink")}>Create account</button>
           </div>
-          <h2 className="font-display text-[26px] font-extrabold tracking-tight text-ink">{mode === "tenant" ? "Sign in to your workspace" : "Internal backoffice"}</h2>
-          <p className="mt-1 text-[13px] text-mute">{mode === "tenant" ? "Your data stays in your tenant, sealed at the database layer." : "Separate application, separate audit stream: ops queues, tenants, billing, flags, security."}</p>
 
-          <form ref={formRef} onSubmit={submit} className="mt-6 space-y-3">
-            <label className="block">
-              <span className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-mute">Email</span>
-              <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" required placeholder={mode === "tenant" ? "you@youroperation.co" : "dev@derzen.site"} className="h-11 w-full rounded-md border border-line2 bg-card px-3 text-[14px] outline-none transition-colors focus:border-brand" />
-            </label>
-            <label className="block">
-              <span className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-mute">Password</span>
-              <div className="relative">
-                <input value={pw} onChange={(e) => setPw(e.target.value)} type={showPw ? "text" : "password"} required placeholder="••••••••" className="h-11 w-full rounded-md border border-line2 bg-card px-3 pr-11 text-[14px] outline-none transition-colors focus:border-brand" />
-                <button type="button" aria-label={showPw ? "Hide password" : "Show password"} onClick={() => setShowPw(!showPw)} className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1.5 text-mute hover:bg-paper hover:text-ink"><Ic name="eye" size={15} /></button>
-              </div>
-            </label>
-            {err && (
-              <p role="alert" className="flex items-center gap-2 rounded-md border border-danger/40 bg-danger-soft px-3 py-2.5 text-[12.5px] font-semibold text-danger anim-pop">
-                <Ic name="alertTri" size={14} /> {err}
-              </p>
-            )}
-            <button type="submit" disabled={busy} className={cx("flex h-11 w-full items-center justify-center gap-2 rounded-md text-[14px] font-bold text-white transition-all", mode === "developer" ? "bg-brand hover:bg-brand-deep" : "bg-ink hover:bg-brand", busy && "opacity-70")}>
-              {busy ? <><span className="h-4 w-4 rounded-full border-2 border-white/40 border-t-white anim-spin" /> Verifying…</> : <>{mode === "tenant" ? "Enter workspace" : "Open console"} <Ic name="arrowR" size={15} /></>}
-            </button>
-          </form>
-
-          <div className="mt-6 border-t border-line pt-5">
-            <p className="mb-2.5 text-[10.5px] font-bold uppercase tracking-widest text-faint">One-click demo access</p>
-            <div className="space-y-2">
-              {TENANTS.map((t) => (
-                <button key={t.id} onClick={() => quick(t.email, t.password)} className="group flex w-full items-center gap-3 rounded-lg border border-line bg-card px-3 py-2.5 text-left transition-all hover:-translate-y-px hover:border-ink hover:shadow-md">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-md bg-ink font-display text-[11px] font-extrabold text-white">{t.name.slice(0, 1)}</span>
-                  <span className="flex-1">
-                    <span className="block text-[13px] font-bold text-ink">{t.name}</span>
-                    <span className="block text-[10.5px] text-mute">{t.plan} plan · {t.currency} workspace · {t.email}</span>
-                  </span>
-                  <Ic name="arrowR" size={14} className="text-faint transition-transform group-hover:translate-x-0.5 group-hover:text-brand" />
+          {tab === "login" ? (
+            <>
+              <h2 className="font-display text-[26px] font-extrabold tracking-tight text-ink">Welcome back</h2>
+              <p className="mt-1 text-[13px] text-mute">Sign in to your workspace — your data stays sealed in your own tenant.</p>
+              <form onSubmit={submitLogin} className="mt-6 space-y-3">
+                <label className="block">
+                  <span className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-mute">Email</span>
+                  <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" required placeholder="you@youroperation.co" className="h-11 w-full rounded-md border border-line2 bg-card px-3 text-[14px] outline-none transition-colors focus:border-brand" />
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-mute">Password</span>
+                  <div className="relative">
+                    <input value={pw} onChange={(e) => setPw(e.target.value)} type={showPw ? "text" : "password"} required placeholder="••••••••" className="h-11 w-full rounded-md border border-line2 bg-card px-3 pr-11 text-[14px] outline-none transition-colors focus:border-brand" />
+                    <button type="button" aria-label={showPw ? "Hide password" : "Show password"} onClick={() => setShowPw(!showPw)} className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1.5 text-mute hover:bg-paper hover:text-ink"><Ic name="eye" size={15} /></button>
+                  </div>
+                </label>
+                {err && <p role="alert" className="flex items-center gap-2 rounded-md border border-danger/40 bg-danger-soft px-3 py-2.5 text-[12.5px] font-semibold text-danger anim-pop"><Ic name="alertTri" size={14} /> {err}</p>}
+                <button type="submit" disabled={busy} className={cx("flex h-11 w-full items-center justify-center gap-2 rounded-md bg-ink text-[14px] font-bold text-white transition-all hover:bg-brand", busy && "opacity-70")}>
+                  {busy ? <><span className="h-4 w-4 rounded-full border-2 border-white/40 border-t-white anim-spin" /> Verifying…</> : <>Enter workspace <Ic name="arrowR" size={15} /></>}
                 </button>
-              ))}
-              <button onClick={() => quick("dev@derzen.site", "derzen-dev", true)} className="group flex w-full items-center gap-3 rounded-lg border border-brand/40 bg-brand-soft/50 px-3 py-2.5 text-left transition-all hover:-translate-y-px hover:border-brand hover:shadow-md">
+                <button type="button" onClick={() => { setForgotOpen(true); setForgotEmail(email); setSentCode(null); setCodeInput(""); setNewPw(""); setErr(null); }} className="mx-auto block text-[12px] font-bold text-brand-deep underline-offset-2 hover:underline">Forgot password?</button>
+              </form>
+
+              <div className="mt-6 border-t border-line pt-5">
+                <p className="mb-2.5 text-[10.5px] font-bold uppercase tracking-widest text-faint">Explore a demo workspace</p>
+                <div className="space-y-2">
+                  {TENANTS.map((t) => (
+                    <button key={t.id} onClick={() => quick(t.email, t.password)} className="group flex w-full items-center gap-3 rounded-lg border border-line bg-card px-3 py-2.5 text-left transition-all hover:-translate-y-px hover:border-ink hover:shadow-md">
+                      <span className="flex h-8 w-8 items-center justify-center rounded-md bg-ink font-display text-[11px] font-extrabold text-white">{t.name.slice(0, 1)}</span>
+                      <span className="flex-1">
+                        <span className="block text-[13px] font-bold text-ink">{t.name}</span>
+                        <span className="block text-[10.5px] text-mute">{t.plan} plan · {t.currency} · password demo123</span>
+                      </span>
+                      <Ic name="arrowR" size={14} className="text-faint transition-transform group-hover:translate-x-0.5 group-hover:text-brand" />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          ) : (
+            <>
+              <h2 className="font-display text-[26px] font-extrabold tracking-tight text-ink">Start your free workspace</h2>
+              <p className="mt-1 text-[13px] text-mute">14-day trial, no card. You get a full portfolio to play with — replace it with your own via the importer anytime.</p>
+              <form onSubmit={submitSignup} className="mt-6 space-y-3">
+                <label className="block">
+                  <span className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-mute">Your name</span>
+                  <input value={name} onChange={(e) => setName(e.target.value)} required placeholder="Sarah Whitfield" className="h-11 w-full rounded-md border border-line2 bg-card px-3 text-[14px] outline-none transition-colors focus:border-brand" />
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-mute">Workspace name <span className="normal-case text-faint">(your business)</span></span>
+                  <input value={workspace} onChange={(e) => setWorkspace(e.target.value)} placeholder="Serenity Villas" className="h-11 w-full rounded-md border border-line2 bg-card px-3 text-[14px] outline-none transition-colors focus:border-brand" />
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-mute">Email</span>
+                  <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" required placeholder="you@youroperation.co" className="h-11 w-full rounded-md border border-line2 bg-card px-3 text-[14px] outline-none transition-colors focus:border-brand" />
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-mute">Password</span>
+                  <div className="relative">
+                    <input value={pw} onChange={(e) => setPw(e.target.value)} type={showPw ? "text" : "password"} required placeholder="8+ characters, letters & numbers" className="h-11 w-full rounded-md border border-line2 bg-card px-3 pr-11 text-[14px] outline-none transition-colors focus:border-brand" />
+                    <button type="button" aria-label={showPw ? "Hide password" : "Show password"} onClick={() => setShowPw(!showPw)} className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1.5 text-mute hover:bg-paper hover:text-ink"><Ic name="eye" size={15} /></button>
+                  </div>
+                  <span className="mt-1.5 flex gap-1" aria-hidden="true">
+                    {[1, 2, 3, 4].map((i) => <span key={i} className={cx("h-1 flex-1 rounded-full transition-colors", pwStrength(pw) >= i ? (pwStrength(pw) <= 1 ? "bg-danger" : pwStrength(pw) === 2 ? "bg-gold" : "bg-brand") : "bg-line")} />)}
+                  </span>
+                </label>
+                {err && <p role="alert" className="flex items-center gap-2 rounded-md border border-danger/40 bg-danger-soft px-3 py-2.5 text-[12.5px] font-semibold text-danger anim-pop"><Ic name="alertTri" size={14} /> {err}</p>}
+                <button type="submit" className="btn-grad flex h-11 w-full items-center justify-center gap-2 rounded-md text-[14px] font-bold text-white transition-transform hover:-translate-y-px">
+                  Create my workspace <Ic name="arrowR" size={15} />
+                </button>
+                <p className="text-center text-[10.5px] leading-relaxed text-faint">By continuing you agree to the Terms and acknowledge the Privacy Policy. Passwords are stored as SHA-256 digests, sessions expire after 12h.</p>
+              </form>
+            </>
+          )}
+
+          {devHost && (
+            <div className="mt-6 border-t border-line pt-5">
+              <p className="mb-2.5 text-[10.5px] font-bold uppercase tracking-widest text-faint">Internal · dev host only</p>
+              <button onClick={async () => { setErr(null); const res = loginDeveloper("dev@derzen.site", "derzen-dev"); if (res.ok) navigate("/dev"); else setErr(res.error ?? "Developer sign-in failed."); }} className="group flex w-full items-center gap-3 rounded-lg border border-brand/40 bg-brand-soft/50 px-3 py-2.5 text-left transition-all hover:-translate-y-px hover:border-brand hover:shadow-md">
                 <span className="flex h-8 w-8 items-center justify-center rounded-md bg-brand font-display text-[11px] font-extrabold text-white">D</span>
                 <span className="flex-1">
-                  <span className="block text-[13px] font-bold text-ink">Internal backoffice</span>
+                  <span className="block text-[13px] font-bold text-ink">Open the backoffice</span>
                   <span className="block text-[10.5px] text-mute">ops queues · tenants · billing · flags · security · audit trail</span>
                 </span>
                 <Ic name="arrowR" size={14} className="text-brand transition-transform group-hover:translate-x-0.5" />
               </button>
             </div>
-            <p className="mt-4 text-center font-mono text-[10px] text-faint">passwords: demo123 (workspaces) · derzen-dev (developer)</p>
-          </div>
+          )}
         </div>
       </main>
+
+      {/* Provisioning overlay during sign-up */}
+      {provisioning && (
+        <div className="fixed inset-0 z-[95] flex items-center justify-center bg-ink/85 px-5 backdrop-blur-sm">
+          <div className="w-full max-w-[400px] rounded-xl border border-white/15 bg-pine-900 p-6 text-white shadow-2xl anim-pop">
+            <p className="font-display text-[20px] font-extrabold tracking-tight">Setting up {workspace.trim() || "your workspace"}…</p>
+            <div className="mt-5 space-y-3">
+              {PROVISION_STEPS.map((s, i) => (
+                <p key={s} className={cx("flex items-center gap-2.5 text-[13px] transition-opacity", i < provStep ? "text-[#8FE3BF]" : i === provStep ? "text-white" : "text-white/35")}>
+                  {i < provStep ? <Ic name="check" size={14} sw={2.6} /> : i === provStep ? <span className="h-3.5 w-3.5 rounded-full border-2 border-white/30 border-t-white anim-spin" /> : <span className="h-1.5 w-1.5 rounded-full bg-white/25" />}
+                  {s}
+                </p>
+              ))}
+            </div>
+            <p className="mt-5 border-t border-white/10 pt-3 font-mono text-[10px] text-white/40">tenant-isolated schema · RLS enabled · audit logging on from second one</p>
+          </div>
+        </div>
+      )}
+
+      {/* Forgot password */}
+      {forgotOpen && (
+        <div className="fixed inset-0 z-[95] flex items-center justify-center bg-ink/60 px-5 backdrop-blur-sm" onClick={() => setForgotOpen(false)}>
+          <div className="w-full max-w-[400px] rounded-xl border border-line bg-card p-6 shadow-2xl anim-pop" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-start justify-between">
+              <h3 className="font-display text-[18px] font-extrabold tracking-tight text-ink">Reset your password</h3>
+              <button onClick={() => setForgotOpen(false)} aria-label="Close" className="rounded p-1 text-mute hover:bg-paper hover:text-ink"><Ic name="x" size={15} /></button>
+            </div>
+            {!sentCode ? (
+              <div className="mt-4 space-y-3">
+                <label className="block">
+                  <span className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-mute">Account email</span>
+                  <input value={forgotEmail} onChange={(e) => setForgotEmail(e.target.value)} type="email" placeholder="you@youroperation.co" className="h-11 w-full rounded-md border border-line2 bg-card px-3 text-[14px] outline-none focus:border-brand" />
+                </label>
+                <button onClick={sendReset} className="flex h-10 w-full items-center justify-center rounded-md bg-ink text-[13px] font-bold text-white transition-colors hover:bg-brand">Send reset code</button>
+              </div>
+            ) : (
+              <div className="mt-4 space-y-3">
+                <p className="rounded-md bg-paper px-3 py-2 text-[11.5px] leading-relaxed text-mute">We emailed a 6-digit code to <b className="text-ink">{forgotEmail}</b>. <span className="font-mono text-brand-deep">Demo code: {sentCode}</span> (in production this is emailed, never shown).</p>
+                <label className="block">
+                  <span className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-mute">6-digit code</span>
+                  <input value={codeInput} onChange={(e) => setCodeInput(e.target.value)} inputMode="numeric" maxLength={6} placeholder="••••••" className="h-11 w-full rounded-md border border-line2 bg-card px-3 text-center font-mono text-[16px] font-bold tracking-[0.3em] outline-none focus:border-brand" />
+                </label>
+                <label className="block">
+                  <span className="mb-1 block text-[11px] font-bold uppercase tracking-wider text-mute">New password</span>
+                  <input value={newPw} onChange={(e) => setNewPw(e.target.value)} type="password" placeholder="8+ characters" className="h-11 w-full rounded-md border border-line2 bg-card px-3 text-[14px] outline-none focus:border-brand" />
+                </label>
+                {err && <p role="alert" className="flex items-center gap-2 rounded-md border border-danger/40 bg-danger-soft px-3 py-2 text-[12px] font-semibold text-danger anim-pop"><Ic name="alertTri" size={13} /> {err}</p>}
+                <button onClick={confirmReset} className="flex h-10 w-full items-center justify-center rounded-md bg-ink text-[13px] font-bold text-white transition-colors hover:bg-brand">Set new password</button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

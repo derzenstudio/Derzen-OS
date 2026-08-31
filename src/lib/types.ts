@@ -174,7 +174,7 @@ export interface Conversation {
   guestId: string;
   propertyId: string;
   reservationId?: string;
-  channel: ChannelId | "email" | "whatsapp";
+  channel: ChannelId | "email" | "whatsapp" | "instagram" | "messenger";
   subject?: string;
   unread: number;
   needsReply: boolean;

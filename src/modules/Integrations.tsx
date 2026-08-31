@@ -209,27 +209,60 @@ function Api() {
   );
 }
 
+const MSG_ICONS: Record<string, IconName> = { whatsapp: "whatsapp", gmail: "mail", instagram: "chat", messenger: "msg" };
+
 function Messaging() {
-  const { toast } = useApp();
-  const rows: { name: string; icon: IconName; status: "connected" | "available"; note: string }[] = [
-    { name: "WhatsApp Business Cloud API", icon: "whatsapp", status: "connected", note: "Templates, 24h session windows, opt-in tracking — failed sends land in the queue as Failed with a re-opt-in path." },
-    { name: "Gmail / IMAP-SMTP", icon: "mail", status: "connected", note: "Two-way email inside the unified inbox, threaded by reservation." },
-    { name: "Instagram Direct", icon: "chat", status: "available", note: "DMs become inbox threads; replies route back natively." },
-    { name: "Facebook Messenger", icon: "msg", status: "available", note: "Page inbox unified with the rest." },
-    { name: "ID verification & web check-in", icon: "shield", status: "connected", note: "Document capture + liveness + sanction screening. Writes a verification status to the reservation and gates access-code release. Raw documents purged after the retention window — only status, provider ref and expiry are stored." },
-  ];
+  const msgConnections = useApp((s) => s.msgConnections);
+  const { connectMsgPlatform, disconnectMsgPlatform, reconnectMsgPlatform, navigate } = useApp();
   return (
     <div className="space-y-2.5">
-      {rows.map((r) => (
-        <div key={r.name} className="flex flex-wrap items-center gap-3 rounded-xl border border-line bg-card p-4">
-          <span className={cx("flex h-9 w-9 items-center justify-center rounded-lg", r.status === "connected" ? "bg-brand-soft text-brand-deep" : "bg-paper text-mute")}><Ic name={r.icon} size={16} /></span>
-          <div className="min-w-0 flex-1">
-            <p className="flex items-center gap-2 text-[13px] font-bold text-ink">{r.name} {r.status === "connected" ? <Dot tone="ok" label="connected" /> : <Dot tone="info" label="available" />}</p>
-            <p className="text-[11px] leading-snug text-mute">{r.note}</p>
+      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-line bg-card px-4 py-2.5">
+        <span className={cx("h-2 w-2 rounded-full", msgConnections.some((c) => c.status === "connected") ? "bg-brand dot-pulse" : "bg-line2")} />
+        <p className="text-[12px] font-bold text-ink">{msgConnections.filter((c) => c.status === "connected").length} of {msgConnections.length} chat platforms live</p>
+        <p className="hidden text-[11px] text-mute sm:block">· inbound threads land in the unified inbox within seconds</p>
+        <Btn size="xs" variant="ghost" className="ml-auto" icon="inbox" onClick={() => navigate("/inbox")}>Open inbox</Btn>
+      </div>
+
+      {msgConnections.map((c) => (
+        <div key={c.id} className={cx("rounded-xl border bg-card p-4 transition-colors", c.status === "connected" ? "border-brand/35" : "border-line")}>
+          <div className="flex flex-wrap items-center gap-3">
+            <span className={cx("flex h-9 w-9 items-center justify-center rounded-lg", c.status === "connected" ? "bg-brand-soft text-brand-deep" : "bg-paper text-mute")}>
+              <Ic name={MSG_ICONS[c.id] ?? "chat"} size={16} />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="flex flex-wrap items-center gap-2 text-[13px] font-bold text-ink">
+                {c.name}
+                {c.status === "connected" && <Dot tone="ok" label="connected" />}
+                {c.status === "connecting" && <span className="flex items-center gap-1.5 text-[10.5px] font-bold text-gold"><span className="h-3 w-3 rounded-full border-2 border-gold/30 border-t-gold anim-spin" /> authorising…</span>}
+                {c.status === "disconnected" && <Dot tone="mute" label="disconnected" />}
+                {c.status === "error" && <Dot tone="danger" label="error" />}
+              </p>
+              <p className="text-[11px] leading-snug text-mute">{c.note}</p>
+              {c.status === "connected" && (
+                <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 font-mono text-[10px] text-faint">
+                  {c.identity && <span className="rounded-sm bg-paper px-1.5 py-0.5 font-bold text-mute">{c.identity}</span>}
+                  {c.lastSync && <span>last sync {timeAgo(c.lastSync)}</span>}
+                  <span className="hidden items-center gap-1 sm:flex">{c.scopes.map((s) => <span key={s} className="rounded-sm border border-line px-1 py-px">{s}</span>)}</span>
+                </p>
+              )}
+            </div>
+            <div className="flex gap-1.5">
+              {c.status === "connected" && <Btn size="sm" variant="ghost" icon="x" onClick={() => disconnectMsgPlatform(c.id)}>Disconnect</Btn>}
+              {c.status === "disconnected" && <Btn size="sm" variant="solid" icon="plug" onClick={() => connectMsgPlatform(c.id)}>Connect</Btn>}
+              {c.status === "error" && <Btn size="sm" variant="solid" icon="refresh" onClick={() => reconnectMsgPlatform(c.id)}>Reconnect</Btn>}
+            </div>
           </div>
-          <Btn size="sm" variant={r.status === "connected" ? "ghost" : "solid"} icon={r.status === "connected" ? "gear" : "plug"} onClick={() => toast("info", `${r.name} settings`)}>{r.status === "connected" ? "Configure" : "Connect"}</Btn>
         </div>
       ))}
+
+      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-line bg-card p-4">
+        <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-soft text-brand-deep"><Ic name="shield" size={16} /></span>
+        <div className="min-w-0 flex-1">
+          <p className="flex items-center gap-2 text-[13px] font-bold text-ink">ID verification & web check-in <Dot tone="ok" label="connected" /></p>
+          <p className="text-[11px] leading-snug text-mute">Document capture + liveness + sanction screening. Writes a verification status to the reservation and gates access-code release. Raw documents purged after the retention window — only status, provider ref and expiry are stored.</p>
+        </div>
+      </div>
+
       <p className="rounded-lg border border-line bg-card px-4 py-3 text-[11px] text-mute">Retention: guest PII purges automatically after checkout + N days (configurable). Logs and AI prompts redact identity fields unless the task requires them. {WORKSPACE.name} current window: 90 days.</p>
     </div>
   );

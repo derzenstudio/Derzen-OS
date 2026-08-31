@@ -3,9 +3,10 @@ import type { Locale } from "./lib/i18n";
 import { t as tr } from "./lib/i18n";
 import { uid, addDays, dayKey, today, nightsBetween, parseKey, moneyRaw } from "./lib/format";
 import type {
-  AuditEntry, Block, BlockStyle, Collection, Conversation, Expense, Guidebook, IssueReport, OnboardStep, Property,
+  AuditEntry, Block, BlockStyle, Collection, Conversation, Expense, Guidebook, IssueReport, MsgConnection, OnboardStep, Property,
   QueuedMessage, Quote, Reservation, Review, SavedAsset, SiteChrome, SitePage, SyncState, Task, Toast, WebsiteState, Message,
 } from "./lib/types";
+import { MSG_PLATFORMS } from "./lib/types";
 import { DEFAULT_WIDGET_STYLE, type WidgetStyle } from "./lib/widgetTheme";
 import { DEFAULT_BRAND, applyBrand, type BrandState } from "./lib/brand";
 import { defaultBlockContent } from "./lib/blockContent";
@@ -26,7 +27,8 @@ import { setDisplayCurrency, refreshFx, type CurrencyCode } from "./lib/fx";
 import { compressImage, readLibrary, writeLibrary, QUOTA_BYTES, type PhotoEntry } from "./lib/photoStore";
 import {
   AI_DEFAULTS, DEVELOPER, PLATFORM_INTEGRATIONS, TENANTS, hydrateTenantData,
-  type PlatformIntegration, type TenantMeta,
+  ensureRuntimeTenant, findCustomer, hashPassword, saveCustomer,
+  type CustomerAccount, type PlatformIntegration, type TenantMeta,
 } from "./lib/tenants";
 
 // ── sessions & tenant-scoped boot ──────────────────────────────────────────
@@ -107,7 +109,9 @@ interface App {
   session: Session | null;
   tenants: TenantMeta[];
   features: Record<string, boolean> | null;
-  loginTenant: (email: string, pw: string) => { ok: boolean; error?: string };
+  loginTenant: (email: string, pw: string) => Promise<{ ok: boolean; error?: string }>;
+  signupCustomer: (input: { name: string; workspace: string; email: string; pw: string }) => Promise<{ ok: boolean; error?: string }>;
+  resetCustomerPassword: (email: string, newPw: string) => Promise<{ ok: boolean; error?: string }>;
   loginDeveloper: (email: string, pw: string) => { ok: boolean; error?: string };
   logout: () => void;
   impersonate: (tenantId: string) => void;
@@ -377,16 +381,59 @@ export const useApp = create<App>((set, get) => ({
   session: bootSession,
   tenants: TENANTS,
   features: flagsFor(bootSession),
-  loginTenant: (email, pw) => {
-    const t = TENANTS.find((x) => x.email.toLowerCase() === email.trim().toLowerCase());
-    if (!t) return { ok: false, error: "No workspace is registered under that email." };
-    if (pw !== t.password) return { ok: false, error: "Incorrect password for this workspace." };
-    if (t.suspended) return { ok: false, error: "This workspace is suspended — contact platform support." };
-    hydrateTenantData(t.id);
-    setDisplayCurrency(t.currency);
-    const session: Session = { kind: "tenant", tenantId: t.id };
+  loginTenant: async (email, pw) => {
+    const e = email.trim().toLowerCase();
+    // 1) seeded demo tenants (plaintext demo passwords)
+    const t = TENANTS.find((x) => x.email.toLowerCase() === e);
+    if (t) {
+      if (pw !== t.password) return { ok: false, error: "Incorrect password for this workspace." };
+      if (t.suspended) return { ok: false, error: "This workspace is suspended — contact platform support." };
+      hydrateTenantData(t.id);
+      setDisplayCurrency(t.currency);
+      const session: Session = { kind: "tenant", tenantId: t.id };
+      saveSession(session);
+      set({ session, features: { ...t.features }, displayCurrency: t.currency, fxTick: get().fxTick + 1, tenants: [...TENANTS] });
+      return { ok: true };
+    }
+    // 2) registered customers (SHA-256-hashed passwords)
+    const c = findCustomer(email);
+    if (!c) return { ok: false, error: "No workspace is registered under that email." };
+    const hash = await hashPassword(pw);
+    if (hash !== c.hash) return { ok: false, error: "Incorrect password for this workspace." };
+    const meta = ensureRuntimeTenant(c);
+    hydrateTenantData(meta.id);
+    setDisplayCurrency(meta.currency);
+    const session: Session = { kind: "tenant", tenantId: meta.id };
     saveSession(session);
-    set({ session, features: { ...t.features }, displayCurrency: t.currency, fxTick: get().fxTick + 1 });
+    set({ session, features: { ...meta.features }, displayCurrency: meta.currency, fxTick: get().fxTick + 1, tenants: [...TENANTS] });
+    get().toast("ok", `Welcome back, ${c.name.split(" ")[0]}`, c.workspace);
+    return { ok: true };
+  },
+  signupCustomer: async (input) => {
+    const e = input.email.trim().toLowerCase();
+    if (findCustomer(input.email) || TENANTS.some((x) => x.email.toLowerCase() === e))
+      return { ok: false, error: "That email already has a workspace — sign in instead." };
+    const hash = await hashPassword(input.pw);
+    const tenantId = uid("tnt");
+    const c: CustomerAccount = {
+      id: uid("cus"), tenantId, workspace: input.workspace.trim() || `${input.name.trim()}'s Villas`,
+      name: input.name.trim(), email: e, hash, createdAt: Date.now(), currency: "IDR",
+    };
+    saveCustomer(c);
+    const meta = ensureRuntimeTenant(c);
+    hydrateTenantData(meta.id);
+    setDisplayCurrency(meta.currency);
+    const session: Session = { kind: "tenant", tenantId: meta.id };
+    saveSession(session);
+    set({ session, features: { ...meta.features }, displayCurrency: meta.currency, fxTick: get().fxTick + 1, tenants: [...TENANTS] });
+    get().audit(`Workspace created via self-serve signup: ${c.workspace}`, "ui");
+    return { ok: true };
+  },
+  resetCustomerPassword: async (email, newPw) => {
+    const c = findCustomer(email);
+    if (!c) return { ok: false, error: "No registered workspace found for that email." };
+    const hash = await hashPassword(newPw);
+    saveCustomer({ ...c, hash });
     return { ok: true };
   },
   loginDeveloper: (email, pw) => {
@@ -1368,7 +1415,67 @@ export const useApp = create<App>((set, get) => ({
       chat: st.chat.map((c) => (c.id === channelId ? { ...c, messages: [...c.messages, { id: uid("cm"), author: "You", body, ts: Date.now() }] } : c)),
     })),
   spendCredit: (n) => set((st) => ({ creditsUsed: st.creditsUsed + n })),
+
+  // ── Messaging platform connections (WhatsApp / Instagram / Messenger / Gmail) ──
+  msgConnections: MSG_PLATFORMS.map((p) => ({ ...p })),
+  connectMsgPlatform: (id) => {
+    const plat = MSG_PLATFORMS.find((p) => p.id === id);
+    set((st) => ({ msgConnections: st.msgConnections.map((c) => (c.id === id ? { ...c, status: "connecting" as const } : c)) }));
+    later(() => {
+      set((st) => ({
+        msgConnections: st.msgConnections.map((c) =>
+          c.id === id
+            ? { ...c, status: "connected" as const, lastSync: Date.now(), identity: c.identity ?? (id === "instagram" ? "@sanggraha.villas" : id === "messenger" ? "Sanggraha Villas page" : c.identity) }
+            : c,
+        ),
+      }));
+      get().toast("ok", `${plat?.name ?? id} connected`, "Webhook verified · inbound threads land in your inbox.");
+      get().audit(`Messaging platform connected: ${plat?.name ?? id}`, "ui");
+      // prove the pipe works: a guest message arrives a few seconds later
+      later(() => simulateInbound(get, set, id), 3500);
+    }, 1300);
+  },
+  disconnectMsgPlatform: (id) => {
+    const plat = MSG_PLATFORMS.find((p) => p.id === id);
+    set((st) => ({ msgConnections: st.msgConnections.map((c) => (c.id === id ? { ...c, status: "disconnected" as const, lastSync: null } : c)) }));
+    get().toast("warn", `${plat?.name ?? id} disconnected`, "Existing threads stay readable; new messages will queue.");
+    get().audit(`Messaging platform disconnected: ${plat?.name ?? id}`, "ui");
+  },
+  reconnectMsgPlatform: (id) => {
+    set((st) => ({ msgConnections: st.msgConnections.map((c) => (c.id === id ? { ...c, status: "connecting" as const } : c)) }));
+    later(() => {
+      set((st) => ({ msgConnections: st.msgConnections.map((c) => (c.id === id ? { ...c, status: "connected" as const, lastSync: Date.now() } : c)) }));
+      get().toast("ok", "Reconnected", "Backlog drained · nothing was lost.");
+    }, 900);
+  },
 }));
+
+// Simulate a guest writing in through a freshly connected platform, so the
+// integration is demonstrably live end-to-end (inbox thread + unread badge).
+function simulateInbound(
+  get: () => App,
+  set: (fn: (st: App) => Partial<App>) => void,
+  platformId: string,
+) {
+  const st = get();
+  const g = GUESTS[st.msgConnections.length % GUESTS.length];
+  const p = PROPERTIES.find((x) => !x.archived && !x.isParent) ?? PROPERTIES[0];
+  const channel = (platformId === "gmail" ? "email" : platformId) as Conversation["channel"];
+  const bodies = [
+    "Hi! Would an early check-in around 12:30 be possible?",
+    "Hello — do you arrange airport pickup from DPS?",
+    "Is the pool private to the villa?",
+    "Could we add a chef dinner on our second night?",
+  ];
+  const conv: Conversation = {
+    id: uid("c"), guestId: g.id, propertyId: p.id, channel,
+    subject: `Question via ${platformId === "gmail" ? "email" : platformId}`,
+    unread: 1, needsReply: true, escalated: false, notes: "",
+    messages: [{ id: uid("m"), from: "guest", body: bodies[Math.floor(Math.random() * bodies.length)], ts: Date.now() }],
+  };
+  set((s) => ({ conversations: [conv, ...s.conversations] }));
+  get().toast("info", `New message · ${g.name}`, `Arrived via ${platformId === "gmail" ? "Gmail" : platformId} — threaded in your inbox.`);
+}
 
 // ── selectors ──────────────────────────────────────────────────────────────
 export const useUnreadTotal = () => useApp((s) => s.conversations.reduce((n, c) => n + c.unread, 0));

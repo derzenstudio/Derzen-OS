@@ -96,12 +96,16 @@ export default function App() {
   const theme = useApp((s) => s.theme);
 
   useEffect(() => {
-    // The /dev surface is guarded: anyone without a developer session is sent
-    // to the login screen's Developer tab — never the marketing site.
+    // The /dev surface is guarded and host-gated. On the dev.* subdomain an
+    // unauthenticated visitor is sent to the login page (which shows the
+    // internal backoffice entry there). On the app host the dev surface is
+    // unreachable entirely — the visitor lands on the marketing site.
+    const host = window.location.hostname.toLowerCase();
+    const isDevHost = host === "dev" || host.startsWith("dev.");
     const routeForHash = () => {
       const r = parseHashSafe();
       if (r.path[0] === "dev" && useApp.getState().session?.kind !== "developer") {
-        window.location.hash = `/${r.locale}/login?mode=developer`;
+        window.location.hash = isDevHost ? `/${r.locale}/login` : `/${r.locale}`;
         return;
       }
       useApp.setState({ route: r });

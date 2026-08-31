@@ -131,6 +131,12 @@ interface App {
   goliveRunRecon: () => void;
   goliveFreeze: () => void;
 
+  // ── messaging platform connections ─────────────────────────────────────
+  msgConnections: MsgConnection[];
+  connectMsgPlatform: (id: string) => void;
+  disconnectMsgPlatform: (id: string) => void;
+  reconnectMsgPlatform: (id: string) => void;
+
   // ── developer-in-tenant & tenant branding ──
   tenantFonts: Record<string, { headingUrl: string; headingFamily: string; bodyUrl: string; bodyFamily: string }>;
   setTenantFonts: (tenantId: string, fonts: { headingUrl: string; headingFamily: string; bodyUrl: string; bodyFamily: string }) => void;

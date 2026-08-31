@@ -470,6 +470,23 @@ export interface SiteChrome {
 export interface SavedAsset { id: string; name: string; url: string; kind: "image" | "copy"; note?: string; propertyId?: string; }
 export interface PropertyPhoto { id: string; url: string; label: string; }
 
+export type MsgPlatformId = "whatsapp" | "instagram" | "messenger" | "gmail";
+export interface MsgConnection {
+  id: MsgPlatformId;
+  name: string;
+  status: "disconnected" | "connecting" | "connected" | "error";
+  lastSync: number | null;
+  scopes: string[];
+  identity: string | null; // e.g. the linked phone number / handle / account
+  note: string;
+}
+export const MSG_PLATFORMS: MsgConnection[] = [
+  { id: "whatsapp", name: "WhatsApp Business", status: "connected", lastSync: Date.now() - 4 * 60_000, scopes: ["messages:send", "messages:read", "templates"], identity: "+62 812 390 110", note: "Cloud API · session windows + template approval" },
+  { id: "gmail", name: "Gmail / SMTP", status: "connected", lastSync: Date.now() - 11 * 60_000, scopes: ["gmail.modify"], identity: "stay@sanggraha.co", note: "Two-way thread matching via reservation refs" },
+  { id: "instagram", name: "Instagram Direct", status: "disconnected", lastSync: null, scopes: ["instagram_manage_messages"], identity: null, note: "Requires a Professional account + Meta app review" },
+  { id: "messenger", name: "Facebook Messenger", status: "disconnected", lastSync: null, scopes: ["pages_messaging"], identity: null, note: "Page inbox unified with the rest" },
+];
+
 export interface InvoiceTemplate {
   brandSync: boolean;
   accent: string; ink: string; paper: string; radius: number;

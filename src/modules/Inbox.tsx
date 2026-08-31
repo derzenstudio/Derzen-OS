@@ -6,12 +6,14 @@ import { useApp } from "../store";
 import { channelDef, guestById, propertyById, RESERVATIONS } from "../lib/data";
 import { ChannelMark } from "../components/ota";
 import type { Conversation } from "../lib/types";
+import { aiChat, isAiConfigured, loadProviders } from "../lib/aiGateway";
 
 export default function Inbox() {
   const { route, navigate, markConvRead, addReply, setConvNote, logAutopilot, toast } = useApp();
   const conversations = useApp((s) => s.conversations);
   const reservations = useApp((s) => s.reservations);
   const tasks = useApp((s) => s.tasks);
+  const aiConfigOn = useApp((s) => s.aiConfig.enabled);
   const msgConnections = useApp((s) => s.msgConnections);
   const liveCount = msgConnections.filter((c) => c.status === "connected").length;
   const [q, setQ] = useState("");
@@ -48,12 +50,24 @@ export default function Inbox() {
     if (conv) setNotes(conv.notes);
   }, [activeId]);
 
-  const aiDraft = () => {
+  const aiDraft = async () => {
     if (!conv) return;
     const g = guestById(conv.guestId);
     const p = propertyById(conv.propertyId);
     const first = g.name.split(" ")[0];
-    addReply(conv.id, `Hi ${first}! Thanks for the message — yes, that works. Anything else before your stay at ${p.name}? We're happy to arrange transfers, chef dinners or spa slots from your guidebook. — Kadek`, "ai", { model: "concierge-v2", citedSources: ["General · brand tone guide", `${p.name} · house rules`] });
+    const providers = loadProviders();
+    let body = `Hi ${first}! Thanks for the message — yes, that works. Anything else before your stay at ${p.name}? We're happy to arrange transfers, chef dinners or spa slots from your guidebook. — Kadek`;
+    let model = "concierge-v2";
+    if (aiConfigOn && isAiConfigured(providers)) {
+      const lastGuest = [...conv.messages].reverse().find((m) => m.from === "guest")?.body ?? "";
+      const sys = `You are the guest concierge for ${p.name}, a boutique villa. Write a short, warm, professional reply (2-4 sentences) to the guest's message. Never invent policies, prices or availability you weren't given. Sign off as Kadek.`;
+      try {
+        const res = await aiChat(sys, `Guest ${g.name} wrote: "${lastGuest}"\n\nWrite the reply.`, { maxTokens: 200 });
+        body = res.text;
+        model = `${res.provider}/${res.model}`;
+      } catch { /* keep the safe fallback draft */ }
+    }
+    addReply(conv.id, body, "ai", { model, citedSources: ["General · brand tone guide", `${p.name} · house rules`] });
     logAutopilot(`${conv.subject ?? "Thread"} · ${g.name}`, "sent");
     toast("ok", "Draft inserted (Suggestion mode)", "Nothing is sent until you approve — audit trail updated.");
   };

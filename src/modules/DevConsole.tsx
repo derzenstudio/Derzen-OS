@@ -6,13 +6,18 @@ import { NumStepper } from "../components/controls";
 import { useApp } from "../store";
 import { MODULE_FLAGS, PLATFORM_ENV, type PlatformIntegration } from "../lib/tenants";
 import { WORKSPACE } from "../lib/data";
+import {
+  DEFAULT_PROVIDERS, PROVIDER_META, aiChat, fetchModels, isAiConfigured, loadProviders, maskKey,
+  saveProviders, testProvider, type AiProviderId, type AiProviderState, type ProviderConfig,
+} from "../lib/aiGateway";
 
-type DevTab = "overview" | "tenants" | "integrations" | "ai" | "platform";
+type DevTab = "overview" | "tenants" | "integrations" | "providers" | "ai" | "platform";
 
 const SECTIONS: { id: DevTab; label: string; icon: IconName }[] = [
   { id: "overview", label: "Overview", icon: "grid" },
   { id: "tenants", label: "Tenants & features", icon: "users" },
   { id: "integrations", label: "Integrations", icon: "plug" },
+  { id: "providers", label: "AI providers", icon: "zap" },
   { id: "ai", label: "AI control", icon: "sparkle" },
   { id: "platform", label: "Platform & infra", icon: "server" },
 ];
@@ -68,6 +73,7 @@ export default function DevConsole() {
           {tab === "overview" && <Overview goto={setTab} />}
           {tab === "tenants" && <Tenants />}
           {tab === "integrations" && <Integrations />}
+          {tab === "providers" && <AiProviders />}
           {tab === "ai" && <AiControl />}
           {tab === "platform" && <Platform />}
         </div>
@@ -293,6 +299,217 @@ function IntegrationCard({ i, busy, onCheck, onPatch, toast }: { i: PlatformInte
         <span className="ml-auto font-mono text-[9.5px] text-white/30">playbook §{i.playbookAnchor}</span>
       </div>
     </article>
+  );
+}
+
+// ── AI providers — live Groq → OpenRouter → Gemini failover chain ─────────
+const PROVIDER_ORDER: AiProviderId[] = ["groq", "openrouter", "gemini"];
+
+function providerStatus(cfg: ProviderConfig): { tone: "ok" | "warn" | "danger" | "idle"; label: string } {
+  if (!cfg.apiKey.trim()) return { tone: "idle", label: "no key" };
+  if (!cfg.model) return { tone: "warn", label: "needs model" };
+  if (cfg.lastCheck && !cfg.lastCheck.ok) return { tone: "danger", label: "last test failed" };
+  if (cfg.lastCheck?.ok) return { tone: "ok", label: "ready" };
+  return { tone: "warn", label: "untested" };
+}
+
+function AiProviders() {
+  const { toast } = useApp();
+  const [providers, setProviders] = useState<AiProviderState>(() => loadProviders());
+  const [models, setModels] = useState<Record<AiProviderId, string[]>>({ groq: [], openrouter: [], gemini: [] });
+  const [syncing, setSyncing] = useState<Record<AiProviderId, boolean>>({ groq: false, openrouter: false, gemini: false });
+  const [testing, setTesting] = useState<Record<AiProviderId, boolean>>({ groq: false, openrouter: false, gemini: false });
+  const [showKey, setShowKey] = useState<Record<AiProviderId, boolean>>({ groq: false, openrouter: false, gemini: false });
+  const [chainRun, setChainRun] = useState<null | { provider: string; model: string; ms: number; chain: string[] }>(null);
+  const [chainBusy, setChainBusy] = useState(false);
+  const [chainErr, setChainErr] = useState<string | null>(null);
+
+  const update = (id: AiProviderId, patch: Partial<ProviderConfig>) => {
+    setProviders((p) => {
+      const next = { ...p, [id]: { ...p[id], ...patch } };
+      saveProviders(next);
+      return next;
+    });
+  };
+
+  const syncModels = async (id: AiProviderId) => {
+    const key = providers[id].apiKey.trim();
+    if (!key) { toast("warn", `${PROVIDER_META[id].name} needs an API key first`); return; }
+    setSyncing((s) => ({ ...s, [id]: true }));
+    try {
+      const list = await fetchModels(id, key);
+      setModels((m) => ({ ...m, [id]: list }));
+      update(id, { lastCheck: { ok: true, ms: 0, ts: Date.now(), models: list.length } });
+      if (list.length && !providers[id].model) update(id, { model: list[0] });
+      toast("ok", `${list.length} ${PROVIDER_META[id].name} models synced`, list[0] ? `newest: ${list[0]}` : undefined);
+    } catch (e) {
+      update(id, { lastCheck: { ok: false, ms: 0, ts: Date.now() } });
+      toast("err", `Couldn't list ${PROVIDER_META[id].name} models`, e instanceof Error ? e.message : "check the key & network");
+    } finally {
+      setSyncing((s) => ({ ...s, [id]: false }));
+    }
+  };
+
+  const runTest = async (id: AiProviderId) => {
+    const cfg = providers[id];
+    if (!cfg.apiKey.trim() || !cfg.model) { toast("warn", "Set a key and pick a model first"); return; }
+    setTesting((s) => ({ ...s, [id]: true }));
+    const res = await testProvider(id, cfg.apiKey.trim(), cfg.model);
+    update(id, { lastCheck: { ok: res.ok, ms: res.ms, ts: Date.now() } });
+    setTesting((s) => ({ ...s, [id]: false }));
+    if (res.ok) toast("ok", `${PROVIDER_META[id].name} responded in ${res.ms}ms`, res.reply ? `said: "${res.reply}"` : undefined);
+    else toast("err", `${PROVIDER_META[id].name} failed`, res.error);
+  };
+
+  const runChain = async () => {
+    setChainBusy(true); setChainErr(null); setChainRun(null);
+    try {
+      const res = await aiChat("You are a connectivity probe. Reply with exactly: pong", "ping", { maxTokens: 8 });
+      setChainRun({ provider: res.provider, model: res.model, ms: res.ms, chain: res.chain });
+    } catch (e) {
+      setChainErr(e instanceof Error ? e.message : "chain failed");
+    } finally {
+      setChainBusy(false);
+    }
+  };
+
+  const active = PROVIDER_ORDER.find((id) => providers[id].enabled && providers[id].apiKey.trim() && providers[id].model);
+  const configured = isAiConfigured(providers);
+
+  return (
+    <div className="space-y-5">
+      {/* Failover chain — the signature element */}
+      <section className="reg-marks relative overflow-hidden rounded-xl border border-white/10 bg-[#0a0a09] px-5 py-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <p className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-brand-bright">Inference routing · fails over in order</p>
+            <h2 className="mt-0.5 font-display text-[20px] font-extrabold uppercase tracking-tight text-white">Groq → OpenRouter → Gemini</h2>
+          </div>
+          <div className="flex items-center gap-2.5">
+            <span className={cx("flex items-center gap-1.5 rounded-sm border px-2.5 py-1 font-mono text-[10.5px] font-bold", configured ? "border-[#4CC38A]/50 text-[#4CC38A]" : "border-white/15 text-white/45")}>
+              <span className={cx("h-1.5 w-1.5 rounded-full", configured ? "bg-[#4CC38A] dot-pulse" : "bg-white/25")} />
+              {configured ? "chain live" : "no provider configured"}
+            </span>
+            <Btn size="sm" variant="solid" icon="play" onClick={runChain} disabled={chainBusy || !configured}>
+              {chainBusy ? "probing…" : "Test full chain"}
+            </Btn>
+          </div>
+        </div>
+
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          {PROVIDER_ORDER.map((id, i) => {
+            const st = providerStatus(providers[id]);
+            const isActive = active === id;
+            return (
+              <div key={id} className="flex items-center gap-2">
+                {i > 0 && <Ic name="chevR" size={14} className="text-white/25" />}
+                <div className={cx("flex items-center gap-2 rounded-sm border px-3 py-1.5 transition-colors", isActive ? "border-brand bg-brand/15" : "border-white/12 bg-white/[0.03]")}>
+                  <span className={cx("h-1.5 w-1.5 rounded-full", st.tone === "ok" ? "bg-[#4CC38A]" : st.tone === "warn" ? "bg-[#e2a33c]" : st.tone === "danger" ? "bg-[#f08c8c]" : "bg-white/25")} />
+                  <span className={cx("text-[12px] font-bold", isActive ? "text-white" : "text-white/70")}>{PROVIDER_META[id].name}</span>
+                  {isActive && <span className="font-mono text-[8.5px] font-bold uppercase tracking-wider text-brand-bright">active</span>}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {(chainRun || chainErr) && (
+          <div className={cx("anim-rise mt-4 rounded-sm border px-3.5 py-2.5 font-mono text-[11px] leading-relaxed", chainRun ? "border-[#4CC38A]/40 bg-[#4CC38A]/10 text-[#4CC38A]" : "border-[#f08c8c]/40 bg-[#f08c8c]/10 text-[#f08c8c]")}>
+            {chainRun ? (
+              <>
+                <p className="font-bold">✓ answered by {PROVIDER_META[chainRun.provider as AiProviderId].name} · {chainRun.model} · {chainRun.ms}ms</p>
+                {chainRun.chain.length > 0 && <p className="mt-0.5 text-white/50">skipped: {chainRun.chain.join(" · ")}</p>}
+              </>
+            ) : (
+              <p className="font-bold">✗ {chainErr}</p>
+            )}
+          </div>
+        )}
+      </section>
+
+      {/* Per-provider config — dense control rows, not equal cards */}
+      <div className="space-y-3">
+        {PROVIDER_ORDER.map((id) => {
+          const meta = PROVIDER_META[id];
+          const cfg = providers[id];
+          const st = providerStatus(cfg);
+          const list = models[id];
+          return (
+            <section key={id} className="rounded-xl border border-white/10 bg-[#0a0a09] p-4">
+              <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+                <div className="flex w-[150px] shrink-0 flex-col">
+                  <span className="font-mono text-[9px] font-bold uppercase tracking-[0.16em] text-brand-bright">{meta.role}</span>
+                  <span className="font-display text-[16px] font-extrabold uppercase tracking-tight text-white">{meta.name}</span>
+                  <span className={cx("mt-0.5 flex items-center gap-1.5 font-mono text-[9.5px] font-bold", st.tone === "ok" ? "text-[#4CC38A]" : st.tone === "warn" ? "text-[#e2a33c]" : st.tone === "danger" ? "text-[#f08c8c]" : "text-white/40")}>
+                    <span className={cx("h-1.5 w-1.5 rounded-full", st.tone === "ok" ? "bg-[#4CC38A]" : st.tone === "warn" ? "bg-[#e2a33c]" : st.tone === "danger" ? "bg-[#f08c8c]" : "bg-white/25")} />
+                    {st.label}{cfg.lastCheck?.ok && cfg.lastCheck.models ? ` · ${cfg.lastCheck.models} models` : ""}
+                  </span>
+                </div>
+
+                <div className="min-w-[220px] flex-1">
+                  <span className="mb-1 block font-mono text-[9px] font-bold uppercase tracking-wider text-white/40">API key</span>
+                  <div className="flex items-stretch overflow-hidden rounded-sm border border-white/15 bg-white/[0.04] focus-within:border-brand">
+                    <input
+                      type={showKey[id] ? "text" : "password"}
+                      value={cfg.apiKey}
+                      onChange={(e) => update(id, { apiKey: e.target.value })}
+                      placeholder={meta.keyHint}
+                      className="w-full min-w-0 bg-transparent px-2.5 py-1.5 font-mono text-[11.5px] text-white outline-none placeholder:text-white/25"
+                      aria-label={`${meta.name} API key`}
+                    />
+                    <button onClick={() => setShowKey((s) => ({ ...s, [id]: !s[id] }))} className="border-l border-white/10 px-2 text-white/45 transition-colors hover:text-white" aria-label={showKey[id] ? "Hide key" : "Show key"}>
+                      <Ic name="eye" size={13} />
+                    </button>
+                  </div>
+                  {cfg.apiKey && !showKey[id] && <span className="mt-0.5 block font-mono text-[9px] text-white/30">{maskKey(cfg.apiKey)}</span>}
+                </div>
+
+                <div className="min-w-[220px] flex-1">
+                  <span className="mb-1 block font-mono text-[9px] font-bold uppercase tracking-wider text-white/40">Model {list.length > 0 && <span className="text-[#4CC38A]">· {list.length} live</span>}</span>
+                  <div className="flex gap-1.5">
+                    <select
+                      value={cfg.model}
+                      onChange={(e) => update(id, { model: e.target.value })}
+                      className="w-full rounded-sm border border-white/15 bg-[#171714] px-2 py-1.5 font-mono text-[10.5px] text-white outline-none focus:border-brand"
+                      aria-label={`${meta.name} model`}
+                      disabled={list.length === 0}
+                    >
+                      {list.length === 0 && <option value="">{cfg.model ? cfg.model : "sync models first"}</option>}
+                      {list.map((m) => <option key={m} value={m}>{m}</option>)}
+                    </select>
+                    <button
+                      onClick={() => syncModels(id)}
+                      disabled={syncing[id]}
+                      className="flex shrink-0 items-center gap-1.5 rounded-sm border border-white/15 px-2.5 font-mono text-[10px] font-bold text-white/70 transition-colors hover:border-brand hover:text-white disabled:opacity-50"
+                      aria-label={`Sync ${meta.name} models`}
+                    >
+                      <Ic name="refresh" size={12} className={syncing[id] ? "anim-spin" : ""} /> {syncing[id] ? "…" : "sync"}
+                    </button>
+                  </div>
+                </div>
+
+                <div className="flex shrink-0 items-center gap-3">
+                  <label className="flex cursor-pointer items-center gap-2">
+                    <Toggle checked={cfg.enabled} onChange={(v) => update(id, { enabled: v })} label={`${meta.name} enabled`} />
+                    <span className="font-mono text-[9.5px] font-bold uppercase text-white/50">{cfg.enabled ? "on" : "off"}</span>
+                  </label>
+                  <Btn size="sm" variant="ghost" icon="bolt" onClick={() => runTest(id)} disabled={testing[id]} className="!text-white/70">
+                    {testing[id] ? "…" : "Test"}
+                  </Btn>
+                </div>
+              </div>
+              <p className="mt-2 border-t border-white/8 pt-2 font-mono text-[9px] text-white/30">
+                key from <span className="text-white/55">{meta.docs}</span> · calls go browser → {meta.name} directly (all three allow CORS) · requests & latency are real, nothing is mocked
+              </p>
+            </section>
+          );
+        })}
+      </div>
+
+      <p className="rounded-sm border border-dashed border-white/15 px-3.5 py-2.5 font-mono text-[10px] leading-relaxed text-white/40">
+        Keys persist in this browser's dev-scope storage and power every AI feature in the tenant app — copilot, inbox drafts, review replies, concierge sandbox, guest chatbot. Unconfigured providers are skipped; the chain fails over automatically and reports which model actually answered.
+      </p>
+    </div>
   );
 }
 

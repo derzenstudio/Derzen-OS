@@ -4,6 +4,7 @@ import { Ic, type IconName } from "../components/icons";
 import { Badge, Btn, Dot, Empty, Field, Input, Modal, Select, Tabs, Textarea, Toggle } from "../components/ui";
 import { useApp, type AutopilotMode } from "../store";
 import { KNOWLEDGE, MSG_TEMPLATES, UPSELLS, VARIABLES, WORKSPACE, propertyById, serviceById } from "../lib/data";
+import { aiChat, isAiConfigured, loadProviders } from "../lib/aiGateway";
 
 const LIFE: Record<string, string> = {
   new_reservation: "New reservation", pre_arrival: "Pre-arrival", check_in: "Check-in",
@@ -94,9 +95,32 @@ function Knowledge() {
   const [sel, setSel] = useState("kb-general");
   const [question, setQuestion] = useState("");
   const [result, setResult] = useState<null | { ok: boolean; text: string; citations: string[] }>(null);
+  const [busy, setBusy] = useState(false);
+  const aiConfigOn = useApp((s) => s.aiConfig.enabled);
   const scope = KNOWLEDGE.find((k) => k.id === sel)!;
 
-  const runTest = () => {
+  const runTest = async () => {
+    if (!question.trim() || busy) return;
+    setBusy(true);
+    setResult(null);
+    const providers = loadProviders();
+    const srcNames = scope.sources.map((s) => s.name);
+    const ruleText = scope.rules.map((r) => `${r.kind === "hard" ? "HARD RULE" : "tone"}: ${r.text}`).join("\n");
+    // Live path: ground the answer strictly in this scope's sources + rules.
+    if (aiConfigOn && isAiConfigured(providers)) {
+      try {
+        const sys = `You are a property concierge answering ONLY from the knowledge scope below. Scope: ${scope.name}.\nSources: ${srcNames.join("; ") || "none"}.\nRules:\n${ruleText || "none"}.\nAnswer in 2-4 sentences. If the answer is not covered by these sources/rules, reply exactly: ESCALATE. Never invent facts.`;
+        const res = await aiChat(sys, question, { maxTokens: 200 });
+        if (/^ESCALATE/i.test(res.text)) {
+          setResult({ ok: false, text: "No source in this scope covers it — the concierge would escalate and log an action item.", citations: [] });
+        } else {
+          setResult({ ok: true, text: res.text, citations: srcNames.length ? srcNames : ["scope rules"] });
+        }
+        setBusy(false);
+        return;
+      } catch { /* fall through to the offline matcher */ }
+    }
+    // Offline fallback: deterministic matcher so the sandbox still demonstrates behaviour.
     const q = question.toLowerCase();
     const known = [
       { re: /(wifi|password|internet)/, a: "The Wi-Fi network and password are in your welcome message and printed on the desk card. Business-grade line, ~120 Mbps.", c: ["General · FAQ deposits & connectivity", "Property · access SOP"] },
@@ -106,12 +130,14 @@ function Knowledge() {
     ];
     for (const k of known) {
       if (k.re.test(q)) {
-        if (!k.a) { setResult({ ok: false, text: "No source covers this in the selected scope. Stopped by guardrail — logged as an action item candidate.", citations: [] }); return; }
+        if (!k.a) { setResult({ ok: false, text: "No source covers this in the selected scope. Stopped by guardrail — logged as an action item candidate.", citations: [] }); setBusy(false); return; }
         setResult({ ok: true, text: k.a, citations: k.c });
+        setBusy(false);
         return;
       }
     }
     setResult({ ok: false, text: "Retrieval matched 0 of the scope's sources above the confidence floor. The concierge would escalate this and log an action item.", citations: [] });
+    setBusy(false);
   };
 
   return (
@@ -171,7 +197,7 @@ function Knowledge() {
           <h3 className="flex items-center gap-2 font-display text-[13.5px] font-bold text-ink"><Ic name="sparkle" size={14} className="text-plum" /> Test sandbox — runs against this scope only</h3>
           <div className="mt-2 flex gap-2">
             <Input value={question} onChange={(e) => setQuestion(e.target.value)} onKeyDown={(e) => e.key === "Enter" && runTest()} placeholder="e.g. What is the cancellation policy?" />
-            <Btn variant="solid" onClick={runTest} icon="play">Run</Btn>
+            <Btn variant="solid" onClick={runTest} icon="play" disabled={busy}>{busy ? "Asking…" : "Run"}</Btn>
           </div>
           {result && (
             <div className={cx("anim-rise mt-3 rounded-lg border p-3", result.ok ? "border-brand/40 bg-brand-soft/50" : "border-danger/40 bg-danger-soft/50")}>

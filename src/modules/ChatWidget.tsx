@@ -5,6 +5,7 @@ import { Btn } from "../components/ui";
 import { useApp } from "../store";
 import { PROPERTIES, propertyById } from "../lib/data";
 import type { WidgetStyle } from "../lib/widgetTheme";
+import { aiChat, isAiConfigured, loadProviders } from "../lib/aiGateway";
 
 // ── Live preview of the embeddable concierge chatbot ──────────────────────
 // Guests see this bubble on the tenant's own website. It answers from the
@@ -36,6 +37,28 @@ export function ChatbotPreview({ st, onBooked }: { st: WidgetStyle; onBooked: (r
   const ask = (q: string, a: string) => {
     setMsgs((m) => [...m, { from: "guest", text: q }]);
     bot(a);
+  };
+
+  const [input, setInput] = useState("");
+  const aiOn = useApp((s) => s.aiConfig.enabled);
+  const sendFree = async () => {
+    const q = input.trim();
+    if (!q || typing) return;
+    setInput("");
+    setMsgs((m) => [...m, { from: "guest", text: q }]);
+    const p = propertyById(propId);
+    const providers = loadProviders();
+    if (aiOn && isAiConfigured(providers)) {
+      setTyping(true);
+      try {
+        const sys = `You are the ${p.name} concierge chatbot. Answer the guest briefly (1-3 sentences), warm and helpful. Never invent prices, dates or availability. If you can't confirm, invite them to check availability.`;
+        const res = await aiChat(sys, q, { maxTokens: 120 });
+        setTyping(false);
+        setMsgs((m) => [...m, { from: "bot", text: res.text }]);
+        return;
+      } catch { setTyping(false); }
+    }
+    bot("I'd love to help with that. Tap “Check availability” and I'll show you live dates and rates.", 500);
   };
 
   const estimate = () => {
@@ -107,6 +130,27 @@ export function ChatbotPreview({ st, onBooked }: { st: WidgetStyle; onBooked: (r
         ].map(([label, fn]) => (
           <button key={String(label)} onClick={fn as () => void} className="rounded-full border px-2.5 py-1 text-[10px] font-bold transition-colors hover:opacity-80" style={{ borderColor: st.borderColor, color: st.text, background: st.card }}>{String(label)}</button>
         ))}
+      </div>
+
+      <div className="flex items-center gap-1.5 border-t px-2.5 py-2" style={{ borderColor: st.borderColor, background: st.bg }}>
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && sendFree()}
+          placeholder="Ask anything…"
+          className="h-8 w-full min-w-0 rounded-sm border bg-transparent px-2.5 text-[11px] outline-none focus:border-current"
+          style={{ borderColor: st.borderColor, color: st.text }}
+          aria-label="Message the concierge"
+        />
+        <button
+          onClick={sendFree}
+          disabled={typing || !input.trim()}
+          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm transition-opacity disabled:opacity-40"
+          style={{ background: st.accent, color: "#fff" }}
+          aria-label="Send message"
+        >
+          {typing ? <span className="h-3 w-3 rounded-full border-2 border-white/40 border-t-white anim-spin" /> : <Ic name="send" size={13} />}
+        </button>
       </div>
     </div>
   );

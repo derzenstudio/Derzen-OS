@@ -7,6 +7,7 @@ import { Avatar, Badge, Btn, IconBtn, Kbd, Modal, Ring, Toggle } from "./ui";
 import { useApp, useOverdue, useSyncAlerts, useUnreadTotal, nightsInRange, arrivalsOn } from "../store";
 import { channelDef, MEMBERS, MONTHLY, propertyById, WORKSPACE, RESERVATIONS } from "../lib/data";
 import type { Property } from "../lib/types";
+import { aiChat, isAiConfigured, loadProviders } from "../lib/aiGateway";
 
 // ── Nav model ──────────────────────────────────────────────────────────────
 const NAV: { group: string; items: { path: string; icon: IconName; label: string }[] }[] = [
@@ -361,23 +362,36 @@ function copilotAnswer(q: string, props: Property[]): { text: string; confirm?: 
 function CopilotPanel() {
   const { copilotOpen, setCopilotOpen, creditsUsed, spendCredit, toast, addTask, audit } = useApp();
   const properties = useApp((s) => s.properties);
+  const aiConfigOn = useApp((s) => s.aiConfig.enabled);
   const [msgs, setMsgs] = useState<CoMsg[]>([
     { role: "ai", text: "Hi Sarah, I'm wired into Sanggraha's live data: 9 units, 22 reservations, 6 channels. Ask me anything operational, or have me draft guest replies and review responses." },
   ]);
   const [input, setInput] = useState("");
   const endRef = useRef<HTMLDivElement>(null);
 
-  const ask = (q?: string) => {
+  const ask = async (q?: string) => {
     const question = (q ?? input).trim();
     if (!question) return;
     setInput("");
     setMsgs((m) => [...m, { role: "user", text: question }]);
     spendCredit(1);
+    // If a live provider chain is configured, route through it; otherwise (or on
+    // failure) fall back to the deterministic local answer so the copilot never dead-ends.
+    const providers = loadProviders();
+    if (aiConfigOn && isAiConfigured(providers)) {
+      try {
+        const sys = `You are the DERZEN operator copilot for a boutique villa portfolio. Answer concise, operational, in under 120 words. You can read live data: ${properties.filter((p) => !p.archived).length} active listings (${properties.filter((p) => !p.archived).slice(0, 6).map((p) => p.name).join(", ")}). Never invent prices you weren't given; if you lack data, say so and suggest where to look.`;
+        const res = await aiChat(sys, question, { maxTokens: 280 });
+        setMsgs((m) => [...m, { role: "ai", text: `${res.text}\n\n— via ${res.provider}/${res.model} · ${res.ms}ms` }]);
+        setTimeout(() => endRef.current?.scrollIntoView({ behavior: "smooth" }), 40);
+        return;
+      } catch { /* fall through to local answer */ }
+    }
     setTimeout(() => {
       const a = copilotAnswer(question, properties);
       setMsgs((m) => [...m, { role: "ai", text: a.text, confirm: a.confirm }]);
       setTimeout(() => endRef.current?.scrollIntoView({ behavior: "smooth" }), 40);
-    }, 700);
+    }, 500);
   };
 
   const confirmWrite = (taskId: string) => {

@@ -1,5 +1,5 @@
 import { useMemo, useRef, useState } from "react";
-import { cx, money, copyText, addDays, today } from "../lib/format";
+import { cx, money, moneyRaw, copyText, addDays, today, dayKey, fmtDate, timeAgo } from "../lib/format";
 import { Ic, type IconName } from "../components/icons";
 import { Badge, Btn, Dot, Empty, Field, Input, Modal, SearchBox, Select, Toggle, Textarea } from "../components/ui";
 import { useApp } from "../store";
@@ -265,6 +265,11 @@ function PropertyDetail({ p, onOpenServices }: { p: Property; onOpenServices: ()
   const [tab, setTab] = useState("details");
   const [unitOpen, setUnitOpen] = useState(false);
   const [unitLabel, setUnitLabel] = useState("");
+  const [icalOpen, setIcalOpen] = useState(false);
+  const [icalUrl, setIcalUrl] = useState("");
+  const [subs, setSubs] = useState<{ id: string; url: string; name: string; lastPoll: number; events: number }[]>([
+    { id: "sub-1", url: "https://airbnb.com/calendar/ical/88213.ics", name: "Airbnb (owner copy)", lastPoll: Date.now() - 9 * 60_000, events: 14 },
+  ]);
   const children = properties.filter((x) => x.parentId === p.id);
   const tabs = [
     { id: "details", label: "Details" }, { id: "pricing", label: "Price settings" }, { id: "pcal", label: "Pricing calendar" },
@@ -312,27 +317,7 @@ function PropertyDetail({ p, onOpenServices }: { p: Property; onOpenServices: ()
 
       {tab === "pricing" && <PricingTab p={p} />}
 
-      {tab === "pcal" && (
-        <div className="rounded-xl border border-line bg-card p-4">
-          <h3 className="font-display text-[13.5px] font-bold text-ink">Pricing calendar — per-date overrides</h3>
-          <p className="mb-3 text-[11.5px] text-mute">Precedence, highest first: <Badge tone="danger">date override</Badge> → <Badge tone="warn">seasonal plan</Badge> → <Badge tone="mute">base rate</Badge>. Bulk overrides from the Multi-calendar land here.</p>
-          <div className="grid grid-cols-7 gap-1.5">
-            {Array.from({ length: 28 }, (_, i) => {
-              const d = addDays(today(), i);
-              const plan = planFor(p, d);
-              const isOverride = i === 9 || i === 10;
-              return (
-                <button key={i} className={cx("rounded-md border p-1.5 text-center transition-colors hover:border-brand", isOverride ? "border-danger/50 bg-danger-soft/50" : plan.kind === "season" ? "border-gold/50 bg-gold-soft/40" : "border-line bg-paper")}
-                  onClick={() => toast("info", "Date override editor", `${d.toDateString()} — currently ${isOverride ? "date override" : plan.name}`)}>
-                  <p className="font-mono text-[10px] font-bold text-mute">{d.getDate()}</p>
-                  <p className="font-mono text-[9.5px] font-bold text-ink">{(plan.nightly / 1e6).toFixed(2)}M</p>
-                  <p className={cx("text-[8px] font-bold uppercase", isOverride ? "text-danger" : plan.kind === "season" ? "text-[#8a5c07]" : "text-faint")}>{isOverride ? "override" : plan.kind === "season" ? plan.season : "base"}</p>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      )}
+      {tab === "pcal" && <PricingCalendar p={p} />}
 
       {tab === "settings" && (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -427,7 +412,21 @@ function PropertyDetail({ p, onOpenServices }: { p: Property; onOpenServices: ()
             <div className="rounded-xl border border-line bg-card p-4">
               <h4 className="mb-1.5 font-display text-[13px] font-bold text-ink">iCal import subscriptions</h4>
               <p className="text-[11.5px] text-mute">Owner-blocked calendars subscribe here — dates auto-block within minutes, the fast path for new workspaces.</p>
-              <Btn size="xs" className="mt-2" icon="plus">Subscribe a calendar</Btn>
+              <div className="mt-2 space-y-1.5">
+                {subs.map((s) => (
+                  <div key={s.id} className="flex items-center gap-2.5 rounded-md border border-line bg-paper/60 px-3 py-2">
+                    <Ic name="calendar" size={14} className="text-brand" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-[11.5px] font-bold text-ink">{s.name}</p>
+                      <p className="truncate font-mono text-[9.5px] text-faint">{s.url}</p>
+                    </div>
+                    <Badge tone="ok">{s.events} blocked</Badge>
+                    <span className="hidden font-mono text-[9px] text-faint sm:inline">polled {timeAgo(s.lastPoll)}</span>
+                    <button onClick={() => { setSubs((arr) => arr.filter((x) => x.id !== s.id)); toast("info", "Subscription removed", "Blocked dates from this feed were released."); }} aria-label={`Remove ${s.name}`} className="rounded-sm p-1 text-faint transition-colors hover:bg-danger-soft hover:text-danger"><Ic name="trash" size={12} /></button>
+                  </div>
+                ))}
+              </div>
+              <Btn size="xs" className="mt-2" icon="plus" onClick={() => { setIcalUrl(""); setIcalOpen(true); }}>Subscribe a calendar</Btn>
             </div>
           </div>
         </div>
@@ -458,6 +457,22 @@ function PropertyDetail({ p, onOpenServices }: { p: Property; onOpenServices: ()
       )}
 
       {tab === "checkout" && <CheckoutCard name={p.name} code={p.code} enabled={p.checkoutEnabled} onToggle={(v) => setCheckoutEnabled(p.id, v)} />}
+
+      <Modal open={icalOpen} onClose={() => setIcalOpen(false)} title="Subscribe an iCal feed" w={440}
+        footer={<><Btn variant="ghost" onClick={() => setIcalOpen(false)}>Cancel</Btn><Btn variant="solid" icon="check" onClick={() => {
+          const u = icalUrl.trim();
+          if (!/^https?:\/\/.+\.ics(\?.*)?$/i.test(u)) { toast("warn", "That doesn't look like an .ics URL", "Paste the full feed link, e.g. https://airbnb.com/calendar/ical/123.ics"); return; }
+          setSubs((arr) => [...arr, { id: `sub-${Date.now()}`, url: u, name: new URL(u).hostname.replace(/^www\./, ""), lastPoll: Date.now(), events: 0 }]);
+          toast("ok", "Feed subscribed", "First poll runs now — blocked dates appear on the calendar within minutes.");
+          setIcalOpen(false);
+        }}>Subscribe</Btn></>}>
+        <div className="space-y-3">
+          <Field label="iCal URL (.ics)"><Input value={icalUrl} onChange={(e) => setIcalUrl(e.target.value)} placeholder="https://airbnb.com/calendar/ical/88213.ics" autoFocus /></Field>
+          <p className="rounded-sm bg-paper px-3 py-2 text-[10.5px] leading-relaxed text-mute">
+            DERZEN polls every 15 minutes. Busy dates in the feed block this listing on all channels — the fastest way to stop double-bookings before full channel connections are approved.
+          </p>
+        </div>
+      </Modal>
 
       <Modal open={unitOpen} onClose={() => setUnitOpen(false)} title={`Add unit under ${p.name}`} w={400}
         footer={<><Btn variant="ghost" onClick={() => setUnitOpen(false)}>Cancel</Btn><Btn variant="solid" icon="check" onClick={() => {
@@ -557,6 +572,90 @@ function CheckoutCard({ name, code, enabled, onToggle }: { name: string; code: s
         <Btn size="sm" icon="link" onClick={() => { copyText(`https://tr.ee/${code.toLowerCase()}-book`); toast("ok", "Tiny URL generated", `tr.ee/${code.toLowerCase()}-book`); }}>Tiny URL</Btn>
         <Btn size="sm" variant="solid" icon="external" disabled={!enabled} onClick={() => toast("info", "Opening checkout page", "360px-friendly, 3G-tested.")}>Open page</Btn>
       </div>
+    </div>
+  );
+}
+
+// ── Pricing calendar — real per-date overrides, synced with Multi-calendar ──
+function PricingCalendar({ p }: { p: Property }) {
+  const { manualBlock, toast } = useApp();
+  const overrides = useApp((s) => s.calendarOverrides[p.id] ?? {});
+  const [editing, setEditing] = useState<{ key: string; date: Date; planNightly: number } | null>(null);
+  const [rate, setRate] = useState("");
+  const [closed, setClosed] = useState(false);
+  const [minStay, setMinStay] = useState(1);
+
+  const open = (key: string, date: Date, planNightly: number, ov?: { rate?: number; closed?: boolean; minStay?: number }) => {
+    setEditing({ key, date, planNightly });
+    setRate(ov?.rate ? String(ov.rate) : "");
+    setClosed(!!ov?.closed);
+    setMinStay(ov?.minStay ?? 1);
+  };
+  const save = () => {
+    if (!editing) return;
+    manualBlock(p.id, [editing.key], {
+      rate: rate ? Math.round(Number(rate)) : undefined,
+      closed: closed ? true : undefined,
+      minStay: minStay > 1 ? minStay : undefined,
+    });
+    toast("ok", `${fmtDate(editing.key)} updated`, rate ? `Override ${moneyRaw(Math.round(Number(rate)), p.currency, { compact: true })} · pushed to live channels` : "Override cleared · back to plan rate");
+    setEditing(null);
+  };
+  const clearOv = () => {
+    if (!editing) return;
+    manualBlock(p.id, [editing.key], { rate: undefined, closed: undefined, minStay: undefined, blockType: undefined, blockLabel: undefined });
+    toast("info", "Override removed", `${fmtDate(editing.key)} falls back to ${planFor(p, editing.date).name}.`);
+    setEditing(null);
+  };
+
+  return (
+    <div className="rounded-xl border border-line bg-card p-4">
+      <h3 className="font-display text-[13.5px] font-bold text-ink">Pricing calendar — per-date overrides</h3>
+      <p className="mb-3 text-[11.5px] text-mute">Precedence, highest first: <Badge tone="danger">date override</Badge> → <Badge tone="warn">seasonal plan</Badge> → <Badge tone="mute">base rate</Badge>. Edits here land on the Multi-calendar and push to every live channel.</p>
+      <div className="grid grid-cols-7 gap-1.5">
+        {Array.from({ length: 28 }, (_, i) => {
+          const d = addDays(today(), i);
+          const key = dayKey(d);
+          const plan = planFor(p, d);
+          const ov = overrides[key];
+          const hasOv = !!(ov?.rate || ov?.closed || (ov?.minStay ?? 0) > 1);
+          const shown = ov?.rate ?? plan.nightly;
+          return (
+            <button key={i} className={cx("rounded-md border p-1.5 text-center transition-all hover:-translate-y-px hover:border-brand hover:shadow-sm", ov?.closed ? "border-danger/50 bg-danger-soft/50" : hasOv ? "border-brand/50 bg-brand-soft/40" : plan.kind === "season" ? "border-gold/50 bg-gold-soft/40" : "border-line bg-paper")}
+              onClick={() => open(key, d, plan.nightly, ov)} aria-label={`Edit ${fmtDate(key)}`}>
+              <p className="font-mono text-[10px] font-bold text-mute">{d.getDate()}</p>
+              <p className={cx("font-mono text-[9.5px] font-bold", ov?.closed ? "text-danger line-through" : "text-ink")}>{(shown / 1e6).toFixed(2)}M</p>
+              <p className={cx("text-[8px] font-bold uppercase", ov?.closed ? "text-danger" : hasOv ? "text-brand-deep" : plan.kind === "season" ? "text-[#8a5c07]" : "text-faint")}>{ov?.closed ? "closed" : hasOv ? "override" : plan.kind === "season" ? plan.season : "base"}</p>
+            </button>
+          );
+        })}
+      </div>
+
+      <Modal open={!!editing} onClose={() => setEditing(null)} title={editing ? `Override · ${fmtDate(editing.key)}` : ""} w={400}
+        footer={<>
+          {editing && overrides[editing.key] && (overrides[editing.key].rate || overrides[editing.key].closed) && <Btn variant="ghost" icon="undo" onClick={clearOv}>Clear override</Btn>}
+          <Btn variant="ghost" onClick={() => setEditing(null)}>Cancel</Btn>
+          <Btn variant="solid" icon="check" onClick={save}>Save & push</Btn>
+        </>}>
+        {editing && (
+          <div className="space-y-3">
+            <p className="rounded-sm bg-paper px-3 py-2 text-[11px] text-mute">
+              Plan rate for this night: <b className="font-mono text-ink">{moneyRaw(editing.planNightly, p.currency)}</b> ({planFor(p, editing.date).name}). Leave the field empty to keep it.
+            </p>
+            <Field label={`Nightly rate (${p.currency})`}>
+              <Input type="number" value={rate} onChange={(e) => setRate(e.target.value)} placeholder={String(editing.planNightly)} autoFocus />
+            </Field>
+            <Field label="Minimum stay (nights)">
+              <Input type="number" min={1} value={String(minStay)} onChange={(e) => setMinStay(Math.max(1, Number(e.target.value)))} />
+            </Field>
+            <label className="flex cursor-pointer items-center gap-2.5 rounded-sm border border-line px-3 py-2.5">
+              <Toggle checked={closed} onChange={setClosed} label="Close this night" />
+              <span className="text-[12px] font-bold text-ink">Closed to booking this night</span>
+            </label>
+            <p className="text-[10px] leading-relaxed text-faint">Saving writes a date override and queues pushes to every live channel for {p.name} — identical to the Multi-calendar's bulk editor.</p>
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

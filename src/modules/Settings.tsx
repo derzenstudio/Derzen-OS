@@ -2,7 +2,7 @@ import { useState } from "react";
 import { cx, money, timeAgo, fmtDateTime, download, toCSV } from "../lib/format";
 import { fxInfo } from "../lib/fx";
 import { Ic } from "../components/icons";
-import { Avatar, Badge, Btn, Dot, Field, Input, Modal, Select, Tabs, Toggle } from "../components/ui";
+import { Avatar, Badge, Btn, Dot, Field, Input, Modal, Select, Tabs, Textarea, Toggle } from "../components/ui";
 import { useApp } from "../store";
 import { GATEWAYS, MEMBERS, NOTIF_CHANNELS, NOTIF_EVENTS, SERVICES, WORKSPACE, propertyById } from "../lib/data";
 
@@ -396,6 +396,13 @@ function Transactions() {
 
 function Direct() {
   const { toast } = useApp();
+  const [policies, setPolicies] = useState([
+    { id: "pol-1", text: "Flexible — full refund >14d, 50% 7–14d", isDefault: true },
+    { id: "pol-2", text: "Moderate — 50% >30d, 25% 7–30d", isDefault: false },
+    { id: "pol-3", text: "Strict — deposit non-refundable", isDefault: false },
+  ]);
+  const [editingPolicy, setEditingPolicy] = useState<typeof policies[number] | null>(null);
+  const [policyDraft, setPolicyDraft] = useState("");
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       <div className="space-y-3 rounded-xl border border-line bg-card p-4">
@@ -419,15 +426,33 @@ function Direct() {
         </div>
         <p className="rounded-md bg-paper px-3 py-2 text-[11px] text-mute">Overridable per listing and per service — direct bookings only. OTAs run their own payment flows.</p>
         <h4 className="mt-2 font-display text-[12.5px] font-bold text-ink">Cancellation policies (library)</h4>
-        {[["Flexible — full refund >14d, 50% 7–14d", "default"], ["Moderate — 50% >30d, 25% 7–30d", null], ["Strict — deposit non-refundable", null]].map(([name, def]) => (
-          <p key={String(name)} className="mb-1 flex items-center gap-2 rounded-lg border border-line px-3 py-2 text-[12px] font-semibold">
-            {name} {def && <Badge tone="ok">default</Badge>}
-            <Btn size="xs" variant="ghost" className="ml-auto" onClick={() => toast("info", "Policy editor", "Free-form terms render verbatim on quotes & PDFs.")}>Edit</Btn>
+        {policies.map((pol) => (
+          <p key={pol.id} className="mb-1 flex items-center gap-2 rounded-lg border border-line px-3 py-2 text-[12px] font-semibold">
+            <span className="min-w-0 flex-1 truncate">{pol.text}</span> {pol.isDefault && <Badge tone="ok">default</Badge>}
+            <Btn size="xs" variant="ghost" onClick={() => { setEditingPolicy(pol); setPolicyDraft(pol.text); }}>Edit</Btn>
           </p>
         ))}
         <h4 className="mt-2 font-display text-[12.5px] font-bold text-ink">Shared fees & taxes library</h4>
         <p className="text-[11px] text-mute">Defined once, applied to any property: cleaning Rp 400k · service 5% · VAT 11% · tourism levy pass-through.</p>
       </div>
+
+      <Modal open={!!editingPolicy} onClose={() => setEditingPolicy(null)} title="Edit cancellation policy" w={440}
+        footer={<><Btn variant="ghost" onClick={() => setEditingPolicy(null)}>Cancel</Btn><Btn variant="solid" icon="check" onClick={() => {
+          if (!editingPolicy) return;
+          setPolicies((arr) => arr.map((x) => (x.id === editingPolicy.id ? { ...x, text: policyDraft.trim() || x.text } : x)));
+          toast("ok", "Policy saved", "Applied to new direct bookings; existing reservations keep their snapshot.");
+          setEditingPolicy(null);
+        }}>Save policy</Btn></>}>
+        <div className="space-y-3">
+          <Field label="Policy terms (rendered verbatim on quotes & PDFs)">
+            <Textarea value={policyDraft} onChange={(e) => setPolicyDraft(e.target.value)} className="!min-h-[110px]" />
+          </Field>
+          <label className="flex cursor-pointer items-center gap-2.5 rounded-sm border border-line px-3 py-2.5">
+            <Toggle checked={editingPolicy?.isDefault ?? false} onChange={(v) => setPolicies((arr) => arr.map((x) => ({ ...x, isDefault: editingPolicy ? x.id === editingPolicy.id ? v : false : x.isDefault })))} label="Default policy" />
+            <span className="text-[12px] font-bold text-ink">Make this the default policy</span>
+          </label>
+        </div>
+      </Modal>
     </div>
   );
 }

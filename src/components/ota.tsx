@@ -76,6 +76,35 @@ export function ChannelMark({ id, size = 22 }: { id: string; size?: number }) {
           <path d="M9.5 14.5h5" stroke="#8FE3BF" strokeWidth="1.6" strokeLinecap="round" />
         </svg>
       );
+    case "whatsapp": // phone-in-bubble — #25D366
+      return (
+        <svg viewBox="0 0 24 24" style={s} aria-label="WhatsApp" role="img">
+          <path d="M12 3a9 9 0 0 0-7.7 13.6L3 21l4.5-1.2A9 9 0 1 0 12 3Z" fill="#25D366" />
+          <path d="M9 7.5c-.4 0-.9.2-1.1.8-.3.7-.2 2 .9 3.6 1.1 1.6 2.6 2.8 4.3 3.3.9.3 1.6.2 2.1-.2l.5-.6c.2-.3.1-.6-.2-.8l-1.3-.8c-.3-.2-.6-.1-.8.1l-.4.4c-.6-.2-1.9-1.2-2.3-2.2l.4-.4c.2-.2.3-.5.1-.8l-.8-1.3c-.2-.3-.5-.5-.8-.5l-.6-.1Z" fill="#fff" />
+        </svg>
+      );
+    case "instagram": // camera glyph — gradient ring
+      return (
+        <svg viewBox="0 0 24 24" style={s} aria-label="Instagram" role="img" fill="none">
+          <rect x="3.5" y="3.5" width="17" height="17" rx="5" stroke="#E1306C" strokeWidth="2" />
+          <circle cx="12" cy="12" r="4" stroke="#E1306C" strokeWidth="2" />
+          <circle cx="17" cy="7" r="1.3" fill="#E1306C" />
+        </svg>
+      );
+    case "messenger": // speech-bolt — #0084FF
+      return (
+        <svg viewBox="0 0 24 24" style={s} aria-label="Messenger" role="img">
+          <path d="M12 3C6.9 3 2.8 6.8 2.8 11.6c0 2.7 1.3 5 3.4 6.6v3.1l3.1-1.7c.9.2 1.8.4 2.7.4 5.1 0 9.2-3.8 9.2-8.6S17.1 3 12 3Z" fill="#0084FF" />
+          <path d="M6.5 14.2l3.2-3.4 2.6 2 3.8-2-3.2 3.4-2.6-2-3.8 2Z" fill="#fff" />
+        </svg>
+      );
+    case "email": // envelope — slate
+      return (
+        <svg viewBox="0 0 24 24" style={s} aria-label="Email" role="img" fill="none" stroke="#5C6357" strokeWidth="1.8">
+          <rect x="3.5" y="5.5" width="17" height="13" rx="1.5" />
+          <path d="M3.5 7l8.5 6 8.5-6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+      );
     default:
       return (
         <svg viewBox="0 0 24 24" style={s} aria-label={id} role="img">

@@ -27,7 +27,7 @@ import { setDisplayCurrency, refreshFx, type CurrencyCode } from "./lib/fx";
 import { compressImage, readLibrary, writeLibrary, QUOTA_BYTES, type PhotoEntry } from "./lib/photoStore";
 import {
   AI_DEFAULTS, DEVELOPER, PLATFORM_INTEGRATIONS, TENANTS, hydrateTenantData,
-  ensureRuntimeTenant, findCustomer, hashPassword, saveCustomer,
+  ensureRuntimeTenant, findCustomer, hashPassword, saveCustomer, listCustomers,
   type CustomerAccount, type PlatformIntegration, type TenantMeta,
 } from "./lib/tenants";
 
@@ -69,7 +69,13 @@ function saveSession(s: Session | null) {
 }
 const bootSession = loadSession();
 if (bootSession?.kind === "tenant" && bootSession.tenantId) {
-  const meta = TENANTS.find((t) => t.id === bootSession.tenantId);
+  let meta = TENANTS.find((t) => t.id === bootSession.tenantId);
+  // A registered customer's tenant is created at sign-up; re-inject it on boot
+  // so their workspace name, currency and feature flags survive a reload.
+  if (!meta) {
+    const c = listCustomers().find((x) => x.tenantId === bootSession.tenantId);
+    if (c) meta = ensureRuntimeTenant(c);
+  }
   hydrateTenantData(bootSession.tenantId);
   if (meta) setDisplayCurrency(meta.currency);
 }

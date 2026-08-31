@@ -3,8 +3,9 @@ import { cx, timeAgo, copyText } from "../lib/format";
 import { Ic, type IconName } from "../components/icons";
 import { Badge, Btn, Dot, Field, Input, Modal, Select, Tabs, Toggle } from "../components/ui";
 import { useApp } from "../store";
-import { WORKSPACE } from "../lib/data";
+import { WORKSPACE, CHANNEL_DEFS } from "../lib/data";
 import { EVENT_CATALOGUE, API_CONVENTIONS } from "../lib/reference";
+import { ChannelMark } from "../components/ota";
 
 export default function Integrations() {
   const [tab, setTab] = useState("apps");
@@ -254,6 +255,29 @@ function Messaging() {
           </div>
         </div>
       ))}
+
+      {/* OTA native chat — two-way guest messaging that rides on channel connections */}
+      <div className="rounded-xl border border-line bg-card p-4">
+        <div className="mb-2.5 flex items-center gap-2">
+          <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-paper text-mute"><Ic name="globe" size={16} /></span>
+          <div className="min-w-0 flex-1">
+            <p className="text-[13px] font-bold text-ink">OTA native chat</p>
+            <p className="text-[11px] text-mute">Two-way guest messaging on channels that support it — threads unify into the same inbox.</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          {CHANNEL_DEFS.filter((c) => c.replyWindowH !== null).map((c) => (
+            <div key={c.id} className="flex items-center gap-2.5 rounded-lg border border-line bg-paper/60 px-3 py-2">
+              <ChannelMark id={c.id} size={18} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[11.5px] font-bold text-ink">{c.name}</p>
+                <p className="font-mono text-[9.5px] text-faint">reply window {c.replyWindowH}h</p>
+              </div>
+              <Dot tone="ok" label="live" />
+            </div>
+          ))}
+        </div>
+      </div>
 
       <div className="flex flex-wrap items-center gap-3 rounded-xl border border-line bg-card p-4">
         <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand-soft text-brand-deep"><Ic name="shield" size={16} /></span>

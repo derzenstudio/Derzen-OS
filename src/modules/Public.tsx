@@ -22,7 +22,7 @@ export function PublicSite() {
   const adr = 4_650_000 + ((tick * 7913) % 60_000);
 
   const go = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
-  const demo = () => { loginTenant(TENANTS[0].email, TENANTS[0].password); navigate("/dashboard"); };
+  const demo = async () => { const res = await loginTenant(TENANTS[0].email, TENANTS[0].password); if (res.ok) navigate("/dashboard"); };
 
   return (
     <div className="min-h-screen bg-surface text-ink">
@@ -179,7 +179,7 @@ export function PublicSite() {
           </div>
           <p className="mx-auto mt-6 max-w-[64ch] text-center text-[13px] text-mute">
             Plus Stripe & Razorpay payments, WhatsApp Cloud, Instagram & Messenger, Google, Xero & QuickBooks,
-            PriceLabs-style dynamic pricing and four smart-lock vendors. <button className="font-bold text-brand underline underline-offset-2" onClick={() => navigate("/login")}>Operators get the owner's playbook in the Developer Console.</button>
+            PriceLabs-style dynamic pricing and four smart-lock vendors. <button className="font-bold text-brand underline underline-offset-2" onClick={demo}>See how it all connects in a live demo.</button>
           </p>
         </div>
       </section>

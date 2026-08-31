@@ -960,3 +960,24 @@ export const GATEWAYS = [
   { id: "xendit", name: "Xendit", status: "waitlist", note: "In development — Indonesian VA + QRIS" },
   { id: "doku", name: "DOKU", status: "waitlist", note: "In development" },
 ];
+
+// Push persisted/restored records back into the module-level arrays so that
+// direct readers (propertyById, guestById, …) see the same data as the store.
+const REPLACE: [string, unknown[]][] = [
+  ["properties", PROPERTIES], ["conversations", CONVERSATIONS], ["reservations", RESERVATIONS],
+  ["tasks", TASKS], ["reviews", REVIEWS], ["quotes", QUOTES], ["expenses", EXPENSES],
+  ["issues", ISSUES], ["msgQueue", MSG_QUEUE], ["actionItems", ACTION_ITEMS],
+  ["sync", SYNC], ["conflicts", CONFLICTS], ["webhooks", WEBHOOKS], ["guidebooks", GUIDEBOOKS],
+  ["collections", COLLECTIONS],
+];
+export function syncModulesFromSlice(slice: Record<string, unknown>): void {
+  for (const [key, target] of REPLACE) {
+    const next = slice[key];
+    if (Array.isArray(next)) {
+      target.length = 0;
+      (target as unknown[]).push(...next);
+    }
+  }
+  if (slice.website && typeof slice.website === "object") Object.assign(WEBSITE, slice.website);
+  if (slice.siteChrome && typeof slice.siteChrome === "object") Object.assign(SITE_CHROME_REF, slice.siteChrome);
+}

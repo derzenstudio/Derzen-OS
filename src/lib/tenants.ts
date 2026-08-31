@@ -213,6 +213,69 @@ export function buildTenantData(tenantId: string): TenantData {
   return base;
 }
 
+/**
+ * A registered customer's starter dataset: the full product scaffolding
+ * (task templates, message templates, variables, website shell, workspace
+ * prefs) but EMPTY of any placeholder bookings, guests, listings, reviews,
+ * expenses or conversations. Real data comes from the tenant's own work and
+ * is restored from durable storage on every sign-in.
+ */
+export function buildEmptyTenantData(customer: CustomerAccount): TenantData {
+  const base = structuredClone(PRISTINE) as TenantData;
+  base.properties = [];
+  base.guests = [];
+  base.reservations = [];
+  base.blocks = [];
+  base.conversations = [];
+  base.tasks = [];
+  base.reviews = [];
+  base.expenses = [];
+  base.quotes = [];
+  base.issues = [];
+  base.actionItems = [];
+  base.conflicts = [];
+  base.audit = [];
+  base.msgQueue = [];
+  base.serviceBookings = [];
+  base.storeTxns = [];
+  base.collections = [];
+  base.guidebooks = [];
+  base.sync = [];
+  base.webhooks = [];
+  base.services = [];
+  base.upsells = [];
+  base.storeItems = [];
+  base.members = [
+    { ...base.members[0], id: "m-owner", name: customer.name, email: customer.email, role: "owner", isYou: true, propertyIds: [] },
+  ];
+  const slug = customer.workspace.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || customer.tenantId.replace("tnt-", "");
+  base.website = { ...base.website, subdomain: slug, customDomain: null, domainStatus: "none", published: false };
+  base.workspace = {
+    ...base.workspace, name: customer.workspace, tenantId: customer.tenantId,
+    inboundEmail: `invoices-${slug}@mail.derzen.site`,
+  };
+  return base;
+}
+
+/** Hydrate the live data module with a registered customer's (empty) starter. */
+export function hydrateCustomerTenant(customer: CustomerAccount): TenantData {
+  const d = buildEmptyTenantData(customer);
+  const into = <T,>(target: T[], next: T[]) => { target.length = 0; target.push(...next); };
+  into(PROPERTIES, d.properties); into(GUESTS, d.guests); into(RESERVATIONS, d.reservations);
+  into(BLOCKS, d.blocks); into(SERVICES, d.services); into(SERVICE_BOOKINGS, d.serviceBookings);
+  into(CONVERSATIONS, d.conversations); into(MEMBERS, d.members); into(TASKS, d.tasks);
+  into(TASK_TEMPLATES, d.templates); into(PROVIDERS, d.providers); into(REVIEWS, d.reviews);
+  into(EXPENSES, d.expenses); into(QUOTES, d.quotes); into(UPSELLS, d.upsells);
+  into(KNOWLEDGE, d.knowledge); into(ACTION_ITEMS, d.actionItems); into(VARIABLES, d.variables);
+  into(MSG_TEMPLATES, d.msgTemplates); into(MSG_QUEUE, d.msgQueue); into(AUTOMATIONS, d.automations);
+  into(ISSUES, d.issues); into(SYNC, d.sync); into(CONFLICTS, d.conflicts); into(WEBHOOKS, d.webhooks);
+  into(GUIDEBOOKS, d.guidebooks); into(STORE_ITEMS, d.storeItems); into(STORE_TXNS, d.storeTxns);
+  into(COLLECTIONS, d.collections); into(AUDIT, d.audit);
+  Object.assign(WEBSITE, d.website);
+  Object.assign(WORKSPACE, d.workspace);
+  return d;
+}
+
 /** Hydrate the live data module + return the dataset for the store. */
 export function hydrateTenantData(tenantId: string): TenantData {
   const d = buildTenantData(tenantId);

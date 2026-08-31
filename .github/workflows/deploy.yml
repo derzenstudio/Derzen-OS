@@ -110,7 +110,14 @@ jobs:
             printf 'User-agent: *\nDisallow: /\n' > dist/robots.txt
           fi
 
+      # Hostinger's FTP control socket sometimes refuses the first connection
+      # of a run; the action then gives up after its 30s default and the whole
+      # production deploy is lost. Raise that ceiling and retry once - the
+      # sync-state file makes a second pass idempotent, so the retry re-uploads
+      # only what is still missing.
       - name: Deploy to Hostinger (${{ matrix.surface }}.alvianpermana.art)
+        id: ftp
+        continue-on-error: true
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ secrets.FTP_SERVER }}
@@ -118,3 +125,19 @@ jobs:
           password: ${{ secrets[matrix.ftp_pass_key] }}
           local-dir: ./dist/
           server-dir: ${{ vars[matrix.server_dir_var] || './' }}
+          timeout: 120000
+
+      - name: Cool off before retry
+        if: steps.ftp.outcome == 'failure'
+        run: sleep 20
+
+      - name: Deploy to Hostinger, retry (${{ matrix.surface }}.alvianpermana.art)
+        if: steps.ftp.outcome == 'failure'
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets[matrix.ftp_user_key] }}
+          password: ${{ secrets[matrix.ftp_pass_key] }}
+          local-dir: ./dist/
+          server-dir: ${{ vars[matrix.server_dir_var] || './' }}
+          timeout: 120000

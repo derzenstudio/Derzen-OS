@@ -204,6 +204,8 @@ interface App {
   toggleChannel: (id: string, ch: keyof Property["channels"]) => void;
   setCheckoutEnabled: (id: string, v: boolean) => void;
   togglePublishDirect: (id: string) => void;
+  toggleManaged: (id: string) => void;
+  setOwnerFinancialsVisible: (v: boolean) => void;
 
   addAdhocCharge: (resId: string, label: string, amount: number) => void;
   recordPayment: (resId: string, amount: number, method: string, kind: "payment" | "refund") => void;
@@ -672,6 +674,18 @@ export const useApp = create<App>((set, get) => ({
     })),
   setCheckoutEnabled: (id, v) => set((st) => ({ properties: st.properties.map((p) => (p.id === id ? { ...p, checkoutEnabled: v } : p)) })),
   togglePublishDirect: (id) => set((st) => ({ properties: st.properties.map((p) => (p.id === id ? { ...p, publishDirect: !p.publishDirect } : p)) })),
+  toggleManaged: (id) => {
+    const p = get().properties.find((x) => x.id === id);
+    set((st) => ({ properties: st.properties.map((x) => (x.id === id ? { ...x, managed: !x.managed } : x)) }));
+    get().markPending("Listings");
+    get().audit(`${p?.name ?? "Property"}: commission tracking ${p?.managed ? "off" : "on"}`, "ui");
+    get().toast(p?.managed ? "warn" : "ok", `Commission tracking ${p?.managed ? "off" : "on"}`, p?.managed ? "Owner statements for this property stop accruing." : "Monthly owner statements now accrue from the ledger.");
+  },
+  setOwnerFinancialsVisible: (v) => {
+    WORKSPACE.ownerFinancialsVisible = v;
+    set({});
+    get().toast(v ? "ok" : "warn", `Owner financials ${v ? "visible" : "hidden"}`, "Applies workspace-wide to every owner login immediately.");
+  },
 
   addAdhocCharge: (resId, label, amount) =>
     set((st) => ({

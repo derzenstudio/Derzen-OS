@@ -295,10 +295,20 @@ function Company() {
 }
 
 function Billing() {
-  const { toast } = useApp();
+  const { toast, session, setTenantPlan } = useApp();
   const [cycle, setCycle] = useState<"monthly" | "annual">("monthly");
+  const [planOpen, setPlanOpen] = useState(false);
+  const [portalOpen, setPortalOpen] = useState(false);
   const propUnits = useApp((s) => s.properties).filter((p) => !p.archived).length;
+  const tenantId = session?.kind === "tenant" ? session.tenantId : "t-sanggraha";
+  const currentPlan = WORKSPACE.plan;
+  const plans = [
+    { id: "Starter", price: 49, units: "3 properties", credits: "1,000 AI credits/mo", feats: ["Multi-calendar + iCal", "Unified inbox", "Command Center", "1 channel connection"] },
+    { id: "Scale", price: 118, units: "15 properties + 5 services", credits: "5,000 AI credits/mo", feats: ["All OTA channels", "AI autopilot", "Direct-booking sites", "Owner portal & statements"] },
+    { id: "Enterprise", price: 0, units: "100+ properties, multi-brand", credits: "Custom AI volume", feats: ["Dedicated sync workers", "SSO + audit export", "Custom guardrails", "Named engineer"] },
+  ];
   return (
+    <>
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
       <div className="rounded-xl border border-line bg-card p-4 lg:col-span-2">
         <div className="mb-3 flex items-center justify-between">
@@ -326,8 +336,8 @@ function Billing() {
           <Btn size="sm" variant="gold" className="mt-2" icon="card" onClick={() => toast("ok", "Payment method added", "Trial converted — you're covered through the end of the cycle.")}>Add payment method to continue</Btn>
         </div>
         <div className="mt-3 flex gap-2">
-          <Btn icon="external" onClick={() => toast("info", "Opening customer portal", "Handoff to the payment processor — cards never touch our servers.")}>Customer portal</Btn>
-          <Btn variant="ghost" icon="trendUp" onClick={() => toast("info", "Plan change", "Scale tier pro-rates instantly.")}>Change plan</Btn>
+          <Btn icon="external" onClick={() => setPortalOpen(true)}>Customer portal</Btn>
+          <Btn variant="ghost" icon="trendUp" onClick={() => setPlanOpen(true)}>Change plan</Btn>
         </div>
       </div>
       <div className="rounded-xl border border-line bg-card p-4">
@@ -343,6 +353,64 @@ function Billing() {
         ))}
       </div>
     </div>
+
+    <Modal open={planOpen} onClose={() => setPlanOpen(false)} title="Change plan" w={620}
+      footer={<Btn variant="ghost" onClick={() => setPlanOpen(false)}>Close</Btn>}>
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+        {plans.map((pl) => {
+          const isCurrent = currentPlan === pl.id;
+          return (
+            <div key={pl.id} className={cx("flex flex-col rounded-lg border p-3.5", isCurrent ? "border-brand bg-brand-soft/50" : "border-line")}>
+              <p className="font-display text-[15px] font-bold text-ink">{pl.id}</p>
+              <p className="mt-0.5 font-mono text-[20px] font-bold text-brand-deep">{pl.price ? `$${pl.price}` : "Custom"}<span className="text-[10px] font-normal text-mute">/mo</span></p>
+              <p className="mt-1 text-[10.5px] font-bold text-mute">{pl.units}</p>
+              <p className="text-[10px] text-faint">{pl.credits}</p>
+              <ul className="mt-2 flex-1 space-y-1">
+                {pl.feats.map((f) => <li key={f} className="flex items-start gap-1.5 text-[10.5px] text-mute"><Ic name="check" size={10} className="mt-0.5 shrink-0 text-brand" sw={3} />{f}</li>)}
+              </ul>
+              <Btn size="sm" variant={isCurrent ? "ghost" : "solid"} disabled={isCurrent} className="mt-3" onClick={() => { setTenantPlan(tenantId, pl.id as never); WORKSPACE.plan = pl.id; toast("ok", `Switched to ${pl.id}`, "Prorated instantly — your next invoice reflects the change."); setPlanOpen(false); }}>
+                {isCurrent ? "Current plan" : `Switch to ${pl.id}`}
+              </Btn>
+            </div>
+          );
+        })}
+      </div>
+      <p className="mt-3 rounded-sm bg-paper px-3 py-2 text-[10.5px] leading-relaxed text-mute">
+        Switching up or down prorates to the day against your current {cycle} cycle. Metered units (properties & services) are billed separately on top of the base tier.
+      </p>
+    </Modal>
+
+    <Modal open={portalOpen} onClose={() => setPortalOpen(false)} title="Customer portal" w={480}
+      footer={<Btn variant="ghost" onClick={() => setPortalOpen(false)}>Close</Btn>}>
+      <div className="space-y-3">
+        <div className="rounded-lg border border-line bg-paper/60 p-3.5">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-mute">Default payment method</p>
+          <div className="mt-1.5 flex items-center gap-3">
+            <span className="flex h-8 w-12 items-center justify-center rounded-sm bg-pine-900 text-[9px] font-bold text-white">VISA</span>
+            <div>
+              <p className="text-[12.5px] font-bold text-ink">•••• 4242</p>
+              <p className="text-[10px] text-faint">Expires 12/28 · added via hosted fields</p>
+            </div>
+            <Btn size="xs" variant="ghost" className="ml-auto" onClick={() => toast("info", "Update card", "Opens the processor's secure form — card data never touches DERZEN.")}>Update</Btn>
+          </div>
+        </div>
+        <div>
+          <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-mute">Recent invoices</p>
+          {[["INV-2024-041", "€118.00"], ["INV-2024-040", "€112.00"], ["INV-2024-039", "€104.00"]].map(([ref, amt]) => (
+            <div key={ref} className="mb-1.5 flex items-center gap-2.5 rounded-md border border-line px-3 py-2">
+              <Ic name="receipt" size={13} className="text-mute" />
+              <span className="font-mono text-[11.5px] font-bold text-ink">{ref}</span>
+              <span className="ml-auto font-mono text-[11.5px] font-bold text-mute">{amt}</span>
+              <Btn size="xs" variant="ghost" icon="download" onClick={() => toast("ok", `${ref} downloaded`, "PDF receipt with tax line.")}>PDF</Btn>
+            </div>
+          ))}
+        </div>
+        <p className="rounded-sm bg-paper px-3 py-2 text-[10.5px] leading-relaxed text-mute">
+          This is a secure handoff to the payment processor. DERZEN never stores card numbers — only the token — so we stay out of PCI scope.
+        </p>
+      </div>
+    </Modal>
+    </>
   );
 }
 

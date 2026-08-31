@@ -4,7 +4,7 @@ import { Ic, type IconName } from "../components/icons";
 import { Badge, Btn, Dot, Empty, Field, Input, Modal, SearchBox, Select, Toggle, Textarea } from "../components/ui";
 import { useApp } from "../store";
 import { fmtBytes, libraryBytes, QUOTA_BYTES, STORAGE_BACKEND } from "../lib/photoStore";
-import { CHANNEL_DEFS, SERVICES, channelDef, computeStay, planFor, propertyById } from "../lib/data";
+import { CHANNEL_DEFS, SERVICES, WORKSPACE, channelDef, computeStay, planFor, propertyById } from "../lib/data";
 import { ChannelMark } from "../components/ota";
 import type { ChannelStatus, Property } from "../lib/types";
 
@@ -260,9 +260,10 @@ function PhotoManager({ p }: { p: Property }) {
 
 // ── Property detail ────────────────────────────────────────────────────────
 function PropertyDetail({ p, onOpenServices }: { p: Property; onOpenServices: () => void }) {
-  const { navigate, toggleArchive, togglePublishDirect, setCheckoutEnabled, addChildUnit, toast } = useApp();
+  const { navigate, toggleArchive, togglePublishDirect, setCheckoutEnabled, addChildUnit, toggleManaged, setOwnerFinancialsVisible, toast } = useApp();
   const properties = useApp((s) => s.properties);
-  const [tab, setTab] = useState("details");
+  const ownerFinancials = WORKSPACE.ownerFinancialsVisible;
+  const [tab, setTab] = useState("overview");
   const [unitOpen, setUnitOpen] = useState(false);
   const [unitLabel, setUnitLabel] = useState("");
   const [icalOpen, setIcalOpen] = useState(false);
@@ -271,11 +272,14 @@ function PropertyDetail({ p, onOpenServices }: { p: Property; onOpenServices: ()
     { id: "sub-1", url: "https://airbnb.com/calendar/ical/88213.ics", name: "Airbnb (owner copy)", lastPoll: Date.now() - 9 * 60_000, events: 14 },
   ]);
   const children = properties.filter((x) => x.parentId === p.id);
-  const tabs = [
-    { id: "details", label: "Details" }, { id: "pricing", label: "Price settings" }, { id: "pcal", label: "Pricing calendar" },
-    { id: "settings", label: "Property settings" }, { id: "mgmt", label: "Management" }, { id: "channels", label: "Channels" },
-    ...(p.isParent ? [{ id: "children", label: `Child listings · ${children.length}` }] : []),
-    { id: "checkout", label: "Checkout page" },
+  // 8 legacy tabs consolidated into 5 grouped sections — nothing removed,
+  // related surfaces are stacked together so they read as one workflow.
+  const tabs: { id: string; label: string; icon: IconName }[] = [
+    { id: "overview", label: "Overview", icon: "home" },
+    { id: "rates", label: "Rates & availability", icon: "trendUp" },
+    { id: "distribution", label: p.isParent ? `Distribution · ${children.length} units` : "Distribution", icon: "globe" },
+    { id: "selling", label: "Selling direct", icon: "bag" },
+    { id: "ownership", label: "Ownership", icon: "shield" },
   ];
   return (
     <div className="space-y-4">
@@ -291,11 +295,13 @@ function PropertyDetail({ p, onOpenServices }: { p: Property; onOpenServices: ()
 
       <div className="flex flex-wrap gap-1 rounded-lg border border-line bg-black/[0.03] p-1">
         {tabs.map((t) => (
-          <button key={t.id} onClick={() => setTab(t.id)} className={cx("rounded-md px-3 py-1.5 text-[12px] font-bold", tab === t.id ? "bg-card text-ink shadow-sm border border-line" : "text-mute hover:text-ink")}>{t.label}</button>
+          <button key={t.id} onClick={() => setTab(t.id)} className={cx("flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[12px] font-bold transition-colors", tab === t.id ? "bg-card text-ink shadow-sm border border-line" : "text-mute hover:text-ink")}>
+            <Ic name={t.icon} size={13} className={tab === t.id ? "text-brand" : "text-faint"} />{t.label}
+          </button>
         ))}
       </div>
 
-      {tab === "details" && (
+      {tab === "overview" && (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
           <PhotoManager p={p} />
           <div className="space-y-3 rounded-xl border border-line bg-card p-4">
@@ -315,11 +321,15 @@ function PropertyDetail({ p, onOpenServices }: { p: Property; onOpenServices: ()
         </div>
       )}
 
-      {tab === "pricing" && <PricingTab p={p} />}
+      {tab === "rates" && (
+        <div className="space-y-4">
+          <PricingTab p={p} />
+          <PricingCalendar p={p} />
+        </div>
+      )}
 
-      {tab === "pcal" && <PricingCalendar p={p} />}
-
-      {tab === "settings" && (
+      {tab === "selling" && (
+        <div className="space-y-4">
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <div className="space-y-3 rounded-xl border border-line bg-card p-4">
             <h3 className="font-display text-[13.5px] font-bold text-ink">Stay rules — sync to every live channel</h3>
@@ -352,15 +362,17 @@ function PropertyDetail({ p, onOpenServices }: { p: Property; onOpenServices: ()
             </Field>
           </div>
         </div>
+        <CheckoutCard name={p.name} code={p.code} enabled={p.checkoutEnabled} onToggle={(v) => setCheckoutEnabled(p.id, v)} />
+        </div>
       )}
 
-      {tab === "mgmt" && (
+      {tab === "ownership" && (
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <div className="space-y-3 rounded-xl border border-line bg-card p-4">
             <h3 className="font-display text-[13.5px] font-bold text-ink">Managed property</h3>
             <label className="flex items-center justify-between rounded-lg border border-line px-3 py-2.5">
               <span className="text-[12.5px] font-bold text-ink">Track commission on this property</span>
-              <Toggle checked={p.managed} onChange={() => toast("info", p.managed ? "Commission tracking off" : "Commission tracking on")} label="Managed property" />
+              <Toggle checked={p.managed} onChange={() => toggleManaged(p.id)} label="Managed property" />
             </label>
             <Field label="Commission %">
               <Input type="number" defaultValue={p.commissionPct} disabled={!p.managed} className="!w-[110px]" />
@@ -372,13 +384,13 @@ function PropertyDetail({ p, onOpenServices }: { p: Property; onOpenServices: ()
             <p className="text-[12px] text-mute">Elena Widura (property owner) can view this property's bookings, calendar and — if the workspace allows — financials.</p>
             <label className="flex items-center justify-between rounded-lg border border-line px-3 py-2.5">
               <span className="text-[12.5px] font-bold text-ink">Show financial figures to this owner</span>
-              <Toggle checked={true} onChange={() => toast("info", "Workspace toggle", "Owner financial visibility is controlled workspace-wide in Settings → General.")} label="Owner sees financials" />
+              <Toggle checked={ownerFinancials} onChange={(v) => setOwnerFinancialsVisible(v)} label="Owner sees financials" />
             </label>
           </div>
         </div>
       )}
 
-      {tab === "channels" && (
+      {tab === "distribution" && (
         <div className="space-y-3">
           <div className="overflow-x-auto rounded-xl border border-line bg-card">
             <table className="w-full min-w-[760px] text-left">
@@ -432,7 +444,7 @@ function PropertyDetail({ p, onOpenServices }: { p: Property; onOpenServices: ()
         </div>
       )}
 
-      {tab === "children" && (
+      {tab === "distribution" && p.isParent && (
         <div className="rounded-xl border border-line bg-card p-4">
           <div className="mb-3 flex items-center justify-between">
             <div>
@@ -455,8 +467,6 @@ function PropertyDetail({ p, onOpenServices }: { p: Property; onOpenServices: ()
           </div>
         </div>
       )}
-
-      {tab === "checkout" && <CheckoutCard name={p.name} code={p.code} enabled={p.checkoutEnabled} onToggle={(v) => setCheckoutEnabled(p.id, v)} />}
 
       <Modal open={icalOpen} onClose={() => setIcalOpen(false)} title="Subscribe an iCal feed" w={440}
         footer={<><Btn variant="ghost" onClick={() => setIcalOpen(false)}>Cancel</Btn><Btn variant="solid" icon="check" onClick={() => {

@@ -4,13 +4,36 @@ import { Ic } from "../components/icons";
 import { Badge, Btn, Dot, Empty, Hist, Select, Textarea } from "../components/ui";
 import { useApp } from "../store";
 import { propertyById } from "../lib/data";
+import { aiChat, isAiConfigured, loadProviders } from "../lib/aiGateway";
 
 const PLATFORMS = ["airbnb", "booking", "trip", "google", "direct"] as const;
 const P_COLOR: Record<string, string> = { airbnb: "#E8485F", booking: "#2557D6", trip: "#3E9BFF", google: "#9A6A0B", direct: "#0E6B4E" };
 
 export default function Reviews() {
   const { route, reviews, replyReview, useAiDraft, toast } = useApp();
+  const aiConfigOn = useApp((s) => s.aiConfig.enabled);
+  const [genFor, setGenFor] = useState<string | null>(null);
   const [filter, setFilter] = useState(route.query.get("filter") ?? "all");
+
+  const genDraft = async (r: (typeof reviews)[number]) => {
+    const providers = loadProviders();
+    if (!aiConfigOn || !isAiConfigured(providers)) {
+      setReplyFor(r.id); setDraft(r.aiDraft ?? "");
+      toast("warn", "No AI provider configured", "Set one up in Dev → AI providers, or write the reply manually.");
+      return;
+    }
+    setGenFor(r.id);
+    const p = propertyById(r.propertyId);
+    const sys = `You reply to guest reviews for ${p.name}, a boutique villa. Be warm, specific, and brief (2-3 sentences). Thank them, acknowledge what they mentioned, invite them back. Never be generic or templated-sounding. Never mention discounts.`;
+    try {
+      const res = await aiChat(sys, `Review (${r.normalized}/10): "${r.body}"\n\nWrite the public reply.`, { maxTokens: 150 });
+      setReplyFor(r.id); setDraft(res.text);
+    } catch {
+      setReplyFor(r.id); setDraft(r.aiDraft ?? "");
+      toast("warn", "AI unavailable", "Falling back to the stored draft.");
+    }
+    setGenFor(null);
+  };
   const [platform, setPlatform] = useState("all");
   const [minRating, setMinRating] = useState("all");
   const [sort, setSort] = useState("newest");
@@ -123,12 +146,11 @@ export default function Reviews() {
                       <p className="mt-0.5 text-[12px] leading-relaxed text-ink">{r.reply}</p>
                     </div>
                   ) : (
-                    <div className="mt-2.5 flex flex-wrap gap-2">
-                      {r.aiDraft && (
-                        <Btn size="xs" icon="sparkle" onClick={() => { setReplyFor(r.id); setDraft(r.aiDraft!); }}>Use AI draft</Btn>
-                      )}
+                    <div className="mt-2.5 flex flex-wrap items-center gap-2">
+                      <Btn size="xs" icon="sparkle" disabled={genFor === r.id} onClick={() => genDraft(r)}>
+                        {genFor === r.id ? "Generating…" : "Draft with AI"}
+                      </Btn>
                       <Btn size="xs" variant="solid" icon="chat" onClick={() => { setReplyFor(replyFor === r.id ? null : r.id); setDraft(r.aiDraft ?? ""); }}>{replyFor === r.id ? "Close" : "Reply"}</Btn>
-                      {r.aiDraft && <span className="self-center text-[10px] font-semibold text-plum">AI draft ready · tone-checked, needs your approval</span>}
                     </div>
                   )}
                   {replyFor === r.id && !r.reply && (

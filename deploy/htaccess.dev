@@ -1,0 +1,57 @@
+# ── dev.alvianpermana.art · internal surface ──────────────────────────────
+# The single most valuable control on this stack. Everything in the dev bundle
+# is downloadable by anyone who can reach the host, so no in-app login can
+# protect it. Basic auth here means an unauthenticated visitor never receives
+# the JavaScript at all, which is a different class of protection from hiding
+# a route inside it.
+#
+# Create the password file OUTSIDE the web root, once, over SSH:
+#
+#   htpasswd -c /home/USER/.htpasswd-derzen derzen
+#
+# Hostinger hPanel can also generate this under "Password Protect Directories".
+# Then set AuthUserFile below to the path it reports.
+
+AuthType Basic
+AuthName "DERZEN internal"
+AuthUserFile /home/CHANGEME/.htpasswd-derzen
+Require valid-user
+
+RewriteEngine On
+RewriteCond %{HTTPS} !=on
+RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+<IfModule mod_headers.c>
+  Header always set Strict-Transport-Security "max-age=63072000; includeSubDomains"
+  Header always set Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https:; connect-src 'self' https://*.supabase.co https://*.functions.supabase.co wss://*.supabase.co; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'; upgrade-insecure-requests"
+  Header always set X-Content-Type-Options "nosniff"
+  Header always set Referrer-Policy "no-referrer"
+  Header always set X-Frame-Options "DENY"
+  Header always set Permissions-Policy "geolocation=(), microphone=(), camera=(), payment=(), usb=(), interest-cohort=()"
+  Header always set Cross-Origin-Opener-Policy "same-origin"
+
+  # Belt and braces alongside robots.txt: an internal console has no business
+  # in a search index or an archive.
+  Header always set X-Robots-Tag "noindex, nofollow, noarchive, nosnippet"
+
+  <FilesMatch "\.(js|css|woff2|svg|png|jpg|webp)$">
+    Header set Cache-Control "no-store"
+  </FilesMatch>
+  <FilesMatch "\.(html)$">
+    Header set Cache-Control "no-store"
+  </FilesMatch>
+</IfModule>
+
+<FilesMatch "\.(map|env|log|sql|yml|yaml|json5|bak|old)$">
+  Require all denied
+</FilesMatch>
+<FilesMatch "^\.">
+  Require all denied
+</FilesMatch>
+
+Options -Indexes
+ServerSignature Off
+
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule . /index.html [L]

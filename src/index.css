@@ -1,0 +1,547 @@
+@import "tailwindcss";
+
+/* ── DERZEN design tokens ──────────────────────────────────────────────────
+   80% paper white · 30% ink (overlap in surfaces) · 10% botanical green.
+   Red is reserved for "broken" semantics only. Violet never.
+   Corners: capped at 3px everywhere (pills/dots/avatars stay circular).
+   Dark mode: same tokens, re-valued under html[data-theme="dark"] —
+   every utility that reads var(--color-*) switches automatically.       */
+
+@theme {
+  --font-display: "Big Shoulders Display", "Atkinson Hyperlegible", sans-serif;
+  --font-body: "Atkinson Hyperlegible", ui-sans-serif, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  /* corner cap */
+  --radius-DEFAULT: 2px;
+  --radius-sm: 2px;
+  --radius-md: 2px;
+  --radius-lg: 3px;
+  --radius-xl: 3px;
+  --radius-2xl: 3px;
+  --radius-3xl: 3px;
+
+  /* light (default) — cool paper, no beige drift */
+  --color-paper: #f2f4f1;
+  --color-surface: #fafaf7;
+  --color-card: #ffffff;
+  --color-line: #eceee6;
+  --color-line2: #d8dccd;
+
+  --color-ink: #141811;
+  --color-mute: #5c6357;
+  --color-faint: #697062; /* ≥ 4.5:1 on paper — AA for small text */
+
+  --color-pine-950: #0e110c;
+  --color-pine-900: #161a12;
+  --color-pine-800: #1f251a;
+  --color-pine-700: #2b3224;
+  --color-pine-200: #c3c9b8;
+  --color-pine-100: #e0e3d6;
+
+  --color-brand: #0e6b4e;
+  --color-brand-deep: #0a523b;
+  --color-brand-bright: #2e9e77;
+  --color-brand-soft: #e2efe7;
+  --color-danger: #b42318;
+  --color-danger-soft: #f6e3df;
+  --color-gold: #9a6a0b;
+  --color-gold-soft: #f3e9d2;
+  --color-sea: #38708a;
+  --color-sea-soft: #e1ebf0;
+  --color-plum: #5c6357;
+  --color-plum-soft: #e8eae2;
+
+  --rule-c: rgba(20, 24, 17, 0.14);
+  --contour-c: rgba(20, 24, 17, 0.045);
+  --scroll-c: #c2c7b8;
+}
+
+/* ── dark mode: token re-value ── */
+[data-theme="dark"] {
+  --color-paper: #0f120d;
+  --color-surface: #131710;
+  --color-card: #171c13;
+  --color-line: #232a1e;
+  --color-line2: #333c2b;
+
+  --color-ink: #e8eae0;
+  --color-mute: #9aa394;
+  --color-faint: #939c88; /* ≥ 4.5:1 on the dark paper */
+
+  --color-pine-950: #0a0d08;
+  --color-pine-900: #10140c;
+  --color-pine-800: #171d12;
+  --color-pine-700: #232b1a;
+  --color-pine-200: #a9b29e;
+  --color-pine-100: #c6cdb9;
+
+  --color-brand: #148462;
+  --color-brand-deep: #7fd6b4;
+  --color-brand-bright: #3fb98c;
+  --color-brand-soft: #1b2a21;
+  --color-danger: #e0564a;
+  --color-danger-soft: #2c1713;
+  --color-gold: #d9a441;
+  --color-gold-soft: #2a2315;
+  --color-sea: #5fa3c0;
+  --color-sea-soft: #16222a;
+  --color-plum: #a9b29e;
+  --color-plum-soft: #20261c;
+
+  --rule-c: rgba(232, 234, 224, 0.12);
+  --contour-c: rgba(232, 234, 224, 0.035);
+  --scroll-c: #3a4433;
+}
+
+:root {
+  --tenant-heading: var(--font-display);
+  --tenant-body: var(--font-body);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+/* Accurate viewport on mobile browsers (iOS/Android URL chrome, foldables).
+   Unlayered, so it wins over the layered Tailwind utilities everywhere. */
+.h-screen {
+  height: 100vh;
+  height: 100dvh;
+}
+.min-h-screen {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+.max-h-screen {
+  max-height: 100vh;
+  max-height: 100dvh;
+}
+main {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+@media (max-width: 1023px) {
+  body {
+    overscroll-behavior-y: none;
+  }
+}
+
+body {
+  margin: 0;
+  font-family: var(--tenant-body);
+  background-color: var(--color-paper);
+  color: var(--color-ink);
+  font-size: 14.5px;
+  line-height: 1.62;
+  letter-spacing: 0.004em;
+  -webkit-font-smoothing: antialiased;
+  position: relative;
+}
+/* Atkinson Hyperlegible needs slightly more tracking at small sizes */
+.text-\[11px\], .text-\[11\.5px\], .text-\[12px\], .text-\[12\.5px\] {
+  letter-spacing: 0.008em;
+}
+
+.font-display {
+  font-family: var(--tenant-heading);
+  font-stretch: 112%;
+  letter-spacing: -0.015em;
+}
+
+/* Ambient contour field — adapts to theme via tokens */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='560' height='560' viewBox='0 0 560 560'%3E%3Cg fill='none' stroke='%23808a76' stroke-opacity='0.16' stroke-width='1.1'%3E%3Cpath d='M-20 90c90-38 190-38 280 0s190 38 300-6'/%3E%3Cpath d='M-20 150c90-38 190-38 280 0s190 38 300-6'/%3E%3Cpath d='M-20 210c90-38 190-38 280 0s190 38 300-6'/%3E%3Cpath d='M-20 330c100-44 210-44 300 0s180 44 300-8'/%3E%3Cpath d='M-20 390c100-44 210-44 300 0s180 44 300-8'/%3E%3Cpath d='M-20 500c110-50 220-50 310 0s170 50 290-10'/%3E%3C/g%3E%3C/svg%3E");
+  opacity: 0.55;
+  mix-blend-mode: multiply;
+}
+[data-theme="dark"] body::before {
+  mix-blend-mode: screen;
+  opacity: 0.5;
+}
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(820px 460px at 92% -8%, rgba(14, 107, 78, 0.07), transparent 62%),
+    radial-gradient(700px 460px at -10% 108%, rgba(20, 24, 17, 0.05), transparent 60%);
+}
+[data-theme="dark"] body::after {
+  background:
+    radial-gradient(820px 460px at 92% -8%, rgba(63, 185, 140, 0.08), transparent 62%),
+    radial-gradient(700px 460px at -10% 108%, rgba(0, 0, 0, 0.35), transparent 60%);
+}
+#root {
+  position: relative;
+  z-index: 1;
+}
+
+::selection {
+  background: rgba(14, 107, 78, 0.22);
+}
+
+*:focus-visible {
+  outline: 2px solid var(--color-brand);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--scroll-c) transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--scroll-c);
+  border-radius: 8px;
+  border: 3px solid transparent;
+  background-clip: content-box;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ── Gradient frames — replace hairlines on the important surfaces ─────── */
+.frame {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(var(--color-card), var(--color-card)) padding-box,
+    linear-gradient(135deg, rgba(14, 107, 78, 0.55), rgba(20, 24, 17, 0.16) 38%, rgba(154, 106, 11, 0.3) 72%, rgba(14, 107, 78, 0.4)) border-box;
+}
+[data-theme="dark"] .frame {
+  background:
+    linear-gradient(var(--color-card), var(--color-card)) padding-box,
+    linear-gradient(135deg, rgba(63, 185, 140, 0.5), rgba(232, 234, 224, 0.1) 40%, rgba(217, 164, 65, 0.28) 75%, rgba(63, 185, 140, 0.35)) border-box;
+}
+.frame-2 {
+  border-width: 2px;
+}
+.frame-3 {
+  border-width: 3px;
+}
+.frame-ink {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(#171c13, #171c13) padding-box,
+    linear-gradient(135deg, rgba(63, 185, 140, 0.55), rgba(232, 234, 224, 0.12) 45%, rgba(63, 185, 140, 0.3)) border-box;
+}
+/* horizontal rule that fades at both ends — the anti-hairline */
+.rule-h {
+  height: 1px;
+  border: 0;
+  background: linear-gradient(90deg, transparent, var(--rule-c) 18%, rgba(14, 107, 78, 0.45) 50%, var(--rule-c) 82%, transparent);
+}
+/* solid button treatment */
+.btn-grad {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(115deg, #0f7a59, #0a5b41) padding-box,
+    linear-gradient(115deg, rgba(63, 185, 140, 0.75), rgba(63, 185, 140, 0.15)) border-box;
+  box-shadow: 0 6px 18px -8px rgba(10, 82, 59, 0.55);
+}
+.btn-grad:hover {
+  background:
+    linear-gradient(115deg, #128a65, #0c674a) padding-box,
+    linear-gradient(115deg, rgba(63, 185, 140, 0.9), rgba(63, 185, 140, 0.25)) border-box;
+}
+
+/* Block-type patterns (calendar) */
+.pat-stripes {
+  background-image: repeating-linear-gradient(-45deg, rgba(255, 255, 255, 0.28) 0 5px, transparent 5px 10px);
+}
+.pat-hatch {
+  background-image: repeating-linear-gradient(45deg, rgba(20, 24, 17, 0.22) 0 2px, transparent 2px 7px);
+}
+.pat-dots {
+  background-image: radial-gradient(rgba(255, 255, 255, 0.4) 1px, transparent 1.4px);
+  background-size: 8px 8px;
+}
+
+/* Motion */
+@keyframes rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes pop { 0% { opacity: 0; transform: scale(0.96) translateY(6px); } 100% { opacity: 1; transform: scale(1) translateY(0); } }
+@keyframes slideL { from { opacity: 0; transform: translateX(28px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes toastIn { from { opacity: 0; transform: translateY(12px) scale(0.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
+@keyframes pulseDot { 0%, 100% { box-shadow: 0 0 0 0 rgba(180, 35, 24, 0.45); } 60% { box-shadow: 0 0 0 6px rgba(180, 35, 24, 0); } }
+@keyframes spin360 { to { transform: rotate(360deg); } }
+@keyframes barGrow { from { transform: scaleY(0); } to { transform: scaleY(1); } }
+@keyframes drawLine { from { stroke-dashoffset: 600; } to { stroke-dashoffset: 0; } }
+@keyframes marqueeX { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.25; } }
+
+.anim-rise { animation: rise 0.4s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.anim-pop { animation: pop 0.28s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.anim-slide-l { animation: slideL 0.34s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.anim-toast { animation: toastIn 0.3s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.anim-spin { animation: spin360 0.8s linear infinite; }
+.dot-pulse { animation: pulseDot 1.8s ease-out infinite; }
+.bar-grow { transform-origin: bottom; animation: barGrow 0.6s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.line-draw { stroke-dasharray: 600; animation: drawLine 1.1s ease-out both; }
+.marquee-track { animation: marqueeX 32s linear infinite; }
+.blink { animation: blink 1.4s ease-in-out infinite; }
+
+kbd {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  padding: 1px 5px;
+  border-radius: 2px;
+  border: 1px solid var(--color-line2);
+  border-bottom-width: 2px;
+  background: var(--color-surface);
+  color: var(--color-mute);
+}
+
+.sr-live {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator {
+  opacity: 0.55;
+  cursor: pointer;
+}
+
+/* unlayered → wins over utility accents everywhere */
+input[type="checkbox"],
+input[type="radio"],
+input[type="range"] {
+  accent-color: var(--color-brand);
+}
+
+.drag-over-block {
+  outline: 2px dashed var(--color-brand);
+  outline-offset: 3px;
+}
+
+/* ── Craft rules ─────────────────────────────────────────────────────────
+   1. Squares are the identity: any "pill" (rounded-full + horizontal padding)
+      becomes a 2px corner. Full circles survive ONLY for status dots/avatars.
+   2. Buttons: solid by default. Gradient frames are reserved for .btn-hero
+      — at most one per screen.                                        */
+[class*="rounded-full"][class*="px-"] {
+  border-radius: 2px;
+}
+.btn-grad {
+  background: var(--color-brand);
+  color: #fff;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 2px 8px -3px rgba(10, 82, 59, 0.5);
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+.btn-grad:hover {
+  background: #0c5f46;
+  transform: translateY(-1px);
+}
+[data-theme="dark"] .btn-grad:hover {
+  background: #128a65;
+}
+.btn-hero {
+  border: 1px solid transparent;
+  background:
+    linear-gradient(115deg, #0f7a59, #0a5b41) padding-box,
+    linear-gradient(115deg, rgba(63, 185, 140, 0.85), rgba(154, 106, 11, 0.55)) border-box;
+  color: #fff;
+  box-shadow: 0 12px 30px -12px rgba(10, 82, 59, 0.6);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+}
+.btn-hero:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 18px 40px -14px rgba(10, 82, 59, 0.7);
+}
+
+/* Staggered reveals — rows land one by one, 30ms apart */
+.stagger > * {
+  animation: rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.stagger > *:nth-child(1) { animation-delay: 0.02s; }
+.stagger > *:nth-child(2) { animation-delay: 0.05s; }
+.stagger > *:nth-child(3) { animation-delay: 0.08s; }
+.stagger > *:nth-child(4) { animation-delay: 0.11s; }
+.stagger > *:nth-child(5) { animation-delay: 0.14s; }
+.stagger > *:nth-child(6) { animation-delay: 0.17s; }
+.stagger > *:nth-child(7) { animation-delay: 0.2s; }
+.stagger > *:nth-child(8) { animation-delay: 0.23s; }
+.stagger > *:nth-child(9) { animation-delay: 0.26s; }
+.stagger > *:nth-child(10) { animation-delay: 0.29s; }
+.stagger > *:nth-child(11) { animation-delay: 0.32s; }
+.stagger > *:nth-child(12) { animation-delay: 0.35s; }
+
+/* Classic ledger double rule — money gets the accountant's stroke */
+.dbl-rule {
+  border-top: 4px double var(--color-line2);
+}
+[data-theme="dark"] .dbl-rule {
+  border-top-color: var(--color-line2);
+}
+
+/* Blueprint drafting field for the engineering consoles */
+.blueprint {
+  background-image:
+    linear-gradient(rgba(63, 185, 140, 0.045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(63, 185, 140, 0.045) 1px, transparent 1px),
+    linear-gradient(rgba(63, 185, 140, 0.022) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(63, 185, 140, 0.022) 1px, transparent 1px);
+  background-size: 120px 120px, 120px 120px, 24px 24px, 24px 24px;
+}
+/* Corner registration marks — drafting corners on framed panels */
+.reg-marks {
+  position: relative;
+}
+.reg-marks::before,
+.reg-marks::after {
+  content: "";
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  border-color: var(--color-brand-bright);
+  border-style: solid;
+  opacity: 0.5;
+  pointer-events: none;
+}
+/* inset, so panels with overflow-hidden (ghost numerals, modals) keep them */
+.reg-marks::before {
+  top: 5px;
+  left: 5px;
+  border-width: 2px 0 0 2px;
+}
+.reg-marks::after {
+  bottom: 5px;
+  right: 5px;
+  border-width: 0 2px 2px 0;
+}
+
+/* ── Engineering consoles: paper + blueprint drafting sheet ─────────────
+   Scoped to the console ROOT (`.eng`). Substring-attribute selectors match
+   ANY alpha step or suffixed variant (text-white/65, bg-[#0a0a09]/90, …),
+   so the remap cannot rot when new opacity steps appear in markup.
+   The dark control room (Backoffice, no `.eng`) is untouched.            */
+.eng { background: var(--color-paper); color: var(--color-ink); }
+.eng.text-white { color: var(--color-ink); } /* the console root itself */
+
+/* All declarations carry !important: the consoles mix in `!`-prefixed
+   utilities (!text-white/70, !bg-white/5 …) which would otherwise outrank
+   this remap and vanish on paper. Specificity still orders the tiers:
+   every rule here is (0,2,0); ties resolve by source order, and the
+   white-on-solid outrank below is (0,3,0) so it always wins.             */
+
+/* text — tiered: strong ≥ /6x → ink, mid → mute, weak ≤ /3x → faint.
+   Later rules win ties, so order matters: base, then strong, then weak. */
+.eng .text-white { color: var(--color-ink) !important; }
+.eng [class*="text-white/"] { color: var(--color-mute) !important; }
+.eng :is([class*="text-white/9"], [class*="text-white/8"], [class*="text-white/7"], [class*="text-white/6"]) { color: var(--color-ink) !important; }
+.eng :is([class*="text-white/3"], [class*="text-white/2"], [class*="text-white/1"], [class*="text-white/0"]) { color: var(--color-faint) !important; }
+.eng [class*="hover:text-white"]:hover { color: var(--color-ink) !important; }
+.eng .text-pine-100 { color: var(--color-ink) !important; }
+.eng [class*="text-pine-200"] { color: var(--color-faint) !important; }
+/* status text → readable equivalents on paper */
+.eng [class*="text-[#4CC38A]"] { color: var(--color-brand-deep) !important; }
+.eng [class*="text-[#e2a33c]"] { color: var(--color-gold) !important; }
+.eng [class*="text-[#f08c8c]"], .eng [class*="text-[#e2703c]"] { color: var(--color-danger) !important; }
+.eng [class*="text-[#7cc0ff]"], .eng [class*="text-[#3E9BFF]"] { color: var(--color-sea) !important; }
+.eng .text-brand-bright { color: var(--color-brand-deep) !important; }
+/* dark-surface accent tokens → readable equivalents on paper (case-insensitive:
+   arbitrary values keep their literal case, e.g. text-[#8FE3BF]) */
+.eng [class*="text-[#8fd6b4" i], .eng [class*="text-[#9fdcb8" i], .eng [class*="text-[#8fe3bf" i], .eng [class*="text-[#5bcba9" i] { color: var(--color-brand-deep) !important; }
+.eng [class*="text-[#8fc4dd" i], .eng [class*="text-[#9cc3d8" i] { color: var(--color-sea) !important; }
+.eng [class*="text-[#c9b3f0" i] { color: var(--color-plum) !important; }
+.eng [class*="text-[#f0a0a0" i] { color: var(--color-danger) !important; }
+.eng [class*="text-[#f0d9a0" i] { color: var(--color-gold) !important; }
+.eng [class*="text-[#f2f7f3" i] { color: var(--color-ink) !important; }
+/* surfaces: near-black panels → card (incl. /90 /85 suffixed), tints → washes */
+.eng [class*="bg-[#0a0a09]"], .eng [class*="bg-[#0d0d0b]"], .eng [class*="bg-[#101009]"], .eng [class*="bg-[#161613]"], .eng .bg-pine-800 { background-color: var(--color-card) !important; }
+.eng [class*="bg-[#171714]"], .eng [class*="bg-[#121210]"], .eng .bg-pine-900, .eng .bg-pine-950 { background-color: var(--color-surface) !important; }
+/* remaining dark card hexes (case-insensitive): neutrals & tinted blues/plums
+   → card; dark reds → danger-soft, matching the tint logic above */
+.eng [class*="bg-[#191610" i], .eng [class*="bg-[#050505" i], .eng [class*="bg-[#1b2f3d" i], .eng [class*="bg-[#173042" i], .eng [class*="bg-[#2a2140" i] { background-color: var(--color-card) !important; }
+.eng [class*="bg-[#140a0a" i], .eng [class*="bg-[#160b0b" i] { background-color: var(--color-danger-soft) !important; }
+.eng [class*="bg-[#1c0f0f]"], .eng [class*="bg-[#120909]"], .eng [class*="bg-[#2a1212]"], .eng [class*="bg-[#2c1713]"], .eng [class*="bg-[#3d1f1f]"] { background-color: var(--color-danger-soft) !important; }
+.eng [class*="bg-[#2a2113]"], .eng [class*="bg-[#3a3320]"] { background-color: var(--color-gold-soft) !important; }
+.eng [class*="bg-[#12251b]"], .eng [class*="bg-[#1d3527]"] { background-color: var(--color-brand-soft) !important; }
+.eng .bg-white { background-color: var(--color-card) !important; }
+.eng [class*="bg-white/"] { background-color: color-mix(in srgb, var(--color-ink) 5%, transparent) !important; }
+.eng [class*="hover:bg-white/"]:hover { background-color: color-mix(in srgb, var(--color-ink) 8%, transparent) !important; }
+.eng [class*="bg-brand/"], .eng [class*="bg-[#4CC38A]/"] { background-color: var(--color-brand-soft) !important; }
+.eng [class*="bg-danger/"] { background-color: var(--color-danger-soft) !important; }
+.eng [class*="bg-[#e2a33c]/"], .eng [class*="bg-[#e2703c]/"] { background-color: var(--color-gold-soft) !important; }
+/* borders & dividers */
+.eng [class*="border-white/"] { border-color: var(--color-line) !important; }
+.eng [class*="hover:border-white/"]:hover { border-color: var(--color-line2) !important; }
+.eng [class*="border-[#4CC38A]"] { border-color: var(--color-brand) !important; }
+.eng [class*="border-[#e2a33c]"] { border-color: var(--color-gold) !important; }
+.eng [class*="border-[#5a2020]"], .eng [class*="border-danger/"] { border-color: var(--color-danger) !important; }
+.eng [class*="divide-white/"] > :not([hidden]) ~ :not([hidden]) { border-color: var(--color-line) !important; }
+/* white type on solid brand/danger surfaces must stay white — (0,3,0)
+   outranks the (0,2,0) ramp even with !important on both. The hex classes
+   are bracket-escaped: unescaped [#…] is silently dropped inside :is().  */
+.eng :is(.bg-brand, .btn-grad, .bg-danger, .bg-\[\#0E6B4E\], .bg-\[\#B42318\], .bg-\[\#4CC38A\]) :is([class*="text-white"], [class*="text-[#f2f7f3" i]) { color: #fff !important; }
+.eng :is(.bg-brand, .btn-grad, .bg-danger, .bg-\[\#B42318\]):is([class*="text-white"], [class*="text-[#f2f7f3" i]) { color: #fff !important; }
+/* gradients that assumed a dark canvas */
+.eng .from-brand-bright { --tw-gradient-from: var(--color-brand); }
+.eng [class*="to-[#4CC38A]"] { --tw-gradient-to: var(--color-brand-deep); }
+/* drafting-table grid on the working area */
+.bp-grid {
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--color-line) 60%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--color-line) 60%, transparent) 1px, transparent 1px);
+  background-size: 28px 28px;
+}
+
+/* Ledger double rule — the accountant's total line */
+.dbl-rule {
+  border: 0;
+  border-top: 3px double color-mix(in srgb, var(--color-ink) 65%, transparent);
+}
+
+/* Draftsman's measurement ticks along a surface's bottom edge */
+.ticks { position: relative; }
+.ticks::after {
+  content: "";
+  position: absolute;
+  left: 0; right: 0; bottom: -1px;
+  height: 6px;
+  pointer-events: none;
+  background-image: repeating-linear-gradient(90deg, color-mix(in srgb, var(--color-ink) 42%, transparent) 0 1px, transparent 1px 8px);
+}
+
+/* Rows reveal in sequence, not all at once */
+.stagger > * { animation: rise 0.45s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.stagger > *:nth-child(1) { animation-delay: 0ms; }
+.stagger > *:nth-child(2) { animation-delay: 30ms; }
+.stagger > *:nth-child(3) { animation-delay: 60ms; }
+.stagger > *:nth-child(4) { animation-delay: 90ms; }
+.stagger > *:nth-child(5) { animation-delay: 120ms; }
+.stagger > *:nth-child(6) { animation-delay: 150ms; }
+.stagger > *:nth-child(7) { animation-delay: 180ms; }
+.stagger > *:nth-child(8) { animation-delay: 210ms; }
+.stagger > *:nth-child(9) { animation-delay: 240ms; }
+.stagger > *:nth-child(10) { animation-delay: 270ms; }
+.stagger > *:nth-child(11) { animation-delay: 300ms; }
+.stagger > *:nth-child(12) { animation-delay: 330ms; }
+.stagger > *:nth-child(n + 13) { animation-delay: 360ms; }
+
+/* Inline-editor placeholder while a contentEditable field is empty */
+[contenteditable="true"].et-edit:empty::before,
+[contenteditable="true"].et-edit[data-ph]:empty::before {
+  content: attr(data-ph);
+  opacity: 0.38;
+  pointer-events: none;
+  font-style: italic;
+}
+[contenteditable="true"].et-edit:focus {
+  caret-color: var(--color-brand);
+}

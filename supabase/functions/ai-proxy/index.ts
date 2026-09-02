@@ -30,9 +30,12 @@ const DAILY_TOKEN_CAP = 200_000;
 const MAX_TOKENS_PER_CALL = 1_500;
 const MAX_PROMPT_CHARS = 24_000;
 
-type Provider = "groq" | "openrouter" | "gemini";
+type Provider = "anthropic" | "groq" | "openrouter" | "gemini";
 
 const CHAIN: { id: Provider; env: string; model: string }[] = [
+  // Anthropic is listed first so that the moment ANTHROPIC_API_KEY exists it
+  // becomes the primary and the three temporary providers below become fallback.
+  { id: "anthropic", env: "ANTHROPIC_API_KEY", model: Deno.env.get("ANTHROPIC_MODEL") ?? "claude-3-5-haiku-latest" },
   { id: "groq", env: "GROQ_API_KEY", model: Deno.env.get("GROQ_MODEL") ?? "llama-3.3-70b-versatile" },
   { id: "openrouter", env: "OPENROUTER_API_KEY", model: Deno.env.get("OPENROUTER_MODEL") ?? "anthropic/claude-3.5-haiku" },
   { id: "gemini", env: "GEMINI_API_KEY", model: Deno.env.get("GEMINI_MODEL") ?? "gemini-2.0-flash" },
@@ -58,6 +61,29 @@ async function callProvider(p: Provider, key: string, model: string, system: str
     if (!text) throw new Error("gemini empty");
     return text;
   }
+  if (p === "anthropic") {
+    const res = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": key,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model,
+        system,
+        messages: [{ role: "user", content: user }],
+        max_tokens: maxTokens,
+        temperature: 0.4,
+      }),
+    });
+    if (!res.ok) throw new Error(`anthropic ${res.status}`);
+    const j = await res.json();
+    const text = (j.content ?? []).map((x: { text?: string }) => x.text ?? "").join("").trim();
+    if (!text) throw new Error("anthropic empty");
+    return text;
+  }
+
 
   const url = p === "groq"
     ? "https://api.groq.com/openai/v1/chat/completions"

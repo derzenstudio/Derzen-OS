@@ -155,7 +155,10 @@ Deno.serve(async (req) => {
   const tried: string[] = [];
   for (const { id, env, model } of CHAIN) {
     const key = Deno.env.get(env);
-    if (!key) { tried.push(`${id}: not configured`); continue; }
+    // A key that is still the placeholder counts as not configured, so the
+    // ANTHROPIC_API_KEY slot can sit there empty-but-visible until the real
+    // key is bought, without costing every request a failed round trip.
+    if (!key || key.startsWith("PLACEHOLDER")) { tried.push(`${id}: not configured`); continue; }
     const t0 = performance.now();
     try {
       const text = await callProvider(id, key, model, system, prompt, maxTokens);

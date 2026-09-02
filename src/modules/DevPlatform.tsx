@@ -142,7 +142,8 @@ export function Inspector() {
 // ── Section A · Tenant deep-dive + action panel ────────────────────────────
 export function TenantDetail({ tenantId, onBack }: { tenantId: string; onBack: () => void }) {
   const { tenants, toast, setTenantFeature } = useApp();
-  const t = tenants.find((x) => x.id === tenantId)!;
+  const t = tenants.find((x) => x.id === tenantId);
+  if (!t) return null;
   const d = TENANT_DETAIL[tenantId] ?? TENANT_DETAIL["t-sanggraha"];
   const [action, setAction] = useState<{ label: string; destructive: boolean } | null>(null);
   const [reason, setReason] = useState("");

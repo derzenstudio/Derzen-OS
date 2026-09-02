@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+let hoverTimer: any = null;
 import { cx, addDays, dayKey, parseKey, fmtDate, fmtShort, money, moneyRaw, isWeekend, isToday, toCSV, download, range } from "../lib/format";
 import { Ic } from "../components/icons";
 import { Badge, Btn, Dot, IconBtn, Input, Kbd, LiveRegion, Modal, Select, Toggle, Field, StatusChip } from "../components/ui";
@@ -7,9 +8,9 @@ import { BLOCKS, SERVICES, SERVICE_BOOKINGS, channelDef, planFor, propertyById, 
 import { ChannelMark } from "../components/ota";
 import type { Property, Reservation } from "../lib/types";
 
-const COL_W = 62;
+const COL_W = 100;
 const LABEL_W = 224;
-const ROW_H = 48;
+const ROW_H = 64;
 
 function rateShort(minor: number): string {
   if (minor >= 1_000_000) {
@@ -20,86 +21,141 @@ function rateShort(minor: number): string {
 }
 
 // ── Bars for one row over the window ───────────────────────────────────────
-interface Bar { left: number; width: number; color: string; label: string; sub?: string; kind: string; resId?: string; striped?: boolean; hatch?: boolean; lane: number; }
+interface Bar {
+  left: number;
+  width: number;
+  color: string;
+  label: string;
+  sub?: string;
+  kind: string;
+  resId?: string;
+  striped?: boolean;
+  hatch?: boolean;
+  isBlock: boolean;
+  clipPath: string;
+  textLeft: number;
+  textRight: number;
+  dayUse: boolean;
+}
 
-// Half-day geometry. A stay runs from midday on the arrival date to midday on
-// the departure date, which is how the nights actually sell. Drawing bars edge
-// to edge instead made a turnover (A departs and B arrives on the same date)
-// render as one unbroken block: the two bars met exactly on the column
-// boundary and read as a single long stay. With the half-day offset both are
-// visible in the same column, the departing bar in its left half and the
-// arriving bar in its right, and neither overlaps the other.
-const HALF = COL_W / 2;
 const idxOf = (key: string, windowStart: string) =>
   Math.round((+parseKey(key) - +parseKey(windowStart)) / 86_400_000);
 
-function barsForRow(p: Property, windowStart: string, nights: number, reservations: Reservation[]): Bar[] {
+function barsForRow(p: Property, windowStart: string, nights: number, reservations: Reservation[], overrides: Record<string, import("../store").CellOverride> = {}): Bar[] {
   const windowEnd = dayKey(addDays(windowStart, nights));
   const out: Bar[] = [];
+  
   for (const r of reservations) {
     if (r.propertyId !== p.id || r.kind !== "stay") continue;
     if (r.status === "cancelled" || r.status === "no_show") continue;
     if (!nightsInRange(r, windowStart, windowEnd)) continue;
+
     const dayUse = r.checkOut === r.checkIn;
     const pending = r.status === "pending" || r.status === "enquiry";
-    // A day-use booking occupies neither night, so it sits as a short chip
-    // inside its own column rather than spanning a boundary.
-    const rawStart = dayUse ? idxOf(r.checkIn, windowStart) * COL_W + HALF * 0.25
-      : idxOf(r.checkIn, windowStart) * COL_W + HALF;
-    const rawEnd = dayUse ? idxOf(r.checkIn, windowStart) * COL_W + HALF * 1.75
-      : idxOf(r.checkOut, windowStart) * COL_W + HALF;
-    // Clip to the visible window so a stay running past either edge does not
-    // draw outside the grid.
-    const left = Math.max(0, rawStart);
-    const right = Math.min(nights * COL_W, rawEnd);
-    if (right <= left) continue;
+    
+    let left, width, clipPath, textLeft, textRight;
+    const rawLeft = idxOf(r.checkIn, windowStart) * COL_W;
+    const rawRight = idxOf(r.checkOut, windowStart) * COL_W + COL_W;
+    
+    if (dayUse) {
+      left = rawLeft + 4;
+      width = COL_W - 8;
+      clipPath = "none";
+      textLeft = 0;
+      textRight = 0;
+    } else {
+      left = rawLeft;
+      width = rawRight - rawLeft;
+      clipPath = `polygon(0 0, calc(100% - ${COL_W}px) 0, 100% 100%, ${COL_W}px 100%)`;
+      textLeft = Math.max(0, -left) + 60;
+      textRight = Math.max(0, (left + width) - (nights * COL_W)) + 60;
+    }
+
     out.push({
-      left: left + 2, width: Math.max(10, right - left - 4),
+      resId: r.id,
+      left, width, clipPath, textLeft, textRight, dayUse,
       color: channelDef(r.channel).color,
       label: `${propertyById(r.propertyId).code} · ${dayUse ? "day use" : r.status === "checked_in" ? "in house" : "arrives " + fmtShort(r.checkIn)}`,
-      sub: r.ref, resId: r.id, kind: pending ? "pending" : "confirmed", striped: pending, lane: 0,
+      sub: r.ref, kind: pending ? "pending" : "confirmed", striped: pending, isBlock: false,
     });
   }
+
+  // --- Dynamic overrides (manual blocks) ---
+  const sortedKeys = Object.keys(overrides).filter(k => k >= windowStart && k <= windowEnd && overrides[k].blockType).sort();
+  let currentBlock: any = null;
+
+  const pushCurrentBlock = () => {
+    if (!currentBlock) return;
+    const dayUse = currentBlock.checkIn === currentBlock.checkOut;
+    let left, width, clipPath, textLeft, textRight;
+    const rawLeft = idxOf(currentBlock.checkIn, windowStart) * COL_W;
+    const rawRight = idxOf(currentBlock.checkOut, windowStart) * COL_W + COL_W;
+    
+    if (dayUse) {
+      left = rawLeft + 4; width = COL_W - 8; clipPath = "none"; textLeft = 0; textRight = 0;
+    } else {
+      left = rawLeft; width = rawRight - rawLeft;
+      clipPath = `polygon(0 0, calc(100% - ${COL_W}px) 0, 100% 100%, ${COL_W}px 100%)`;
+      textLeft = Math.max(0, -left) + 60;
+      textRight = Math.max(0, (left + width) - (nights * COL_W)) + 60;
+    }
+    
+    out.push({
+      left, width, clipPath, textLeft, textRight, dayUse,
+      color: currentBlock.type === "manual" ? "#000000" : currentBlock.type === "owner" ? "#8A978A" : currentBlock.type === "maintenance" ? "#B42318" : "#C07F14",
+      label: currentBlock.label, sub: currentBlock.sub, kind: currentBlock.type, hatch: currentBlock.type === "owner", striped: currentBlock.type === "hold", isBlock: true,
+    });
+  };
+
+  for (const key of sortedKeys) {
+    const ov = overrides[key];
+    if (!currentBlock || currentBlock.type !== ov.blockType || currentBlock.label !== (ov.blockLabel || ov.blockType) || currentBlock.checkOut !== key) {
+      pushCurrentBlock();
+      currentBlock = {
+        checkIn: key,
+        checkOut: dayKey(addDays(key, 1)),
+        type: ov.blockType,
+        label: ov.blockLabel || ov.blockType,
+        sub: ov.blockPrice ? rateShort(ov.blockPrice) : undefined,
+      };
+    } else {
+      currentBlock.checkOut = dayKey(addDays(key, 1));
+    }
+  }
+  pushCurrentBlock();
+
   for (const b of BLOCKS) {
     if (b.propertyId !== p.id || !nightsInRange({ ...({} as Reservation), checkIn: b.checkIn, checkOut: b.checkOut }, windowStart, windowEnd)) continue;
-    // Blocks use the same half-open nights, so they follow the same geometry
-    // and a block can butt against an arrival on its final date.
-    const left = Math.max(0, idxOf(b.checkIn, windowStart) * COL_W + HALF);
-    const right = Math.min(nights * COL_W, idxOf(b.checkOut, windowStart) * COL_W + HALF);
-    if (right <= left) continue;
+    
+    const dayUse = b.checkIn === b.checkOut;
+    let left, width, clipPath, textLeft, textRight;
+    const rawLeft = idxOf(b.checkIn, windowStart) * COL_W;
+    const rawRight = idxOf(b.checkOut, windowStart) * COL_W + COL_W;
+
+    if (dayUse) {
+      left = rawLeft + 4;
+      width = COL_W - 8;
+      clipPath = "none";
+      textLeft = 0;
+      textRight = 0;
+    } else {
+      left = rawLeft;
+      width = rawRight - rawLeft;
+      clipPath = `polygon(0 0, calc(100% - ${COL_W}px) 0, 100% 100%, ${COL_W}px 100%)`;
+      textLeft = Math.max(0, -left);
+      textRight = Math.max(0, (left + width) - (nights * COL_W));
+    }
+
     out.push({
-      left: left + 2, width: Math.max(10, right - left - 4),
-      color: b.type === "owner" ? "#8A978A" : b.type === "manual" ? "#3D4A42" : "#C07F14",
-      label: b.label, kind: b.type, hatch: b.type === "owner", striped: b.type === "hold", lane: 0,
+      left, width, clipPath, textLeft, textRight, dayUse,
+      color: b.type === "manual" ? "#000000" : b.type === "owner" ? "#8A978A" : "#C07F14",
+      label: b.label, kind: b.type, hatch: b.type === "owner", striped: b.type === "hold", isBlock: true,
     });
   }
-  return assignLanes(out);
+  
+  return out.sort((a, b) => a.left - b.left || a.width - b.width);
 }
 
-/**
- * Pack bars into lanes so overlaps stay visible instead of painting over each
- * other. A day-use booking on a date that already has an arrival, or a genuine
- * double booking, drops to the second lane rather than disappearing under the
- * bar drawn after it. Two lanes fit inside ROW_H; anything beyond that is
- * clamped to the last lane, which is itself the signal that the row is
- * oversold.
- */
-const MAX_LANES = 2;
-function assignLanes(bars: Bar[]): Bar[] {
-  const ends: number[] = [];
-  return [...bars]
-    .sort((a, b) => a.left - b.left || a.width - b.width)
-    .map((b) => {
-      let lane = ends.findIndex((end) => b.left >= end);
-      if (lane === -1) { lane = Math.min(ends.length, MAX_LANES - 1); }
-      ends[lane] = b.left + b.width;
-      return { ...b, lane };
-    });
-}
-
-/** Every reservation touching one date, split into who leaves and who arrives.
- *  A date with both is a turnover: the unit is sold on the arriving booking,
- *  not free, and housekeeping has a same-day flip. */
 export function movementsOn(reservations: Reservation[], propertyId: string, key: string) {
   const live = reservations.filter(
     (r) => r.propertyId === propertyId && r.kind === "stay" && r.status !== "cancelled" && r.status !== "no_show",
@@ -120,11 +176,12 @@ export default function CalendarModule() {
   const [hover, setHover] = useState<HoverCard | null>(null);
   const [tab, setTab] = useState<"properties" | "services" | "workforce">("properties");
 
-  const [windowStart, setWindowStart] = useState(dayKey(addDays(new Date(), -2)));
-  const [windowN, setWindowN] = useState(25);
+  const [windowStart, setWindowStart] = useState(dayKey(addDays(new Date(), -4)));
+  const [windowN, setWindowN] = useState(45);
   const [search, setSearch] = useState("");
   const [bulkMode, setBulkMode] = useState(false);
-  const [checked, setChecked] = useState<string[]>([]);
+  const [propFilter, setPropFilter] = useState<string[]>([]);
+  const [bulkChecked, setBulkChecked] = useState<string[]>([]);
   const [focus, setFocus] = useState({ r: 0, c: 2 });
   const [selRange, setSelRange] = useState<[number, number] | null>(null);
   const [anchoring, setAnchoring] = useState(false);
@@ -144,16 +201,16 @@ export default function CalendarModule() {
     const active = properties
       .filter((p) => (showArchived ? true : !p.archived))
       .filter((p) => !q || p.name.toLowerCase().includes(q) || p.city.toLowerCase().includes(q))
-      .filter((p) => checked.length === 0 || !bulkMode || checked.includes(p.id) || p.parentId)
+      .filter((p) => propFilter.length === 0 || propFilter.includes(p.id) || (p.parentId && propFilter.includes(p.parentId)))
       .sort((a, b) => a.order - b.order);
     return active;
-  }, [properties, search, showArchived, checked, bulkMode]);
+  }, [properties, search, showArchived, propFilter, bulkMode]);
 
   const visibleRows = useMemo(() => (tab === "properties" ? rows : []), [tab, rows]);
   const days = useMemo(() => range(windowN).map((i) => addDays(windowStart, i)), [windowStart, windowN]);
   const keys = days.map(dayKey);
 
-  const effectiveChecked = checked.length ? rows.filter((r) => checked.includes(r.id) && !r.isParent) : rows.filter((r) => !r.isParent);
+  const effectiveChecked = bulkChecked.length ? rows.filter((r) => bulkChecked.includes(r.id) && !r.isParent) : rows.filter((r) => !r.isParent);
 
   const cellState = (p: Property, key: string, d: Date) => {
     const ov = calendarOverrides[p.id]?.[key];
@@ -361,17 +418,17 @@ export default function CalendarModule() {
           <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search property or city" className="!w-[190px] !pl-7" />
         </div>
         <div className="relative">
-          <Btn icon="filter" onClick={() => setPropFilterOpen(!propFilterOpen)}>Listings {checked.length ? `· ${checked.length}` : ""}</Btn>
+          <Btn icon="filter" onClick={() => setPropFilterOpen(!propFilterOpen)}>Listings {propFilter.length ? `· ${propFilter.length}` : ""}</Btn>
           {propFilterOpen && (
             <div className="anim-pop absolute left-0 top-9 z-40 w-[230px] rounded-lg border border-line bg-card p-2 shadow-xl">
               <div className="mb-1 flex justify-between px-1 text-[10.5px] font-bold text-mute">
-                <button onClick={() => setChecked(properties.filter((p) => !p.archived).map((p) => p.id))}>Select all</button>
-                <button onClick={() => setChecked([])}>Clear</button>
-                <button onClick={() => setChecked((c) => properties.filter((p) => !p.archived).map((p) => p.id).filter((id) => !c.includes(id)))}>Invert</button>
+                <button onClick={() => setPropFilter(properties.filter((p) => !p.archived).map((p) => p.id))}>Select all</button>
+                <button onClick={() => setPropFilter([])}>Clear</button>
+                <button onClick={() => setPropFilter((c) => properties.filter((p) => !p.archived).map((p) => p.id).filter((id) => !c.includes(id)))}>Invert</button>
               </div>
               {properties.filter((p) => !p.archived).map((p) => (
                 <label key={p.id} className="flex cursor-pointer items-center gap-2 rounded px-1.5 py-1 text-[12px] font-semibold hover:bg-paper">
-                  <input type="checkbox" checked={checked.includes(p.id)} onChange={() => setChecked((c) => c.includes(p.id) ? c.filter((x) => x !== p.id) : [...c, p.id])} className="accent-[#0E6B4E]" />
+                  <input type="checkbox" checked={propFilter.includes(p.id)} onChange={() => setPropFilter((c) => c.includes(p.id) ? c.filter((x) => x !== p.id) : [...c, p.id])} className="accent-[#0E6B4E]" />
                   {p.name}
                 </label>
               ))}
@@ -469,19 +526,18 @@ export default function CalendarModule() {
           <div
             ref={gridRef} tabIndex={0} role="grid" aria-label="Availability calendar. Use arrow keys to move."
             onKeyDown={onKeyDown}
-            className="relative select-none overflow-auto rounded-xl border border-line bg-card outline-none focus-visible:border-brand"
-            style={{ maxHeight: "calc(100dvh - 292px)" }}
+            className="relative select-none overflow-x-auto overflow-y-hidden rounded-xl border border-line bg-card outline-none focus-visible:border-brand [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: "none" }}
           >
-            <div style={{ width: LABEL_W + windowN * COL_W, minWidth: "100%" }}>
+            <div style={{ width: LABEL_W + windowN * COL_W, minWidth: "100%" }} className="flex flex-col">
               {/* Header */}
-              <div className="sticky top-0 z-30 border-b border-line bg-card">
+              <div className="sticky top-0 z-30 border-b border-line bg-card shrink-0">
                 <div className="flex" style={{ height: 24 }}>
                   <div className="sticky left-0 z-10 flex shrink-0 items-center border-r border-line bg-card px-3 text-[10.5px] font-bold uppercase tracking-wider text-mute" style={{ width: LABEL_W }}>
                     Listings · drag to reorder
                   </div>
                   <div className="flex">
                     {monthLabels.map((m, i) => (
-                      <div key={i} className="flex items-center border-r border-line px-2 font-display text-[11px] font-bold text-ink" style={{ width: m.span * COL_W }}>{m.label}</div>
+                      <div key={i} className="border-r border-line" style={{ width: m.span * COL_W }}><div className="sticky left-[224px] inline-flex h-full items-center px-2 font-display text-[11px] font-bold text-ink">{m.label}</div></div>
                     ))}
                   </div>
                 </div>
@@ -497,11 +553,12 @@ export default function CalendarModule() {
               </div>
 
               {/* Rows */}
+              <div className="flex flex-col">
               {rows.map((p, r) => {
-                const bars = barsForRow(p, windowStart, windowN, reservations);
+                const bars = barsForRow(p, windowStart, windowN, reservations, calendarOverrides[p.id]);
                 const isChild = !!p.parentId;
                 return (
-                  <div key={p.id} role="row" className="flex border-b border-line/70 hover:bg-paper/60" style={{ height: ROW_H }}>
+                  <div key={p.id} role="row" className="flex border-b border-line/70 hover:bg-paper/60" style={{ minHeight: ROW_H }}>
                     <div
                       role="rowheader" draggable={!bulkMode}
                       onDragStart={() => setDragId(p.id)}
@@ -511,12 +568,8 @@ export default function CalendarModule() {
                       style={{ width: LABEL_W }}
                     >
                       <Ic name="grip" size={12} className="cursor-grab text-line2" />
-                      {bulkMode && !p.isParent ? (
-                        <input type="checkbox" aria-label={`Select ${p.name}`} checked={checked.includes(p.id)} onChange={() => setChecked((c) => c.includes(p.id) ? c.filter((x) => x !== p.id) : [...c, p.id])} className="accent-[#0E6B4E]" />
-                      ) : (
-                        <span className="h-6 w-6 shrink-0 overflow-hidden rounded-md border border-line">
-                          <img src={p.image} alt="" className="h-full w-full object-cover" loading="lazy" onError={(e) => ((e.target as HTMLImageElement).style.display = "none")} />
-                        </span>
+                      {bulkMode && !p.isParent && (
+                        <input type="checkbox" aria-label={`Select ${p.name}`} checked={bulkChecked.includes(p.id)} onChange={() => setBulkChecked((c) => c.includes(p.id) ? c.filter((x) => x !== p.id) : [...c, p.id])} className="accent-[#0E6B4E]" />
                       )}
                       <button
                         onClick={() => navigate(`/listings?property=${p.id}`)}
@@ -538,7 +591,7 @@ export default function CalendarModule() {
                       <div className="absolute inset-0 flex">
                         {days.map((d, c) => {
                           const st = p.isParent ? null : cellState(p, keys[c], d);
-                          const inSel = selRange && c >= selRange[0] && c <= selRange[1];
+                          const inSel = selRange && c >= selRange[0] && c <= selRange[1] && (bulkMode || r === focus.r);
                           // The range reads as one bracket: gold wash inside,
                           // brand bookends on the edges of the selection.
                           const selEdge = inSel && selRange
@@ -555,6 +608,7 @@ export default function CalendarModule() {
                           const mv = p.isParent ? null : movementsOn(reservations, p.id, keys[c]);
                           const blockColor = st?.ov?.blockType === "owner" ? "#5C6357" : st?.ov?.blockType === "maintenance" ? "#B42318" : st?.ov?.blockType === "hold" ? "#9A6A0B" : "#3D4A42";
                           const showHover = (e: React.MouseEvent) => {
+                            clearTimeout(hoverTimer);
                             if (bulkMode || p.isParent || !st) return;
                             if (selRange && selRange[1] > selRange[0]) return; // a range is selected — the range bar owns the interaction
                             const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
@@ -575,7 +629,7 @@ export default function CalendarModule() {
                               data-r={r} data-c={c}
                               onMouseDown={(e) => { if (e.button !== 0) return; onCellPointerDown(r, c, !!p.isParent, () => { if (!bulkMode) setEditor({ keys: [keys[c]], label: `${p.name} · ${fmtDate(d)}`, isBlock }); }); }}
                               onMouseEnter={(e) => { if (!anchoring && !bulkMode) showHover(e); }}
-                              onMouseLeave={() => !bulkMode && !anchoring && setHover(null)}
+                              onMouseLeave={() => !bulkMode && !anchoring && (hoverTimer = setTimeout(() => setHover(null), 150))}
                               className={cx(
                                 "group/cell relative flex shrink-0 cursor-pointer flex-col items-center justify-end border-r border-line/50 pb-1 transition-colors",
                                 isWeekend(d) && !inSel && "bg-black/[0.025]",
@@ -587,14 +641,7 @@ export default function CalendarModule() {
                               )}
                               style={{ width: COL_W }}
                             >
-                              {isBlock ? (
-                                <>
-                                  <span className="mb-0.5 flex w-[52px] items-center justify-center gap-0.5 rounded-sm px-1 py-0.5 text-[7.5px] font-bold uppercase tracking-wide text-white" style={{ background: blockColor }}>
-                                    <Ic name="lock" size={8} sw={3} /> {st!.ov!.blockType}
-                                  </span>
-                                  {st!.ov!.blockPrice ? <span className="font-mono text-[9px] font-bold text-ink">{rateShort(st!.ov!.blockPrice!)}</span> : <span className="font-mono text-[8px] font-bold text-faint">no rate</span>}
-                                </>
-                              ) : st && !st.closed ? (
+                              {isBlock ? null : st && !st.closed ? (
                                 <>
                                   <span className={cx("font-mono text-[10px] font-bold leading-none", st.ov?.rate ? "text-brand-deep" : st.season ? "text-gold" : "text-mute")}>{rateShort(st.rate)}</span>
                                   <span className="mt-0.5 flex items-center gap-0.5">
@@ -625,6 +672,7 @@ export default function CalendarModule() {
                           <button
                             key={i} onClick={() => b.resId && navigate(`/reservations/${b.resId}`)}
                             onMouseEnter={(e) => {
+                              clearTimeout(hoverTimer);
                               if (!res) return;
                               const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
                               const flip = rect.bottom + 230 > window.innerHeight;
@@ -635,13 +683,29 @@ export default function CalendarModule() {
                                 node: <ReservationHoverCard r={res} onOpen={() => { setHover(null); navigate(`/reservations/${res.id}`); }} />,
                               });
                             }}
-                            onMouseLeave={() => setHover(null)}
-                            className={cx("absolute z-10 flex items-center gap-1 overflow-hidden rounded-md px-1.5 text-left shadow-sm transition-transform hover:scale-[1.02] hover:shadow-md", b.striped && "pat-stripes", b.hatch && "pat-hatch")}
-                            style={{ left: b.left, width: b.width, top: 4 + b.lane * 21, height: 19, background: b.color, color: "#fff" }}
+                            onMouseLeave={() => { hoverTimer = setTimeout(() => setHover(null), 150); }}
+                            className={cx("absolute bottom-0 top-0 overflow-hidden text-left transition-all hover:z-10 hover:brightness-110", b.striped && "pat-stripes", b.hatch && "pat-hatch", b.isBlock && "pointer-events-none")}
+                            style={{
+                              left: b.left,
+                              width: b.width,
+                              background: b.color,
+                              clipPath: b.clipPath,
+                              opacity: 0.95
+                            }}
                             aria-label={`${b.label}${b.sub ? `, ${b.sub}` : ""}`}
                           >
-                            <span className="truncate text-[9px] font-bold leading-none">{b.label}</span>
-                            {b.sub && <span className="shrink-0 font-mono text-[8px] opacity-80">{b.sub}</span>}
+                            <div
+                              className="absolute inset-y-0 flex flex-col justify-center overflow-hidden whitespace-nowrap text-white drop-shadow-sm"
+                              style={{
+                                left: b.textLeft,
+                                right: b.textRight,
+                                paddingLeft: b.dayUse ? 4 : (b.textLeft === 0 ? 34 : 8),
+                                paddingRight: b.dayUse ? 4 : (b.textRight === 0 ? 34 : 8),
+                              }}
+                            >
+                              <span className="text-[10.5px] font-bold leading-tight truncate">{b.label}</span>
+                              {b.sub && <span className="text-[9px] opacity-90 truncate">{b.sub}</span>}
+                            </div>
                           </button>
                         );
                       })}
@@ -649,12 +713,12 @@ export default function CalendarModule() {
                   </div>
                 );
               })}
+              </div>
             </div>
           </div>
-
           {/* Push queue */}
           {(pushQueue.length > 0 || bulkSnapshot) && (
-            <div className="anim-rise rounded-xl border border-line bg-card p-3">
+            <div className="anim-rise fixed bottom-6 right-6 z-[100] w-[400px] rounded-xl border border-line bg-card p-4 shadow-[0_12px_32px_-12px_rgba(20,24,17,0.45)]">
               <div className="mb-2 flex items-center justify-between">
                 <p className="font-display text-[13px] font-bold text-ink">Channel push queue <span className="ml-1 text-[11px] font-semibold text-mute">durable · idempotent · retried</span></p>
                 {bulkSnapshot && <Btn size="xs" variant="danger" icon="undo" onClick={rollbackBulk}>Rollback local edit</Btn>}
@@ -694,7 +758,8 @@ export default function CalendarModule() {
         <div
           className="anim-pop fixed z-[90] w-[290px]"
           style={hover.flip ? { left: hover.x, bottom: window.innerHeight - hover.y } : { left: hover.x, top: hover.y }}
-          onMouseLeave={() => setHover(null)}
+          onMouseEnter={() => clearTimeout(hoverTimer)}
+          onMouseLeave={() => { hoverTimer = setTimeout(() => setHover(null), 150); }}
         >
           {hover.node}
         </div>

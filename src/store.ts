@@ -932,14 +932,15 @@ export const useApp = create<App>((set, get) => ({
   },
   chatBooking: (input) => {
     const p = propertyById(input.propertyId);
-    // register the walk-in chat guest once so every lookup resolves
+    let newGuest = null;
     if (!GUESTS.some((g) => g.id === "g-chat")) {
-      GUESTS.push({
+      newGuest = {
         id: "g-chat", name: "Walk-in guest (chatbot)", emails: [], phones: [], country: "Unknown",
         status: "active", lastActivityTs: Date.now(), lastSource: "web", lifetimeSpend: 0,
         tags: ["chatbot"], notes: "Created by the embedded concierge widget.", consentMarketing: false,
         aliases: [], verifiedId: false,
-      });
+      } as any;
+      if (!GUESTS.some((g) => g.id === "g-chat")) GUESTS.push(newGuest);
     }
     const base = p.pricing.plans.find((pl) => pl.kind === "base")?.nightly ?? 3_500_000;
     const nights = Math.max(1, Math.round((+new Date(input.to) - +new Date(input.from)) / 86_400_000));
@@ -965,7 +966,9 @@ export const useApp = create<App>((set, get) => ({
       ],
       archived: false, createdAt: Date.now(), addOns: [],
     };
-    set((st) => ({ reservations: [res, ...st.reservations] }));
+    set((st) => ({
+      reservations: [res, ...st.reservations]
+    }));
     get().audit(`Chatbot booking ${ref} · ${p.name} · ${input.from} → ${input.to}`, "ai");
     return { ref, total, currency: p.currency };
   },
@@ -1275,7 +1278,7 @@ export const useApp = create<App>((set, get) => ({
   },
   savedAssets: [
     ...PROPERTIES.slice(0, 5).map((p, i) => ({ id: `img-p${i}`, name: `${p.name} · cover`, url: p.image, kind: "image" as const, propertyId: p.id })),
-    ...PROPERTIES.slice(0, 5).map((p, i) => ({ id: `img-p${i}-b`, name: `${p.name} · pool & grounds`, url: PROPERTIES[(i + 1) % 5].image, kind: "image" as const, propertyId: p.id })),
+    ...PROPERTIES.slice(0, 5).map((p, i) => ({ id: `img-p${i}-b`, name: `${p.name} · pool & grounds`, url: PROPERTIES[(i + 1) % Math.min(5, PROPERTIES.length)]?.image || p.image, kind: "image" as const, propertyId: p.id })),
     { id: "copy-welcome", name: "Welcome copy", url: "", kind: "copy" as const, note: "Boutique Bali, run properly. Nine staffed villas, honest pricing, real hosts." },
     { id: "copy-faq-checkin", name: "FAQ · Check-in", url: "", kind: "copy" as const, note: "Check-in is from 14:00 WITA. Early arrival? Ask us — we hold bags and open the pool." },
     { id: "copy-faq-pool", name: "FAQ · Pool", url: "", kind: "copy" as const, note: "Pools are cleaned daily and sit around 29°. Not heated, but Bali rarely needs it." },
@@ -1501,7 +1504,7 @@ export const useApp = create<App>((set, get) => ({
 
   addProperty: (name, city) => {
     const id = uid("p");
-    const base = PROPERTIES[0];
+    const base = PROPERTIES[0] || {} as any;
     const prop: Property = {
       ...base,
       id, name, code: name.slice(0, 3).toUpperCase(), city,
@@ -1526,7 +1529,7 @@ export const useApp = create<App>((set, get) => ({
   // Import a listing discovered on a connected OTA channel.
   importFromOta: (input) => {
     const id = uid("p");
-    const base = PROPERTIES[0];
+    const base = PROPERTIES[0] || {} as any;
     const prop: Property = {
       ...base,
       id, name: input.name, code: input.name.slice(0, 3).toUpperCase(), city: input.city,
@@ -1648,8 +1651,8 @@ function simulateInbound(
   platformId: string,
 ) {
   const st = get();
-  const g = GUESTS[st.msgConnections.length % GUESTS.length];
-  const p = PROPERTIES.find((x) => !x.archived && !x.isParent) ?? PROPERTIES[0];
+  const g = GUESTS[st.msgConnections.length % Math.max(1, GUESTS.length)] || {} as any;
+  const p = PROPERTIES.find((x) => !x.archived && !x.isParent) ?? (PROPERTIES[0] || {} as any);
   const channel = (platformId === "gmail" ? "email" : platformId) as Conversation["channel"];
   const bodies = [
     "Hi! Would an early check-in around 12:30 be possible?",

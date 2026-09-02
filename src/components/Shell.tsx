@@ -73,10 +73,14 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
       aria-label="Primary"
     >
       <button onClick={() => { onClose(); navigate("/dashboard"); }} className="flex items-center gap-2.5 px-4 pb-5 pt-6 text-left">
-        <span className="flex h-8 w-8 items-center justify-center rounded-sm bg-brand shadow-[0_0_0_3px_rgba(14,107,78,0.2)]">
-          <svg width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M7.5 5.5h4.5a6.5 6.5 0 0 1 0 13H7.5V5.5z" stroke="#fff" strokeWidth="2.4" />
-            <path d="M7.5 5.5v13" stroke="#8FE3BF" strokeWidth="2.4" />
+        <span className="flex h-8 w-8 items-center justify-center text-ink">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+            <mask id="derzen-logo-mask">
+              <rect width="24" height="24" fill="white" />
+              <circle cx="12" cy="13" r="3.6" fill="black" />
+              <path d="M10.2 14.5 Q 10.2 16.5 10 18 L 10 22.5 L 14 22.5 L 14 18 Q 13.8 16.5 13.8 14.5 Z" fill="black" />
+            </mask>
+            <path d="M12 1 L23.5 22.5 L0.5 22.5 Z" fill="currentColor" mask="url(#derzen-logo-mask)" />
           </svg>
         </span>
         <span>
@@ -144,10 +148,10 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
             <p className="truncate text-[12px] font-bold text-ink">{tenant ? tenant.name : WORKSPACE.name}</p>
             <p className="text-[10px] text-faint">{tenant ? `${tenant.plan} plan · ${tenant.currency}` : "workspace"}{session?.kind === "tenant" && session.impersonated && " · impersonated"}</p>
           </div>
-          <button onClick={logout} aria-label="Sign out" title="Sign out" className="rounded-sm p-1.5 text-faint transition-colors hover:bg-paper hover:text-danger">
-            <Ic name="logOut" size={14} />
-          </button>
         </div>
+        <button onClick={logout} className="mt-2.5 flex w-full items-center justify-center gap-2 rounded-md border border-line bg-surface py-2 text-[11.5px] font-bold text-mute transition-all hover:border-danger/30 hover:bg-danger/5 hover:text-danger">
+          <Ic name="logOut" size={14} /> Sign out
+        </button>
       </div>
     </nav>
   );
@@ -267,8 +271,10 @@ function ChatPanel() {
   const { chatOpen, setChatOpen, chat, sendChat } = useApp();
   const [activeId, setActiveId] = useState("ch-desk");
   const [draft, setDraft] = useState("");
-  const chan = chat.find((c) => c.id === activeId)!;
+  const chan = chat.find((c) => c.id === activeId);
   const endRef = useRef<HTMLDivElement>(null);
+
+  if (!chan) return null;
 
   const pick = (id: string) => {
     setActiveId(id);

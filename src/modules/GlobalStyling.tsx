@@ -149,16 +149,18 @@ export default function GlobalStyling() {
                 </div>
               </div>
               <div style={{ background: brand.paper, padding: 20 }}>
-                <div style={{ border: `${brand.borderW}px solid ${brand.borderColor}`, borderRadius: brand.radius, overflow: "hidden", boxShadow: brand.shadow === "none" ? "none" : brand.shadow === "soft" ? "0 1px 3px rgba(20,24,17,0.08)" : "0 10px 30px -12px rgba(20,24,17,0.25)" }}>
-                  <img src={PROPERTIES[0].image} alt="" className="h-28 w-full object-cover" />
-                  <div className="p-4">
-                    <p className="text-[16px] font-bold" style={{ fontFamily: `'${brand.headingFamily}', sans-serif`, color: brand.ink }}>{PROPERTIES[0].name}</p>
-                    <p className="mt-0.5 text-[11.5px]" style={{ color: brand.ink, opacity: 0.65 }}>{PROPERTIES[0].city} · {PROPERTIES[0].maxGuests} guests · from {moneyRaw(PROPERTIES[0].pricing.plans[0].nightly, "IDR", { compact: true })}/night</p>
-                    <button className="mt-3 px-4 py-2 text-[11.5px] font-bold" style={{ background: brand.btn === "outline" ? "transparent" : brand.btn === "soft" ? `${brand.primary}22` : brand.primary, color: brand.btn === "solid" ? "#fff" : brand.primary, border: brand.btn === "outline" ? `1.5px solid ${brand.primary}` : "none", borderRadius: brand.btnRadius }}>
-                      Check availability
-                    </button>
+                {PROPERTIES[0] && (
+                  <div style={{ border: `${brand.borderW}px solid ${brand.borderColor}`, borderRadius: brand.radius, overflow: "hidden", boxShadow: brand.shadow === "none" ? "none" : brand.shadow === "soft" ? "0 1px 3px rgba(20,24,17,0.08)" : "0 10px 30px -12px rgba(20,24,17,0.25)" }}>
+                    <img src={PROPERTIES[0].image} alt="" className="h-28 w-full object-cover" />
+                    <div className="p-4">
+                      <p className="text-[16px] font-bold" style={{ fontFamily: `'${brand.headingFamily}', sans-serif`, color: brand.ink }}>{PROPERTIES[0].name}</p>
+                      <p className="mt-0.5 text-[11.5px]" style={{ color: brand.ink, opacity: 0.65 }}>{PROPERTIES[0].city} · {PROPERTIES[0].maxGuests} guests · from {moneyRaw(PROPERTIES[0].pricing.plans[0].nightly, "IDR", { compact: true })}/night</p>
+                      <button className="mt-3 px-4 py-2 text-[11.5px] font-bold" style={{ background: brand.btn === "outline" ? "transparent" : brand.btn === "soft" ? `${brand.primary}22` : brand.primary, color: brand.btn === "solid" ? "#fff" : brand.primary, border: brand.btn === "outline" ? `1.5px solid ${brand.primary}` : "none", borderRadius: brand.btnRadius }}>
+                        Check availability
+                      </button>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             </div>
           </section>

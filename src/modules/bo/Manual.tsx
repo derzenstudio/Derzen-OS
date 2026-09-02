@@ -39,7 +39,8 @@ export function QueuesView() {
   const [reason, setReason] = useState("");
   const [pendingResolve, setPendingResolve] = useState<string | null>(null);
 
-  const q = QUEUES.find((x) => x.id === active)!;
+  const q = QUEUES.find((x) => x.id === active);
+  if (!q) return null;
   const visible = (queue: QueueDef) => queue.items.filter((i) => !resolved.has(i.id));
   const totalOpen = QUEUES.reduce((s, x) => s + visible(x).length, 0);
 

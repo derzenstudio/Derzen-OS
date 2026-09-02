@@ -97,10 +97,12 @@ function Knowledge() {
   const [result, setResult] = useState<null | { ok: boolean; text: string; citations: string[] }>(null);
   const [busy, setBusy] = useState(false);
   const aiConfigOn = useApp((s) => s.aiConfig.enabled);
-  const scope = KNOWLEDGE.find((k) => k.id === sel)!;
+  const scope = KNOWLEDGE.find((k) => k.id === sel);
+
+  if (!scope) return null;
 
   const runTest = async () => {
-    if (!question.trim() || busy) return;
+    if (!question.trim() || busy || !scope) return;
     setBusy(true);
     setResult(null);
     const providers = loadProviders();

@@ -309,7 +309,14 @@ export function PublicSite() {
 function Wordmark({ light }: { light?: boolean }) {
   return (
     <span className="flex items-center gap-2">
-      <svg width="24" height="24" viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect width="32" height="32" rx="7" fill={light ? "#ffffff" : "#0E6B4E"} /><path d="M10 8h6a8 8 0 0 1 0 16h-6V8z" stroke={light ? "#0E6B4E" : "#F4F5F0"} strokeWidth="2.6" /><path d="M10 8v16" stroke={light ? "#9A6A0B" : "#8FE3BF"} strokeWidth="2.6" /></svg>
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true" className={light ? "text-white" : "text-ink"}>
+        <mask id="derzen-logo-mask">
+          <rect width="24" height="24" fill="white" />
+          <circle cx="12" cy="13" r="3.6" fill="black" />
+          <path d="M10.2 14.5 Q 10.2 16.5 10 18 L 10 22.5 L 14 22.5 L 14 18 Q 13.8 16.5 13.8 14.5 Z" fill="black" />
+        </mask>
+        <path d="M12 1 L23.5 22.5 L0.5 22.5 Z" fill="currentColor" mask="url(#derzen-logo-mask)" />
+      </svg>
       <span className={cx("font-display text-[17px] font-extrabold uppercase tracking-[0.04em]", light ? "text-white" : "text-ink")}>derzen</span>
     </span>
   );
@@ -476,7 +483,14 @@ export function LoginPage() {
       <aside className="relative hidden flex-col justify-between overflow-hidden bg-ink p-10 text-white lg:flex">
         <div className="absolute inset-0 opacity-[0.13]" style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cpath d='M0 60h120M60 0v120' stroke='%23ffffff' stroke-width='0.6'/%3E%3C/svg%3E\")" }} aria-hidden="true" />
         <div className="relative flex items-center gap-2">
-          <svg width="28" height="28" viewBox="0 0 32 32" fill="none" aria-hidden="true"><rect width="32" height="32" rx="7" fill="#0E6B4E" /><path d="M10 8h6a8 8 0 0 1 0 16h-6V8z" stroke="#F4F5F0" strokeWidth="2.6" /><path d="M10 8v16" stroke="#8FE3BF" strokeWidth="2.6" /></svg>
+          <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true" className="text-white">
+            <mask id="derzen-logo-mask2">
+              <rect width="24" height="24" fill="white" />
+              <circle cx="12" cy="13" r="3.6" fill="black" />
+              <path d="M10.2 14.5 Q 10.2 16.5 10 18 L 10 22.5 L 14 22.5 L 14 18 Q 13.8 16.5 13.8 14.5 Z" fill="black" />
+            </mask>
+            <path d="M12 1 L23.5 22.5 L0.5 22.5 Z" fill="currentColor" mask="url(#derzen-logo-mask2)" />
+          </svg>
           <span className="font-display text-[19px] font-extrabold uppercase tracking-[0.04em]">derzen</span>
         </div>
         <div className="relative">

@@ -23,6 +23,8 @@ const BLOCK_LIB: { group: string; items: { type: string; label: string; icon: Ic
     { type: "collection_grid", label: "Collection grid", icon: "grid" }, { type: "collection_list", label: "Collection list", icon: "list" },
     { type: "featured_offering", label: "Featured offering", icon: "star" }, { type: "offerings_grid", label: "Offerings grid", icon: "grid" },
     { type: "search_bar", label: "Search bar", icon: "search" },
+    { type: "booking_calendar", label: "Listing calendar", icon: "calendar" },
+    { type: "group_calendar", label: "Group calendar", icon: "calendar" },
   ]},
   { group: "Utility", items: [
     { type: "cta_banner", label: "CTA banner", icon: "bolt" }, { type: "contact_form", label: "Contact form", icon: "mail" },
@@ -87,11 +89,13 @@ export default function Websites() {
     return () => window.removeEventListener("resize", onR);
   }, []);
 
-  const page = website.pages.find((p) => p.id === website.activePageId)!;
-  const sel = page.blocks.find((b) => b.id === selected) ?? null;
+  const page = website.pages.find((p) => p.id === website.activePageId);
+  const sel = page?.blocks.find((b) => b.id === selected) ?? null;
+
+  if (!page) return null;
 
   const onDrop = () => {
-    if (!dragId || dropAt === null) { setDragId(null); setDropAt(null); return; }
+    if (!dragId || dropAt === null || !page) { setDragId(null); setDropAt(null); return; }
     const from = page.blocks.findIndex((b) => b.id === dragId);
     let to = dropAt;
     if (from >= 0 && from < to) to -= 1;
@@ -229,7 +233,7 @@ export default function Websites() {
                 {siteChrome.logoMode !== "none" && (
                   <div className="rounded-sm bg-paper p-2">
                     <div className="flex items-center gap-2">
-                      <EditableImage src={siteChrome.logoUrl || PROPERTIES[0].image} onCommit={(v) => setSiteChrome({ logoUrl: v, logoMode: "image" })} className="h-9 w-9 shrink-0 rounded-sm border border-line bg-card" alt="Logo mark" />
+                      <EditableImage src={siteChrome.logoUrl || PROPERTIES[0]?.image} onCommit={(v) => setSiteChrome({ logoUrl: v, logoMode: "image" })} className="h-9 w-9 shrink-0 rounded-sm border border-line bg-card" alt="Logo mark" />
                       <div className="min-w-0 flex-1 space-y-1">
                         <TextInput value={siteChrome.logoText} onChange={(v) => setSiteChrome({ logoText: v, logoMode: "text" })} placeholder="Wordmark text" />
                         <div className="flex items-center justify-between gap-2">
@@ -262,7 +266,7 @@ export default function Websites() {
             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-2.5">
               <p className="font-display text-[14px] font-bold text-ink">Page: {page.name} <span className="font-mono text-[10px] font-semibold text-faint">/{page.slug}</span></p>
               <div className="flex gap-1.5">
-                <Btn size="xs" icon="plus" onClick={() => setLibOpen(true)}>Add block</Btn>
+                <Btn size="xs" icon="plus" onClick={(e) => { setPtr({ x: e.clientX, y: e.clientY }); setLibOpen(true); }}>Add block</Btn>
                 <Btn size="xs" variant={designOpen && !sel ? "solid" : "ghost"} icon="palette" onClick={() => { setDesignOpen(!designOpen); setSelected(null); }}>Design</Btn>
                 <Btn size="xs" variant="solid" icon="eye" onClick={() => setPreviewOpen(true)}>Preview</Btn>
               </div>
@@ -314,7 +318,7 @@ export default function Websites() {
               <div className={cx("h-1 rounded-full transition-all", dropAt === page.blocks.length && dragId ? "my-1 bg-brand" : "bg-transparent")} aria-hidden="true" />
               <button
                 onDragOver={(e) => { e.preventDefault(); setDropAt(page.blocks.length); }}
-                onClick={() => setLibOpen(true)}
+                onClick={(e) => { setPtr({ x: e.clientX, y: e.clientY }); setLibOpen(true); }}
                 className="mt-2 flex w-full items-center justify-center gap-2 rounded-sm border border-dashed border-line2 py-4 text-[12px] font-bold text-mute transition-colors hover:border-brand hover:text-brand-deep"
               >
                 <Ic name="plus" size={14} /> Drop a block here, or click to browse the library
@@ -452,9 +456,9 @@ export default function Websites() {
       )}
 
       {/* Block library */}
-      <Modal open={libOpen} onClose={() => setLibOpen(false)} title="Block library" w={580}
-        footer={<Btn variant="ghost" onClick={() => setLibOpen(false)}>Close</Btn>}>
-        <div className="space-y-4">
+      {libOpen && (
+        <FloatPanel anchor="lib" title="Block library" at={ptr} onClose={() => setLibOpen(false)}>
+          <div className="space-y-4">
           {sel && <p className="rounded-sm bg-brand-soft/60 px-3 py-2 text-[11px] font-bold text-brand-deep">Inserting after “{BLOCK_LABEL[sel.type]}” — the new block lands right below your selection.</p>}
           {BLOCK_LIB.map((g) => (
             <div key={g.group}>
@@ -471,7 +475,8 @@ export default function Websites() {
             </div>
           ))}
         </div>
-      </Modal>
+        </FloatPanel>
+      )}
 
       {/* Real preview — full screen, units resolve against the actual window */}
       {previewOpen && (
@@ -491,7 +496,7 @@ export default function Websites() {
               {siteChrome.logoMode !== "none" && (
                 <span className="flex items-baseline gap-2">
                   {siteChrome.logoMode === "image"
-                    ? <img src={siteChrome.logoUrl || PROPERTIES[0].image} alt="Logo" className="rounded-sm object-cover" style={{ height: siteChrome.logoSize, width: siteChrome.logoSize }} />
+                    ? <img src={siteChrome.logoUrl || PROPERTIES[0]?.image} alt="Logo" className="rounded-sm object-cover" style={{ height: siteChrome.logoSize, width: siteChrome.logoSize }} />
                     : <span className="font-display font-bold uppercase tracking-wide" style={{ fontSize: Math.max(13, siteChrome.logoSize * 0.62) }}>{siteChrome.logoText}</span>}
                   {siteChrome.taglineVisible && <span className="hidden text-[9.5px] opacity-70 sm:inline">{siteChrome.tagline}</span>}
                 </span>
@@ -766,7 +771,7 @@ function BlockView({ b, edit = false, onContent }: { b: Block; edit?: boolean; o
   const im = (p: { k: string; className?: string; style?: React.CSSProperties }) =>
     edit
       ? <EditableImage src={c[p.k] ?? ""} onCommit={set(p.k)} className={p.className} style={p.style} />
-      : <img src={c[p.k] || PROPERTIES[0].image} alt="" className={cx("object-cover", p.className)} style={p.style} onError={(e) => ((e.target as HTMLImageElement).src = PROPERTIES[0].image)} />;
+      : <img src={c[p.k] || PROPERTIES[0]?.image} alt="" className={cx("object-cover", p.className)} style={p.style} onError={(e) => ((e.target as HTMLImageElement).src = PROPERTIES[0]?.image)} />;
 
   const inner = (() => {
     switch (b.type) {
@@ -864,12 +869,41 @@ function BlockView({ b, edit = false, onContent }: { b: Block; edit?: boolean; o
           </div>
         );
       }
-      case "search_bar": return (
-        <div className="flex flex-wrap items-center gap-1.5 rounded-sm border border-line2 bg-white p-1.5" style={{ borderRadius: s.radius, ...es("field") }}>
-          <span className="flex-1 rounded-sm bg-paper px-2 py-1.5 text-[10px] font-bold text-faint">{c.placeholder || "Dates · guests · area"}</span>
-          {t({ k: "button", className: "rounded-sm bg-brand px-3 py-1.5 text-[10px] font-bold text-white", style: { borderRadius: s.radius, ...es("button") }, placeholder: "Search" })}
-        </div>
-      );
+            case "search_bar": {
+        const theme = { btn: "solid", accent: es("button")?.background || "#111", card: es("field")?.background || "#fff", text: "#111", borderW: 1, borderColor: "#e5e7eb", radius: s.radius, btnRadius: s.radius, pad: "16px", gap: "12px", sub: "#6b7280" } as any;
+        return (
+          <div className="relative z-10" >
+            <SearchWidgetPreview st={theme} onSearch={() => { if (!edit) useApp.getState().navigate("/pay"); else useApp.getState().toast("ok", "Search button clicked", "This will redirect guests to your booking engine."); }} />
+          </div>
+        );
+      }
+      case "booking_calendar": {
+        const theme = { btn: "solid", accent: es("button")?.background || "#111", card: es("field")?.background || "#fff", text: "#111", borderW: 1, borderColor: "#e5e7eb", radius: s.radius, btnRadius: s.radius, pad: "16px", gap: "12px", sub: "#6b7280" } as any;
+        return (
+          <div className="relative z-10" >
+            <CalendarWidgetPreview st={theme} propId={c.propertyId || PROPERTIES[0]?.id} onBooked={() => { if (!edit) useApp.getState().navigate("/pay/" + (c.propertyId || PROPERTIES[0]?.id)); else useApp.getState().toast("ok", "Book button clicked", "Redirects to checkout."); }} />
+          </div>
+        );
+      }
+      case "group_calendar": {
+        const theme = { btn: "solid", accent: es("button")?.background || "#111", card: es("field")?.background || "#fff", text: "#111", borderW: 1, borderColor: "#e5e7eb", radius: s.radius, btnRadius: s.radius, pad: "16px", gap: "12px", sub: "#6b7280" } as any;
+        // Reusing the CalendarWidgetPreview but tweaking for a group visual
+        return (
+          <div className="relative z-10" >
+            <div className="mb-4">
+              <h3 className="font-display text-[16px] font-bold text-ink mb-1">Samudra Estate (Group)</h3>
+              <p className="text-[12px] text-mute mb-3">Book the entire estate (3 villas) or select individually.</p>
+              <div className="flex gap-2">
+                <Btn size="xs" variant="solid">Entire Estate</Btn>
+                <Btn size="xs" variant="outline">Villa One</Btn>
+                <Btn size="xs" variant="outline">Villa Two</Btn>
+                <Btn size="xs" variant="outline">Villa Three</Btn>
+              </div>
+            </div>
+            <CalendarWidgetPreview st={theme} propId={c.propertyId || PROPERTIES[0]?.id} onBooked={() => { if (!edit) useApp.getState().navigate("/pay/" + (c.propertyId || PROPERTIES[0]?.id)); else useApp.getState().toast("ok", "Book button clicked", "Redirects to checkout."); }} />
+          </div>
+        );
+      }
       case "collection_grid": case "offerings_grid": return (
         <div>
           <div className="mb-1.5 flex items-center justify-between">
@@ -877,7 +911,7 @@ function BlockView({ b, edit = false, onContent }: { b: Block; edit?: boolean; o
             {b.type === "collection_grid" && t({ k: "cta", className: "text-[10px] font-bold text-brand-deep", style: es("cta"), placeholder: "View all" })}
           </div>
           <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3">
-            {[0, 1, 2].map((i) => <img key={i} src={PROPERTIES[i].image} alt={PROPERTIES[i].name} className="h-20 w-full rounded-sm object-cover" style={{ borderRadius: s.radius }} />)}
+            {PROPERTIES.slice(0, 3).map((p, i) => <img key={i} src={p.image} alt={p.name} className="h-20 w-full rounded-sm object-cover" style={{ borderRadius: s.radius }} />)}
           </div>
         </div>
       );
@@ -885,11 +919,11 @@ function BlockView({ b, edit = false, onContent }: { b: Block; edit?: boolean; o
         <div>
           {t({ k: "title", as: "h3", className: "mb-1.5 font-display text-[15px] font-bold text-ink", style: es("title"), placeholder: "Heading" })}
           <div className="space-y-1.5">
-            {[0, 1].map((i) => (
+            {PROPERTIES.slice(0, 2).map((p, i) => (
               <div key={i} className="flex items-center gap-2.5">
-                <img src={PROPERTIES[i].image} alt={PROPERTIES[i].name} className="h-12 w-20 rounded-sm object-cover" style={{ borderRadius: s.radius }} />
-                <div className="flex-1"><p className="text-[12px] font-bold text-ink">{PROPERTIES[i].name}</p><p className="text-[10px] text-mute">{PROPERTIES[i].city} · {PROPERTIES[i].maxGuests} guests</p></div>
-                <span className="font-mono text-[11px] font-bold text-brand-deep">{money(PROPERTIES[i].pricing.plans[0].nightly, "IDR", { compact: true })}</span>
+                <img src={p.image} alt={p.name} className="h-12 w-20 rounded-sm object-cover" style={{ borderRadius: s.radius }} />
+                <div className="flex-1"><p className="text-[12px] font-bold text-ink">{p.name}</p><p className="text-[10px] text-mute">{p.city} · {p.maxGuests} guests</p></div>
+                <span className="font-mono text-[11px] font-bold text-brand-deep">{money(p.pricing.plans[0].nightly, "IDR", { compact: true })}</span>
               </div>
             ))}
           </div>
@@ -1087,6 +1121,13 @@ function InspectorTabs({ b, onContent, onStyle }: { b: Block; onContent: (patch:
             ) : f.kind === "icons" ? (
               <Ifield key={f.key} label={f.label} hint="Tap the circle to swap an icon · labels edit in place">
                 <IconRowsEditor value={c[f.key] ?? ""} onChange={(v) => onContent({ [f.key]: v })} />
+              </Ifield>
+            ) : f.kind === "select_property" ? (
+              <Ifield key={f.key} label={f.label}>
+                <Select value={c[f.key] ?? ""} onChange={(e) => onContent({ [f.key]: e.target.value })}>
+                  <option value="">Select property...</option>
+                  {PROPERTIES.map((p) => <option key={p.id} value={p.id}>{p.name}</option>)}
+                </Select>
               </Ifield>
             ) : (
               <Ifield key={f.key} label={f.label} hint={f.hint}>
@@ -1307,7 +1348,7 @@ function Embeds() {
   const { widgetStyle: st, setWidgetStyle, toast, navigate } = useApp();
   const [copied, setCopied] = useState("");
   const [widget, setWidget] = useState<"search" | "calendar" | "chatbot">("search");
-  const [propId, setPropId] = useState(PROPERTIES[0].id);
+  const [propId, setPropId] = useState(PROPERTIES[0]?.id);
   const copy = (key: string, text: string) => { copyText(text); setCopied(key); toast("ok", "Embed code copied", "Auto-resizing — the widget grows with its content, never clipped."); setTimeout(() => setCopied(""), 1500); };
 
   const ColorRow = ({ label, k }: { label: string; k: "bg" | "card" | "text" | "sub" | "accent" | "borderColor" }) => (
@@ -1419,7 +1460,7 @@ function Embeds() {
 }
 
 // ── Widget previews (grow with content — the whole point) ─────────────────
-function SearchWidgetPreview({ st }: { st: ReturnType<typeof useApp.getState>["widgetStyle"] }) {
+function SearchWidgetPreview({ st, onSearch }: { st: ReturnType<typeof useApp.getState>["widgetStyle"]; onSearch?: () => void }) {
   const [open, setOpen] = useState(false);
   const [month, setMonth] = useState(0);
   const days = Array.from({ length: 28 }, (_, i) => i + 1);
@@ -1432,7 +1473,7 @@ function SearchWidgetPreview({ st }: { st: ReturnType<typeof useApp.getState>["w
         </button>
         <span style={{ background: st.card, color: st.text, border: `${st.borderW}px solid ${st.borderColor}`, borderRadius: st.radius, padding: "8px 12px", fontWeight: 700, fontSize: "0.95em" }}>4 guests</span>
         <span style={{ background: st.card, color: st.text, border: `${st.borderW}px solid ${st.borderColor}`, borderRadius: st.radius, padding: "8px 12px", fontWeight: 700, fontSize: "0.95em" }}>Uluwatu</span>
-        <button style={{ ...btnCls, borderRadius: st.btnRadius, padding: "8px 18px", fontWeight: 700, fontSize: "0.95em", cursor: "pointer" }}>Search villas</button>
+        <button onClick={onSearch} style={{ ...btnCls, borderRadius: st.btnRadius, padding: "8px 18px", fontWeight: 700, fontSize: "0.95em", cursor: "pointer" }}>Search villas</button>
       </div>
       {open && (
         <div className="anim-pop" style={{ background: st.card, border: `${st.borderW}px solid ${st.borderColor}`, borderRadius: st.radius, padding: st.pad }}>
@@ -1455,7 +1496,7 @@ function SearchWidgetPreview({ st }: { st: ReturnType<typeof useApp.getState>["w
   );
 }
 
-function CalendarWidgetPreview({ st, propId }: { st: ReturnType<typeof useApp.getState>["widgetStyle"]; propId: string }) {
+function CalendarWidgetPreview({ st, propId, onBooked }: { st: ReturnType<typeof useApp.getState>["widgetStyle"]; propId: string; onBooked?: () => void }) {
   const [from, setFrom] = useState<number | null>(null);
   const [to, setTo] = useState<number | null>(null);
   const p = propertyById(propId);
@@ -1496,7 +1537,7 @@ function CalendarWidgetPreview({ st, propId }: { st: ReturnType<typeof useApp.ge
             <b style={{ color: st.text }}>{to - from} nights selected</b>
             <p style={{ margin: "2px 0 0", color: st.sub, fontSize: "0.85em" }}>≈ {money(rate * (to - from), "IDR", { compact: true })} + fees</p>
           </div>
-          <button style={{ ...btnCls, borderRadius: st.btnRadius, padding: "8px 18px", fontWeight: 700, cursor: "pointer" }}>Book now →</button>
+          <button onClick={onBooked} style={{ ...btnCls, borderRadius: st.btnRadius, padding: "8px 18px", fontWeight: 700, cursor: "pointer" }}>Book now →</button>
         </div>
       )}
       <p style={{ color: st.sub, fontSize: "0.8em", margin: 0 }}>Select a range — the quote panel appears and the embed grows to fit it.</p>

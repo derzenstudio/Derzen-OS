@@ -21,7 +21,7 @@ export function ChatbotPreview({ st, onBooked }: { st: WidgetStyle; onBooked: (r
   ]);
   const [typing, setTyping] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [propId, setPropId] = useState(PROPERTIES[0].id);
+  const [propId, setPropId] = useState(PROPERTIES[0]?.id || "");
   const [from, setFrom] = useState(dayKey(addDays(today(), 7)));
   const [nights, setNights] = useState(4);
   const [guests, setGuests] = useState(2);

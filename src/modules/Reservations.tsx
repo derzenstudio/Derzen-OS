@@ -103,7 +103,7 @@ export default function Reservations() {
                       <Avatar name={g.name} size={28} color={channelDef(r.channel).color} />
                       <div>
                         <p className="text-[12.5px] font-bold text-ink">{g.name}</p>
-                        <p className="font-mono text-[10.5px] text-faint">{r.ref}{r.kind === "service" && ` · ${serviceById(r.serviceId!).name}`}</p>
+                        <p className="font-mono text-[10.5px] text-faint">{r.ref}{r.kind === "service" && ` · ${serviceById(r.serviceId!)?.name}`}</p>
                       </div>
                     </div>
                   </td>

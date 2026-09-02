@@ -24,8 +24,11 @@ export default function Guidebooks() {
   const properties = useApp((s) => s.properties);
   const [pid, setPid] = useState("p-anggrek");
   const [tab, setTab] = useState("content");
-  const gb = guidebooks.find((g) => g.propertyId === pid)!;
+  const gb = guidebooks.find((g) => g.propertyId === pid);
   const prop = propertyById(pid);
+
+  if (!gb || !prop) return <div className="p-8 text-center text-mute">Guidebook or property not found.</div>;
+
   const comp = useMemo(() => completion(gb), [gb]);
   const canPublish = comp >= THRESHOLD;
   const [items, setItems] = useState(STORE_ITEMS);

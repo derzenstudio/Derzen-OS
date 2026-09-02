@@ -250,7 +250,7 @@ export function EditableImage({
   const [pos, setPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
   const [url, setUrl] = useState("");
   const [busy, setBusy] = useState(false);
-  const effective = src || PROPERTIES[0].image;
+  const effective = src || PROPERTIES[0]?.image;
   const boxRef = useRef<HTMLDivElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -298,7 +298,7 @@ export function EditableImage({
       className={cx("group/img relative cursor-pointer overflow-hidden", className)}
       style={style}
     >
-      <img src={effective} alt={alt} className="pointer-events-none h-full w-full select-none" style={{ objectFit: fit }} draggable={false} onError={(e) => ((e.target as HTMLImageElement).src = PROPERTIES[0].image)} />
+      <img src={effective} alt={alt} className="pointer-events-none h-full w-full select-none" style={{ objectFit: fit }} draggable={false} onError={(e) => ((e.target as HTMLImageElement).src = PROPERTIES[0]?.image)} />
       {/* hover scrim — visual only */}
       <span className="pointer-events-none absolute inset-0 flex items-center justify-center gap-1.5 bg-pine-950/0 text-[11px] font-bold text-white opacity-0 transition-all group-hover/img:bg-pine-950/45 group-hover/img:opacity-100">
         <Ic name="image" size={14} /> Replace

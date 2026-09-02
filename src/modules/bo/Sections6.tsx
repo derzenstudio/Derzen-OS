@@ -133,7 +133,8 @@ const kindCls: Record<string, string> = {
 export function StateMachinesView() {
   const [mid, setMid] = useState("reservation");
   const [sel, setSel] = useState<string | null>("confirmed");
-  const m = STATE_MACHINES.find((x) => x.id === mid)!;
+  const m = STATE_MACHINES.find((x) => x.id === mid);
+  if (!m) return null;
   const outgoing = m.transitions.filter((t) => t.from === sel);
   const incoming = m.transitions.filter((t) => t.to === sel);
 
@@ -307,7 +308,9 @@ export function ResolverView() {
   const [adults, setAdults] = useState(4);
   const [channel, setChannel] = useState("direct");
 
-  const prop = properties.find((p) => p.id === propId)!;
+  const prop = properties.find((p) => p.id === propId);
+  if (!prop) return null;
+
   const res = useMemo(() => runResolve(prop, start, los, adults, channel, reservations, overrides), [prop, start, los, adults, channel, reservations, overrides]);
   const a = res.amounts;
 

@@ -340,7 +340,9 @@ export function CalculationsView() {
   const [naive, setNaive] = useState(false);
   const [stmtRun, setStmtRun] = useState(0);
 
-  const prop = properties.find((p) => p.id === propId)!;
+  const prop = properties.find((p) => p.id === propId);
+  if (!prop) return null;
+
   const cur = prop.currency;
 
   // billable meter

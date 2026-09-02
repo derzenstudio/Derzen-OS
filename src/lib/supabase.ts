@@ -25,7 +25,44 @@ let client: SupabaseClient | null = null;
 
 export function supabase(): SupabaseClient {
   if (!isServerAuthConfigured()) {
-    throw new Error("Supabase is not configured for this build. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY.");
+    console.warn("Supabase is not configured for this build. Returning a mock proxy.");
+    const noOp = {
+      select: () => noOp,
+      insert: () => noOp,
+      update: () => noOp,
+      delete: () => noOp,
+      eq: () => noOp,
+      in: () => noOp,
+      single: async () => ({ data: null, error: null }),
+      maybeSingle: async () => ({ data: null, error: null }),
+      order: () => noOp,
+      then: (res: any) => res({ data: [], error: null })
+    };
+    if (!client) {
+      client = new Proxy({} as any, {
+        get: (target, prop) => {
+          if (prop === 'auth') {
+            return {
+              getUser: async () => ({ data: { user: null }, error: null }),
+              signOut: async () => ({ error: null }),
+              onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
+              getSession: async () => ({ data: { session: null }, error: null })
+            };
+          }
+          if (prop === 'functions') {
+            return { invoke: async () => ({ data: null, error: null }) };
+          }
+          if (prop === 'rpc') {
+            return async () => ({ data: null, error: null });
+          }
+          if (prop === 'from') {
+            return () => noOp;
+          }
+          return () => ({});
+        }
+      });
+    }
+    return client as SupabaseClient;
   }
   if (!client) {
     client = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
@@ -41,7 +78,7 @@ export function supabase(): SupabaseClient {
       },
     });
   }
-  return client;
+  return client as SupabaseClient;
 }
 
 /** Base URL for Edge Functions, used by the AI proxy. */

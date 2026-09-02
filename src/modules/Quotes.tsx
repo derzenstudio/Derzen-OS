@@ -43,7 +43,7 @@ export default function Quotes() {
             <button key={s} onClick={() => setFilter(s)} className={cx("rounded-md px-2.5 py-1.5 text-[11.5px] font-bold capitalize", filter === s ? "bg-pine-900 text-white" : "text-mute hover:text-ink")}>{s}</button>
           ))}
         </div>
-        <Btn className="ml-auto" variant="solid" icon="plus" onClick={() => { setNq({ propertyId: PROPERTIES[0].id, guestId: GUESTS[0].id, checkIn: "", checkOut: "", adults: 2 }); setNqOpen(true); }}>New quote</Btn>
+        <Btn className="ml-auto" variant="solid" icon="plus" onClick={() => { setNq({ propertyId: PROPERTIES[0]?.id || "", guestId: GUESTS[0]?.id || "", checkIn: "", checkOut: "", adults: 2 }); setNqOpen(true); }}>New quote</Btn>
       </div>
 
       <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
@@ -60,7 +60,7 @@ export default function Quotes() {
                   <p className="flex flex-wrap items-center gap-2 text-[13.5px] font-bold text-ink">{x.ref} <Badge tone={TONE[x.status]}>{x.status}</Badge>
                     {x.status === "sent" && h > 0 && <span className="flex items-center gap-1 rounded-full bg-gold-soft px-2 py-0.5 text-[9.5px] font-bold text-[#8a5c07]"><Ic name="clock" size={9} /> expires {h > 48 ? relDay(new Date(x.expiresAt)) : `in ${h}h`}</span>}
                   </p>
-                  <p className="text-[11.5px] text-mute">{g.name} · {p.name}{x.serviceIds.length > 0 && ` + ${x.serviceIds.map((s) => serviceById(s).name.split(" ")[0]).join(", ")}`} · {fmtDate(x.checkIn)} → {fmtDate(x.checkOut)}</p>
+                  <p className="text-[11.5px] text-mute">{g.name} · {p.name}{x.serviceIds.length > 0 && ` + ${x.serviceIds.map((s) => serviceById(s)?.name.split(" ")[0]).join(", ")}`} · {fmtDate(x.checkIn)} → {fmtDate(x.checkOut)}</p>
                   <p className="mt-1 font-mono text-[16px] font-bold text-ink">{money(x.total, x.currency)} <span className="text-[10px] font-semibold text-faint">· {x.adults} adults · created {timeAgo(x.createdAt)}</span></p>
                 </div>
               </div>

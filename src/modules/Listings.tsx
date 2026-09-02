@@ -793,12 +793,13 @@ const AUTH_LABEL: Record<string, string> = {
 
 function AddListingWizard({ onClose, onDone }: { onClose: () => void; onDone: (id: string) => void }) {
   const { addProperty, importFromOta, toast } = useApp();
-  const [step, setStep] = useState<"source" | "manual" | "channel" | "fetch" | "pick">("source");
+  const [step, setStep] = useState<"source" | "manual" | "channel" | "fetch" | "pick" | "spreadsheet">("source");
   const [name, setName] = useState("");
   const [city, setCity] = useState("");
   const [channel, setChannel] = useState("airbnb");
   const [authing, setAuthing] = useState(false);
   const [fetching, setFetching] = useState(false);
+  const [spreadsheetLink, setSpreadsheetLink] = useState("");
   const [remote, setRemote] = useState<OtaListing[]>([]);
   const connected = CHANNEL_DEFS.filter((c) => c.id !== "ical");
 
@@ -828,11 +829,12 @@ function AddListingWizard({ onClose, onDone }: { onClose: () => void; onDone: (i
         <span className="flex items-center gap-3">
           <span>Add a listing</span>
           <span className="flex items-center gap-1">
-            {(["source", "manual", "channel", "fetch", "pick"] as const).indexOf(step) >= 0 && (
+            {(["source", "manual", "channel", "fetch", "pick", "spreadsheet"] as const).indexOf(step) >= 0 && (
               <>
                 {step === "source" ? <span className="font-mono text-[10px] font-bold text-brand-deep">1 · Choose a source</span> :
                   step === "manual" ? <span className="font-mono text-[10px] font-bold text-brand-deep">2 · New listing</span> :
                   step === "channel" ? <span className="font-mono text-[10px] font-bold text-brand-deep">2 · Pick a channel</span> :
+                  step === "spreadsheet" ? <span className="font-mono text-[10px] font-bold text-brand-deep">2 · Import spreadsheet</span> :
                   <span className="font-mono text-[10px] font-bold text-brand-deep">{step === "fetch" ? "Connecting…" : "3 · Import"}</span>}
               </>
             )}
@@ -846,8 +848,9 @@ function AddListingWizard({ onClose, onDone }: { onClose: () => void; onDone: (i
           {([
             { id: "manual", icon: "plus" as IconName, title: "Create manually", desc: "Start from scratch. We'll sync photos from your connected channels and you can set rates, rooms and calendars.", tag: "Fastest" },
             { id: "channel", icon: "download" as IconName, title: "Import from a connected OTA", desc: "Pull an existing listing off Airbnb, Booking.com, VRBO, Agoda, Expedia, Trip.com, MakeMyTrip or Traveloka — photos, rate and capacity come with it.", tag: "Recommended" },
+            { id: "spreadsheet", icon: "table" as IconName, title: "Import from spreadsheet", desc: "Upload a CSV/Excel file or paste a Google Sheets link to import a single listing or a batch of properties.", tag: "File/Link" },
           ] as const).map((o) => (
-            <button key={o.id} onClick={() => setStep(o.id as "manual" | "channel")}
+            <button key={o.id} onClick={() => setStep(o.id as "manual" | "channel" | "spreadsheet")}
               className="flex items-start gap-3 rounded-lg border border-line bg-card p-4 text-left transition-all hover:-translate-y-0.5 hover:border-brand hover:shadow-md">
               <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-brand-soft text-brand-deep"><Ic name={o.icon} size={17} /></span>
               <span className="min-w-0 flex-1">
@@ -861,6 +864,37 @@ function AddListingWizard({ onClose, onDone }: { onClose: () => void; onDone: (i
             <b className="text-ink">No channel connected yet?</b> Pick “Import from a connected OTA” and choose a channel — the
             wizard authenticates it first ({connected.map((c) => c.name).join(", ")}), then pulls your listings so nothing is re-typed.
           </p>
+        </div>
+      )}
+
+      {step === "spreadsheet" && (
+        <div className="space-y-4">
+          <p className="text-[11.5px] text-mute">Paste a Google Sheets link or upload a `.csv` or `.xlsx` file containing your listing details or property portfolio.</p>
+          <Field label="Spreadsheet link"><Input value={spreadsheetLink} onChange={(e) => setSpreadsheetLink(e.target.value)} placeholder="https://docs.google.com/spreadsheets/d/..." autoFocus /></Field>
+          
+          <div className="relative flex h-24 w-full cursor-pointer flex-col items-center justify-center rounded-xl border border-dashed border-line bg-surface transition-colors hover:border-brand hover:bg-brand-soft">
+            <Ic name="upload" size={24} className="mb-2 text-mute" />
+            <span className="text-[12.5px] font-bold text-ink">Click to upload file</span>
+            <span className="text-[10px] text-faint">CSV or Excel (max 5MB)</span>
+            <input type="file" accept=".csv,.xlsx" className="absolute inset-0 cursor-pointer opacity-0" onChange={(e) => {
+              if (e.target.files?.[0]) {
+                toast("ok", "Spreadsheet uploaded", `Processing ${e.target.files[0].name}...`);
+                setTimeout(() => {
+                  onDone(addProperty("Imported Villa", "Canggu"));
+                }, 1000);
+              }
+            }} />
+          </div>
+
+          <div className="flex justify-end gap-2">
+            <Btn variant="ghost" onClick={() => setStep("source")}>Back</Btn>
+            <Btn variant="solid" icon="download" disabled={!spreadsheetLink.trim()} onClick={() => {
+              toast("ok", "Spreadsheet linked", "Importing rows...");
+              setTimeout(() => {
+                onDone(addProperty("Imported Villa", "Canggu"));
+              }, 1000);
+            }}>Import from Link</Btn>
+          </div>
         </div>
       )}
 

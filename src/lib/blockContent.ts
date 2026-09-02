@@ -2,7 +2,7 @@
 // Lists are stored as delimited strings so the inline editor stays simple
 // (one line per item, "Q | A" pairs for FAQ, comma-separated URLs for galleries).
 
-export interface ContentField { key: string; label: string; multiline?: boolean; kind?: "text" | "image" | "lines" | "qa" | "csv" | "url" | "icons"; hint?: string; }
+export interface ContentField { key: string; label: string; multiline?: boolean; kind?: "text" | "image" | "lines" | "qa" | "csv" | "url" | "icons" | "select_property"; hint?: string; }
 export const CONTENT_SCHEMA: Record<string, ContentField[]> = {
   hero: [
     { key: "headline", label: "Headline" },
@@ -45,6 +45,8 @@ export const CONTENT_SCHEMA: Record<string, ContentField[]> = {
   ],
   offerings_grid: [{ key: "title", label: "Heading" }],
   search_bar: [{ key: "button", label: "Button label" }, { key: "placeholder", label: "Placeholder" }],
+  booking_calendar: [{ key: "propertyId", label: "Selected Property ID", kind: "select_property" }],
+  group_calendar: [{ key: "title", label: "Group Title" }, { key: "subtitle", label: "Group Subtitle" }, { key: "propertyId", label: "Selected Property ID", kind: "select_property" }],
   cta_banner: [
     { key: "headline", label: "Headline" },
     { key: "button", label: "Button label" },
@@ -89,6 +91,8 @@ export function defaultBlockContent(type: string): Record<string, string> {
     case "featured_offering": return { title: "Villa Anggrek", text: "Cliffside in Uluwatu with an infinity edge over the Indian Ocean. Sleeps 8, staffed by five.", price: "from Rp 7.4M / night", image: "" };
     case "offerings_grid": return { title: "Services & experiences" };
     case "search_bar": return { button: "Search stays", placeholder: "Dates · guests · area" };
+    case "booking_calendar": return { propertyId: "" };
+    case "group_calendar": return { title: "Samudra Estate (Group)", subtitle: "Book the entire estate or select individually.", propertyId: "" };
     case "cta_banner": return { headline: "Direct bookings save ~15%, always.", button: "Book direct", url: "/search" };
     case "contact_form": return { title: "Talk to a human", button: "Send message" };
     case "icon_highlights": return { title: "Why guests return", items: "heart | Private staff on call\nbag | Market-fresh chef menus\ncoins | Honest direct pricing" };
@@ -112,6 +116,8 @@ export const ELEMENTS: Record<string, { id: string; label: string; kind: "text" 
   featured_offering: [{ id: "image", label: "Image", kind: "image" }, { id: "title", label: "Name", kind: "text" }, { id: "text", label: "Description", kind: "text" }, { id: "price", label: "Price line", kind: "text" }],
   offerings_grid: [{ id: "title", label: "Heading", kind: "text" }],
   search_bar: [{ id: "field", label: "Search field", kind: "container" }, { id: "button", label: "Button", kind: "button" }],
+  booking_calendar: [{ id: "field", label: "Calendar wrap", kind: "container" }, { id: "button", label: "Book Button", kind: "button" }],
+  group_calendar: [{ id: "field", label: "Group wrap", kind: "container" }, { id: "button", label: "Book Button", kind: "button" }],
   cta_banner: [{ id: "banner", label: "Banner", kind: "container" }, { id: "headline", label: "Headline", kind: "text" }, { id: "button", label: "Button", kind: "button" }],
   contact_form: [{ id: "title", label: "Form title", kind: "text" }, { id: "button", label: "Submit button", kind: "button" }],
   icon_highlights: [{ id: "title", label: "Heading", kind: "text" }, { id: "list", label: "Highlights row", kind: "container" }, { id: "chip", label: "Icon chips", kind: "container" }],

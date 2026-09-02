@@ -150,7 +150,7 @@ export const propertyById = (id: string): Property => {
   const found = PROPERTIES.find((p) => p.id === id);
   if (found) return found;
   const stub: Property = {
-    ...PROPERTIES[0], id, name: "Unknown property", code: "UNK",
+    ...(PROPERTIES[0] || {} as any), id, name: "Unknown property", code: "UNK",
     archived: true, parentId: null, isParent: false, channels: {},
   };
   PROPERTIES.push(stub);
@@ -314,10 +314,10 @@ export const SERVICES: Service[] = [
   { id: "s-scooter", name: "Scooter Rental · day", category: "equipment", durationMin: 1440, capacity: 6, price: 125_000, currency: "IDR", deposit: 200_000, location: "Delivery to villa", leadTimeH: 3, image: IMG.cemara, active: true, checkoutEnabled: true },
   { id: "s-catamaran", name: "Sunset Catamaran Cruise", category: "experience", durationMin: 240, capacity: 12, price: 2_800_000, currency: "IDR", deposit: 500_000, location: "Benoa marina", leadTimeH: 48, image: IMG.anggrek, active: true, checkoutEnabled: true },
 ];
-export const serviceById = (id: string) => SERVICES.find((s) => s.id === id)!;
+export const serviceById = (id: string) => SERVICES.find((s) => s.id === id);
 
 const sb = (id: string, serviceId: string, propertyId: string, staffId: string, off: number, start: string, guests: number, status: ServiceBooking["status"] = "scheduled"): ServiceBooking => ({
-  id, serviceId, propertyId, staffId, date: dayKey(addDays(today(), off)), start, guests, status, value: serviceById(serviceId).price,
+  id, serviceId, propertyId, staffId, date: dayKey(addDays(today(), off)), start, guests, status, value: serviceById(serviceId)?.price ?? 0,
 });
 export const SERVICE_BOOKINGS: ServiceBooking[] = [
   sb("sb-1", "s-chef", "p-anggrek", "m-kadek", 0, "18:00", 6),

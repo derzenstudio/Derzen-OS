@@ -10,7 +10,8 @@ import type { ChannelDef } from "../lib/types";
 const OTA_LAUNCH = ["airbnb", "booking", "vrbo", "expedia", "agoda", "trip", "mmt", "traveloka"] as const;
 
 export default function Channels({ tab: initialTab }: { tab?: string }) {
-  const [tab, setTab] = useState(initialTab ?? "dashboard");
+  const route = useApp((s) => s.route);
+  const [tab, setTab] = useState(initialTab ?? (route.path[0] === "sync" ? "sync" : "dashboard"));
   const sync = useApp((s) => s.sync);
   const conflicts = useApp((s) => s.conflicts);
   const errors = sync.filter((s) => s.state === "error");

@@ -5,7 +5,7 @@ import { PROPERTIES, RESERVATIONS, channelDef } from "../lib/data";
 import { useApp } from "../store";
 import { TENANTS } from "../lib/tenants";
 import { devTeamEmpty } from "../lib/devTeam";
-import { serverAuthReady } from "../lib/authServer";
+import { changeOwnPassword, currentUser, serverAuthReady, signOutServer } from "../lib/authServer";
 import { ChannelMark } from "../components/ota";
 
 const CHANNEL_TICKER = ["airbnb", "booking", "vrbo", "expedia", "agoda", "trip", "mmt", "traveloka", "ical", "direct"] as const;
@@ -378,7 +378,30 @@ const PROVISION_STEPS = [
   "Wiring inbox, calendar & channels",
 ];
 
+/* A Supabase recovery e-mail lands the seat holder back on this page. The PKCE
+ * flow returns a code in the query string, the implicit flow returns a recovery
+ * marker in the fragment, and requestPasswordReset aims both at the reset route.
+ * Read the markers at module load: the Supabase client consumes and strips them
+ * as soon as it boots. */
+const RECOVERY_LANDING =
+  typeof window !== "undefined" &&
+  (/[?&]code=/.test(window.location.search) ||
+    /type=recovery/.test(window.location.hash) ||
+    /^#\/[a-z]{2}\/reset\b/.test(window.location.hash));
+
 export function LoginPage() {
+  // Password-recovery landing. Hooks stay unconditional; only the panel that
+  // uses them is conditional.
+  const [recoveryPw, setRecoveryPw] = useState("");
+  const [recoveryPw2, setRecoveryPw2] = useState("");
+  const [recoveryErr, setRecoveryErr] = useState<string | null>(null);
+  const [recoveryBusy, setRecoveryBusy] = useState(false);
+  const [recoveryDone, setRecoveryDone] = useState(false);
+  useEffect(() => {
+    // Boot the Supabase client so it can trade the recovery marker in the URL
+    // for a session before anyone types into the form below.
+    if (RECOVERY_LANDING) void currentUser();
+  }, []);
   const { navigate, loginTenant, signupCustomer, resetCustomerPassword, resetDeveloperPassword, loginDeveloper } = useApp();
   const [tab, setTab] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
@@ -476,6 +499,82 @@ export function LoginPage() {
     if (!res.ok) { setDevErr(res.error ?? "Developer sign-in failed."); return; }
     navigate("/dev");
   };
+
+  const submitRecovery = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    setRecoveryErr(null);
+    if (recoveryPw !== recoveryPw2) { setRecoveryErr("Both fields must match."); return; }
+    if (recoveryPw.length < 12) { setRecoveryErr("Console passwords need at least 12 characters."); return; }
+    setRecoveryBusy(true);
+    const who = await currentUser();
+    if (!who) {
+      setRecoveryBusy(false);
+      setRecoveryErr("That reset link is no longer valid. Request a fresh one from the sign-in page.");
+      return;
+    }
+    const res = await changeOwnPassword(recoveryPw);
+    setRecoveryBusy(false);
+    if (!res.ok) { setRecoveryErr(res.error ?? "Could not save that password."); return; }
+    await signOutServer();
+    setRecoveryDone(true);
+  };
+
+  if (RECOVERY_LANDING && serverAuth) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-paper p-6">
+        <div className="w-full max-w-md rounded-lg border border-line bg-surface p-8">
+          <h1 className="text-2xl font-semibold text-ink">Set a new password</h1>
+          {recoveryDone ? (
+            <>
+              <p className="mt-3 text-sm text-mute">
+                Saved. Sign in with it on the internal panel of the sign-in page.
+              </p>
+              <a href="#/en/login" className="mt-6 inline-block rounded bg-ink px-4 py-2 text-sm text-paper">
+                Back to sign in
+              </a>
+            </>
+          ) : (
+            <form onSubmit={submitRecovery} className="mt-6 space-y-4">
+              <p className="text-sm text-mute">
+                This link is single use. Twelve characters minimum: the console seat
+                is the only key to the backoffice.
+              </p>
+              <label className="block text-xs font-semibold uppercase tracking-wide text-ink">
+                New password
+                <input
+                  type="password"
+                  value={recoveryPw}
+                  autoComplete="new-password"
+                  onChange={(e) => setRecoveryPw(e.target.value)}
+                  className="mt-1 w-full rounded border border-line bg-surface px-3 py-2 text-sm font-normal normal-case tracking-normal text-ink"
+                />
+              </label>
+              <label className="block text-xs font-semibold uppercase tracking-wide text-ink">
+                Repeat password
+                <input
+                  type="password"
+                  value={recoveryPw2}
+                  autoComplete="new-password"
+                  onChange={(e) => setRecoveryPw2(e.target.value)}
+                  className="mt-1 w-full rounded border border-line bg-surface px-3 py-2 text-sm font-normal normal-case tracking-normal text-ink"
+                />
+              </label>
+              {recoveryErr && (
+                <p className="rounded border border-danger/40 bg-danger-soft px-3 py-2 text-sm text-danger">{recoveryErr}</p>
+              )}
+              <button
+                type="submit"
+                disabled={recoveryBusy}
+                className="w-full rounded bg-ink px-4 py-2 text-sm text-paper disabled:opacity-60"
+              >
+                {recoveryBusy ? "Saving…" : "Save password"}
+              </button>
+            </form>
+          )}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="grid min-h-screen grid-cols-1 lg:grid-cols-[1fr_1.1fr]">

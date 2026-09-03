@@ -418,7 +418,17 @@ export const useApp = create<App>((set, get) => ({
   features: flagsFor(bootSession),
   loginTenant: async (email, pw) => {
     const e = email.trim().toLowerCase();
-    if (serverAuthReady()) {
+    // The seeded demo workspaces are public sample data guarded by a plaintext
+    // password; no Supabase user exists behind them. Once server auth went live
+    // this branch sent them to /auth/v1/token anyway, got a 400, and returned
+    // { ok: false } - which every demo entry point discarded, so "Launch live
+    // demo" and the two workspace cards on the login page looked completely
+    // dead. Route them to the local demo path first. A real registered account
+    // always wins (findCustomer is checked too), so this cannot be used to
+    // bypass server auth for anyone who actually has an account.
+    const isSeededDemo =
+      TENANTS.some((x) => x.isDemo && x.email.toLowerCase() === e) && !findCustomer(e);
+    if (serverAuthReady() && !isSeededDemo) {
       const r = await signInTenant(email, pw);
       if (!r.ok || !r.data) return { ok: false, error: r.error };
       tenantPersisted = true;

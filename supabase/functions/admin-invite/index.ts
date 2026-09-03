@@ -11,7 +11,7 @@ const ALLOWED_ORIGINS = ["https://dev.alvianpermana.art"];
 
 const cors = (origin: string | null) => ({
   "Access-Control-Allow-Origin": origin && ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0],
-  "Access-Control-Allow-Headers": "authorization, content-type",
+  "Access-Control-Allow-Headers": "authorization, apikey, content-type, x-client-info",
   "Access-Control-Allow-Methods": "POST, OPTIONS",
   Vary: "Origin",
 });

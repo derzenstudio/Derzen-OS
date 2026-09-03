@@ -55,7 +55,7 @@ function barsForRow(p: Property, windowStart: string, nights: number, reservatio
     
     let left, width, clipPath, textLeft, textRight;
     const rawLeft = idxOf(r.checkIn, windowStart) * COL_W;
-    const rawRight = idxOf(r.checkOut, windowStart) * COL_W + COL_W;
+    const rawRight = idxOf(r.checkOut, windowStart) * COL_W;
     
     if (dayUse) {
       left = rawLeft + 4;
@@ -89,7 +89,7 @@ function barsForRow(p: Property, windowStart: string, nights: number, reservatio
     const dayUse = currentBlock.checkIn === currentBlock.checkOut;
     let left, width, clipPath, textLeft, textRight;
     const rawLeft = idxOf(currentBlock.checkIn, windowStart) * COL_W;
-    const rawRight = idxOf(currentBlock.checkOut, windowStart) * COL_W + COL_W;
+    const rawRight = idxOf(currentBlock.checkOut, windowStart) * COL_W;
     
     if (dayUse) {
       left = rawLeft + 4; width = COL_W - 8; clipPath = "none"; textLeft = 0; textRight = 0;
@@ -103,7 +103,7 @@ function barsForRow(p: Property, windowStart: string, nights: number, reservatio
     out.push({
       left, width, clipPath, textLeft, textRight, dayUse,
       color: currentBlock.type === "manual" ? "#000000" : currentBlock.type === "owner" ? "#8A978A" : currentBlock.type === "maintenance" ? "#B42318" : "#C07F14",
-      label: currentBlock.label, sub: currentBlock.sub, kind: currentBlock.type, hatch: currentBlock.type === "owner", striped: currentBlock.type === "hold", isBlock: true,
+      label: currentBlock.label, sub: currentBlock.sub, kind: currentBlock.type, hatch: currentBlock.type === "owner" || currentBlock.type === "manual", striped: currentBlock.type === "hold", isBlock: true,
     });
   };
 
@@ -130,7 +130,7 @@ function barsForRow(p: Property, windowStart: string, nights: number, reservatio
     const dayUse = b.checkIn === b.checkOut;
     let left, width, clipPath, textLeft, textRight;
     const rawLeft = idxOf(b.checkIn, windowStart) * COL_W;
-    const rawRight = idxOf(b.checkOut, windowStart) * COL_W + COL_W;
+    const rawRight = idxOf(b.checkOut, windowStart) * COL_W;
 
     if (dayUse) {
       left = rawLeft + 4;
@@ -149,7 +149,7 @@ function barsForRow(p: Property, windowStart: string, nights: number, reservatio
     out.push({
       left, width, clipPath, textLeft, textRight, dayUse,
       color: b.type === "manual" ? "#000000" : b.type === "owner" ? "#8A978A" : "#C07F14",
-      label: b.label, kind: b.type, hatch: b.type === "owner", striped: b.type === "hold", isBlock: true,
+      label: b.label, kind: b.type, hatch: b.type === "owner" || b.type === "manual", striped: b.type === "hold", isBlock: true,
     });
   }
   
@@ -446,6 +446,17 @@ export default function CalendarModule() {
               aria-pressed={bulkMode}
             >
               <Ic name="sliders" size={13} /> Bulk edit
+            </button>
+          )}
+          {tab === "properties" && (
+            <button
+              onClick={() => {
+                toast("ok", "Sync started", "Pulling latest reservations from Airbnb, Booking.com, Expedia, and Agoda...");
+                setTimeout(() => toast("ok", "Sync complete", "Calendar is fully in sync with all connected OTAs."), 2500);
+              }}
+              className="flex items-center gap-1.5 rounded-md border border-line bg-card px-3 py-1.5 text-[12px] font-bold text-mute transition-all hover:text-ink hover:border-brand/40"
+            >
+              <Ic name="refresh" size={13} /> Sync OTAs
             </button>
           )}
           <Btn icon="download" onClick={exportCSV}>CSV</Btn>

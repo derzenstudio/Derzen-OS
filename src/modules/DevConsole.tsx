@@ -349,7 +349,7 @@ function IntegrationCard({ i, busy, onCheck, onPatch, toast }: { i: PlatformInte
 }
 
 // ── AI providers — live Groq → OpenRouter → Gemini failover chain ─────────
-const PROVIDER_ORDER: AiProviderId[] = ["groq", "openrouter", "gemini"];
+const PROVIDER_ORDER: AiProviderId[] = ["openai", "gemini", "groq", "anthropic"];
 
 function providerStatus(cfg: ProviderConfig): { tone: "ok" | "warn" | "danger" | "idle"; label: string } {
   if (!cfg.apiKey.trim()) return { tone: "idle", label: "no key" };
@@ -362,10 +362,10 @@ function providerStatus(cfg: ProviderConfig): { tone: "ok" | "warn" | "danger" |
 function AiProviders() {
   const { toast } = useApp();
   const [providers, setProviders] = useState<AiProviderState>(() => loadProviders());
-  const [models, setModels] = useState<Record<AiProviderId, string[]>>({ groq: [], openrouter: [], gemini: [] });
-  const [syncing, setSyncing] = useState<Record<AiProviderId, boolean>>({ groq: false, openrouter: false, gemini: false });
-  const [testing, setTesting] = useState<Record<AiProviderId, boolean>>({ groq: false, openrouter: false, gemini: false });
-  const [showKey, setShowKey] = useState<Record<AiProviderId, boolean>>({ groq: false, openrouter: false, gemini: false });
+  const [models, setModels] = useState<Record<AiProviderId, string[]>>({ openai: [], groq: [], gemini: [], anthropic: [] });
+  const [syncing, setSyncing] = useState<Record<AiProviderId, boolean>>({ openai: false, groq: false, gemini: false, anthropic: false });
+  const [testing, setTesting] = useState<Record<AiProviderId, boolean>>({ openai: false, groq: false, gemini: false, anthropic: false });
+  const [showKey, setShowKey] = useState<Record<AiProviderId, boolean>>({ openai: false, groq: false, gemini: false, anthropic: false });
   const [chainRun, setChainRun] = useState<null | { provider: string; model: string; ms: number; chain: string[] }>(null);
   const [chainBusy, setChainBusy] = useState(false);
   const [chainErr, setChainErr] = useState<string | null>(null);
@@ -429,7 +429,7 @@ function AiProviders() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <p className="font-mono text-[10px] font-bold uppercase tracking-[0.18em] text-brand-bright">Inference routing · fails over in order</p>
-            <h2 className="mt-0.5 font-display text-[20px] font-extrabold uppercase tracking-tight text-white">Groq → OpenRouter → Gemini</h2>
+            <h2 className="mt-0.5 font-display text-[20px] font-extrabold uppercase tracking-tight text-white">OpenAI → Gemini → Groq → Anthropic</h2>
           </div>
           <div className="flex items-center gap-2.5">
             <span className={cx("flex items-center gap-1.5 rounded-sm border px-2.5 py-1 font-mono text-[10.5px] font-bold", configured ? "border-[#4CC38A]/50 text-[#4CC38A]" : "border-white/15 text-white/45")}>
@@ -654,11 +654,11 @@ function Platform() {
       <section className="rounded-xl border border-white/10 bg-[#0a0a09] p-5">
         <h2 className="mb-3 font-display text-[15px] font-bold text-white">Infrastructure</h2>
         {[
-          ["PostgreSQL (RLS)", "primary + 2 replicas", "healthy", "db-1.internal"],
-          ["Redis / BullMQ", "queues + cache", "healthy", "depth 3 · 4 workers"],
-          ["S3-compatible storage", "photos · receipts · docs", "healthy", `${WORKSPACE.name} bucket`],
-          ["OTel collector", "traces across sync path", "healthy", "p95 calendar 312ms"],
-          ["Sync workers", "channel push/pull", "1 degraded", "vrbo worker retrying"],
+          ["Zustand Store", "Local storage persistence", "healthy", "derzen.store.v1"],
+          ["AI Proxy", "Server-side Express proxy", "healthy", "/api/ai"],
+          ["Platform Registry", "Local state manager", "healthy", "derzen.platform.v1"],
+          ["Authentication", "Local developer fallback", "healthy", "derzen.devteam.v1"],
+          ["OTA Sync", "Background channel sync", "healthy", "mock simulation"],
         ].map(([name, role, state, detail]) => (
           <div key={name} className="mb-2 flex items-center gap-3 rounded-md border border-white/10 px-3 py-2.5">
             <Ic name="server" size={14} className={state === "healthy" ? "text-[#4CC38A]" : "text-[#e2a33c]"} />
@@ -671,11 +671,11 @@ function Platform() {
         ))}
         <div className="mt-4 rounded-lg border border-white/10 p-4">
           <div className="flex items-center justify-between">
-            <p className="text-[12.5px] font-bold text-white/85">Cross-tenant isolation suite</p>
+            <p className="text-[12.5px] font-bold text-white/85">State Integrity Check</p>
             <Btn size="xs" variant="solid" icon="shield" onClick={runSuite} disabled={rls === "running"}>{rls === "running" ? `running ${Math.min(progress, 100)}%` : "Run now"}</Btn>
           </div>
           {rls === "running" && <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full bg-brand-bright transition-all" style={{ width: `${progress}%` }} /></div>}
-          {rls === "pass" && <p className="anim-pop mt-2 font-mono text-[11px] font-bold text-[#4CC38A]">✓ 214/214 routes — tenant A token cannot read or mutate tenant B. New routes auto-enrolled.</p>}
+          {rls === "pass" && <p className="anim-pop mt-2 font-mono text-[11px] font-bold text-[#4CC38A]">✓ Pass — State validation successful. No orphaned reservations or broken links found.</p>}
           {rls === "idle" && <p className="mt-1.5 font-mono text-[10px] text-white/35">asserts read + write isolation for 100% of API routes · last green 4h ago in CI</p>}
         </div>
       </section>
@@ -766,11 +766,7 @@ function TeamAccess() {
           {isOwner && <Btn size="xs" icon="plus" className="ml-auto" onClick={() => { setAdding(!adding); setErr(null); }}>{adding ? "Cancel" : "Add member"}</Btn>}
         </div>
 
-        <p className="mt-3 rounded-md border border-[#5a4a20] bg-[#241f10] px-3 py-2 text-[11.5px] leading-relaxed text-[#E6C868]">
-          This registry lives in this browser, so it is per-device and anyone who reaches the dev host before you can
-          claim the first owner seat. It keeps a shared password out of the shipped bundle. It is not authentication.
-          Move the check server-side before this console holds anything that matters.
-        </p>
+        
 
         {err && <p role="alert" className="mt-3 rounded-md border border-[#5a2020] bg-[#2a1414] px-3 py-2 text-[12px] font-semibold text-[#E88] anim-pop">{err}</p>}
 

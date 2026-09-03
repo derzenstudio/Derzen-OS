@@ -165,6 +165,9 @@ interface App {
   setTenantFonts: (tenantId: string, fonts: { headingUrl: string; headingFamily: string; bodyUrl: string; bodyFamily: string }) => void;
   widgetStyle: WidgetStyle;
   setWidgetStyle: (patch: Partial<WidgetStyle>) => void;
+  integrationAccounts: Record<string, { id: string; name: string; connectedAt: string }[]>;
+  connectIntegrationAccount: (appId: string, name: string) => void;
+  removeIntegrationAccount: (appId: string, accountId: string) => void;
   devIntegrations: PlatformIntegration[];
   checking: string[];
   setIntegration: (id: string, patch: Partial<PlatformIntegration>) => void;
@@ -652,6 +655,15 @@ export const useApp = create<App>((set, get) => ({
     get().audit("go-live: froze legacy system", "ui");
   },
   devIntegrations: PLATFORM_INTEGRATIONS,
+  integrationAccounts: {},
+  connectIntegrationAccount: (appId, name) => set((st) => {
+    const accs = st.integrationAccounts[appId] || [];
+    return { integrationAccounts: { ...st.integrationAccounts, [appId]: [...accs, { id: uid("acc"), name, connectedAt: new Date().toISOString() }] } };
+  }),
+  removeIntegrationAccount: (appId, accountId) => set((st) => {
+    const accs = st.integrationAccounts[appId] || [];
+    return { integrationAccounts: { ...st.integrationAccounts, [appId]: accs.filter(a => a.id !== accountId) } };
+  }),
   checking: [],
   setIntegration: (id, patch) => set((st) => ({ devIntegrations: st.devIntegrations.map((x) => (x.id === id ? { ...x, ...patch } : x)) })),
   checkIntegration: (id) => {
@@ -1623,11 +1635,28 @@ function applyStoredSlice(tenantId: string): boolean {
   return true;
 }
 
+
 // Boot restore: layer the customer's saved workspace over the empty scaffold.
 if (bootCustomer) {
   tenantPersisted = true;
   applyStoredSlice(bootCustomer.tenantId);
+  // Pull latest from server in background
+  import("./lib/tenantPersist").then((m) => {
+    m.pullTenantState(bootCustomer!.tenantId).then((remote) => {
+      if (remote) {
+        try {
+          const raw = localStorage.getItem("derzen.tenant." + bootCustomer!.tenantId + ".v1");
+          const localTs = raw ? JSON.parse(raw).savedAt : 0;
+          if (remote.savedAt > localTs) {
+             useApp.setState(remote.slice as Partial<App>);
+             syncModulesFromSlice(remote.slice as Record<string, unknown>);
+          }
+        } catch { /* ignore */ }
+      }
+    });
+  });
 }
+
 
 // Debounced auto-save: every state change for a registered customer is
 // serialized to their private, tenant-scoped key.

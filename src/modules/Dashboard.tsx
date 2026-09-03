@@ -4,6 +4,7 @@ import { Ic, type IconName } from "../components/icons";
 import { Badge, Btn, Dot, Empty, PriorityChip, Ring, Select, Toggle, useCountUp, Avatar } from "../components/ui";
 import { useApp, arrivalsOn, departuresOn, scopedProperties } from "../store";
 import { guestById, propertyById, channelDef } from "../lib/data";
+import { Reveal, StaggerGroup } from "../components/animations";
 import type { Reservation } from "../lib/types";
 
 function Stat({ label, value, to, tone, spark, suffix }: { label: string; value: number; to: string; tone?: string; spark?: number[]; suffix?: string }) {
@@ -76,7 +77,7 @@ export default function Dashboard() {
   return (
     <div className="space-y-6">
       {/* Shift sheet — the day's work first, greeting in the margin */}
-      <div className="reg-marks relative overflow-hidden border border-line bg-card px-5 py-5">
+      <Reveal direction="up" distance={20}><div className="reg-marks relative overflow-hidden border border-line bg-card px-5 py-5">
         {/* Ghost date numeral — a living mark that changes daily */}
         <span aria-hidden="true" className="pointer-events-none absolute -right-2 -top-10 select-none font-display text-[170px] font-extrabold leading-none text-ink/[0.055] tabular-nums">
           {new Date().getDate()}
@@ -141,19 +142,19 @@ export default function Dashboard() {
           </div>
         </div>
         <div className="dbl-rule relative mt-4" aria-hidden="true" />
-      </div>
+      </div></Reveal>
 
       {/* Stat widgets — every number deep-links */}
-      <div className="stagger grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+      <Reveal direction="up" distance={30} delay={100}><div className="stagger grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
         <Stat label={t("dash.unread")} value={unread} to="/inbox?filter=unread" tone="#2557D6" spark={[0.2, 0.5, 0.3, 0.8, 0.4, 0.9, 0.6]} />
         <Stat label={t("dash.openTasks")} value={openTasks.length} to="/ops?tab=board&filter=active&mine=1" tone="#C07F14" spark={[0.6, 0.4, 0.7, 0.5, 0.8, 0.4, 0.3]} />
         <Stat label={t("dash.checkins")} value={ciToday.length} to="/reservations?focus=arrivals-today" suffix={`+${ciTmr.length} ${t("dash.tomorrow")}`} tone="#0E6B4E" />
         <Stat label={t("dash.checkouts")} value={coToday.length} to="/reservations?focus=departures-today" suffix={`+${coTmr.length} ${t("dash.tomorrow")}`} tone="#38708A" />
         <Stat label={t("dash.reviews7")} value={newReviews} to="/reviews?filter=new" tone="#E8485F" spark={[0.1, 0.3, 0.2, 0.5, 0.7, 0.4, 0.6]} />
         <Stat label={t("dash.bookings7")} value={newRes} to="/reservations?focus=new" tone="#1485A8" spark={[0.3, 0.2, 0.5, 0.4, 0.6, 0.8, 0.7]} />
-      </div>
+      </div></Reveal>
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
+      <StaggerGroup staggerDelay={100} direction="up" distance={20} className="grid grid-cols-1 gap-4 xl:grid-cols-3">
         {/* Arrivals & departures */}
         <section className="rounded-xl border border-line bg-card xl:col-span-2" aria-label={t("dash.arrivals")}>
           <header className="flex items-center justify-between border-b border-line px-4 py-2.5">
@@ -252,7 +253,7 @@ export default function Dashboard() {
             </ul>
           )}
         </section>
-      </div>
+      </StaggerGroup>
 
       {/* Tasks & reminders */}
       <section className="rounded-xl border border-line bg-card" aria-label={t("dash.tasksPanel")}>
@@ -290,6 +291,7 @@ export default function Dashboard() {
           </ul>
         )}
       </section>
+    
     </div>
   );
 }

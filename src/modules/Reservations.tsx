@@ -5,6 +5,7 @@ import { Badge, Btn, Dot, Empty, Field, Input, Modal, SearchBox, Select, StatusC
 import { useApp } from "../store";
 import { channelDef, guestById, propertyById, serviceById, SERVICES } from "../lib/data";
 import { ChannelMark } from "../components/ota";
+import { Reveal } from "../components/animations";
 import type { Reservation } from "../lib/types";
 
 const STATUS_FILTERS = ["all", "enquiry", "pending", "confirmed", "deposit_paid", "checked_in", "checked_out", "cancelled"] as const;
@@ -56,7 +57,7 @@ export default function Reservations() {
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center gap-2">
+      <Reveal direction="down" distance={10}><div className="flex flex-wrap items-center gap-2">
         <div className="flex items-center rounded-lg border border-line bg-card p-0.5">
           {([["all", "All"], ["properties", "Properties"], ["services", "Services"]] as const).map(([id, label]) => (
             <button key={id} onClick={() => setTab(id)} className={cx("rounded-md px-3 py-1.5 text-[12px] font-bold", tab === id ? "bg-pine-900 text-white" : "text-mute hover:text-ink")}>{label}</button>
@@ -73,9 +74,9 @@ export default function Reservations() {
         <SearchBox value={q} onChange={setQ} placeholder="Guest, ref, property" className="w-[200px]" />
         <label className="flex items-center gap-1.5 text-[11.5px] font-bold text-mute"><Toggle checked={archived} onChange={setArchived} label="Show archived" /> Archived</label>
         <Btn className="ml-auto" icon="download" onClick={() => { download("derzen-reservations.csv", toCSV([["Ref", "Guest", "Property", "Channel", "Check-in", "Check-out", "Status", "Total", "Currency"], ...list.map((r) => [r.ref, guestById(r.guestId).name, propertyById(r.propertyId).name, r.channel, r.checkIn, r.checkOut, r.status, r.total, r.currency])])); toast("ok", "Exported CSV", `${list.length} rows`); }}>Export</Btn>
-      </div>
+      </div></Reveal>
 
-      <div className="overflow-x-auto rounded-xl border border-line bg-card">
+      <Reveal direction="up" distance={20} delay={100}><div className="overflow-x-auto rounded-xl border border-line bg-card">
         <table className="w-full min-w-[880px] text-left">
           <thead>
             <tr className="border-b border-line text-[10px]">
@@ -129,7 +130,7 @@ export default function Reservations() {
             })}
           </tbody>
         </table>
-      </div>
+      </div></Reveal>
     </div>
   );
 }

@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState, type ReactNode, type ButtonHTMLAttributes, type InputHTMLAttributes, type SelectHTMLAttributes, type TextareaHTMLAttributes } from "react";
 import { cx } from "../lib/format";
+import { animate } from "animejs";
+
 import { Ic, type IconName } from "./icons";
 import { useApp } from "../store";
 import type { Priority, ResStatus } from "../lib/types";
@@ -111,16 +113,41 @@ export function Card({ title, sub, action, children, className, pad = true }: { 
 }
 
 export function Modal({ open, onClose, title, children, footer, w = 520 }: { open: boolean; onClose: () => void; title: ReactNode; children: ReactNode; footer?: ReactNode; w?: number }) {
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+
   useEffect(() => {
     if (!open) return;
     const h = (e: KeyboardEvent) => e.key === "Escape" && onClose();
     window.addEventListener("keydown", h);
     return () => window.removeEventListener("keydown", h);
   }, [open, onClose]);
+
+  useEffect(() => {
+    if (open) {
+      if (overlayRef.current) {
+        animate(overlayRef.current, {
+          opacity: [0, 1],
+          duration: 250,
+          easing: 'easeOutSine'
+        });
+      }
+      if (contentRef.current) {
+        animate(contentRef.current, {
+          opacity: [0, 1],
+          scale: [0.95, 1],
+          translateY: [15, 0],
+          duration: 400,
+          easing: 'easeOutExpo'
+        });
+      }
+    }
+  }, [open]);
+
   if (!open) return null;
   return (
-    <div className="fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto bg-pine-950/45 p-4 pt-[8vh] backdrop-blur-[2px]" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div role="dialog" aria-modal="true" className="anim-pop frame frame-2 w-full rounded-lg bg-card shadow-2xl" style={{ maxWidth: w }}>
+    <div ref={overlayRef} className="fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto bg-pine-950/45 p-4 pt-[8vh] backdrop-blur-[2px]" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div ref={contentRef} role="dialog" aria-modal="true" className="w-full rounded-lg bg-card shadow-2xl" style={{ maxWidth: w }}>
         <header className="flex items-center justify-between border-b border-line px-5 py-3.5">
           <h2 className="font-display text-[15px] font-bold text-ink">{title}</h2>
           <IconBtn label="Close dialog" name="x" onClick={onClose} />
@@ -133,10 +160,52 @@ export function Modal({ open, onClose, title, children, footer, w = 520 }: { ope
 }
 
 export function Drawer({ open, onClose, title, children, width = 380 }: { open: boolean; onClose: () => void; title?: ReactNode; children: ReactNode; width?: number }) {
+  const overlayRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLElement>(null);
+  const wrapperRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (open) {
+      if (wrapperRef.current) wrapperRef.current.style.pointerEvents = "auto";
+      if (overlayRef.current) {
+        animate(overlayRef.current, {
+          opacity: [0, 1],
+          duration: 300,
+          easing: 'easeOutSine'
+        });
+      }
+      if (contentRef.current) {
+        animate(contentRef.current, {
+          translateX: ['100%', '0%'],
+          duration: 500,
+          easing: 'easeOutExpo'
+        });
+      }
+    } else {
+      if (overlayRef.current) {
+        animate(overlayRef.current, {
+          opacity: [1, 0],
+          duration: 300,
+          easing: 'easeInSine'
+        });
+      }
+      if (contentRef.current) {
+        animate(contentRef.current, {
+          translateX: ['0%', '100%'],
+          duration: 400,
+          easing: 'easeInExpo',
+          complete: () => {
+            if (wrapperRef.current && !open) wrapperRef.current.style.pointerEvents = "none";
+          }
+        });
+      }
+    }
+  }, [open]);
+
   return (
-    <div className={cx("fixed inset-0 z-[70]", !open && "pointer-events-none")} aria-hidden={!open}>
-      <div className={cx("absolute inset-0 bg-pine-950/30 transition-opacity duration-300", open ? "opacity-100" : "opacity-0")} onMouseDown={onClose} />
-      <aside className={cx("absolute right-0 top-0 h-full border-l border-line bg-paper shadow-2xl transition-transform duration-300 ease-out flex flex-col", open ? "translate-x-0" : "translate-x-full")} style={{ width }} role="complementary">
+    <div ref={wrapperRef} className="fixed inset-0 z-[70] pointer-events-none" aria-hidden={!open}>
+      <div ref={overlayRef} className="absolute inset-0 bg-pine-950/30 opacity-0" onMouseDown={onClose} />
+      <aside ref={contentRef} className="absolute right-0 top-0 h-full border-l border-line bg-paper shadow-2xl flex flex-col translate-x-full" style={{ width }} role="complementary">
         {title && (
           <header className="flex items-center justify-between border-b border-line bg-card px-4 py-3">
             <div className="font-display text-[14px] font-bold text-ink">{title}</div>

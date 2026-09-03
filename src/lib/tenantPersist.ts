@@ -1,30 +1,15 @@
-// Per-tenant durable storage. A registered customer's workspace — every
-// setting and every change made after sign-in — is serialized to a private,
-// tenant-scoped key and restored on the next sign-in. Demo tenants are never
-// persisted (they re-seed on every visit) so their placeholder data can't leak
-// into a real workspace.
-//
-// Keys are namespaced by tenant id, so two workspaces on the same browser can
-// never read or overwrite each other.
+import { supabase } from "./supabase";
 
 const NS = "derzen.tenant";
 const VERSION = 1;
 
-/** The tenant-scoped store fields that are saved and restored. */
 export const TENANT_SLICE_KEYS = [
-  // core records
-  // "guests" travels with "reservations": a reservation that outlives its
-  // guest record breaks every view that resolves the guest name.
   "properties", "guests", "conversations", "reservations", "tasks", "reviews", "quotes",
   "expenses", "issues", "msgQueue", "actionItems", "sync", "conflicts",
   "webhooks", "guidebooks", "chat", "collections",
-  // site & content
   "website", "siteChrome", "calendarOverrides",
-  // automations & messaging
   "autopilot", "msgConnections",
-  // branding & assets
   "brand", "savedAssets", "propertyPhotos", "invoiceTemplate", "emailTemplate",
-  // workspace prefs & progress
   "tenantFonts", "onboardSteps", "golive", "goliveActions",
   "creditsUsed", "displayCurrency", "widgetStyle", "workspacePrefs",
 ] as const;
@@ -35,11 +20,21 @@ export type TenantSlice = Partial<Record<TenantSliceKey, unknown>>;
 const keyFor = (tenantId: string) => `${NS}.${tenantId}.v${VERSION}`;
 
 export function saveTenantState(tenantId: string, slice: TenantSlice): void {
+  const ts = Date.now();
   try {
-    localStorage.setItem(keyFor(tenantId), JSON.stringify({ savedAt: Date.now(), slice }));
+    localStorage.setItem(keyFor(tenantId), JSON.stringify({ savedAt: ts, slice }));
   } catch {
-    /* quota exceeded or private mode — changes stay in memory for the session */
+    /* quota exceeded or private mode */
   }
+  // Fire and forget server sync
+  void (async () => {
+    try {
+      await supabase().from("tenant_states").upsert(
+        { tenant_id: tenantId, state: { savedAt: ts, slice }, updated_at: new Date().toISOString() },
+        { onConflict: "tenant_id" }
+      );
+    } catch { /* network fail */ }
+  })();
 }
 
 export function loadTenantState(tenantId: string): TenantSlice | null {
@@ -53,6 +48,24 @@ export function loadTenantState(tenantId: string): TenantSlice | null {
   }
 }
 
+export async function pullTenantState(tenantId: string): Promise<{ slice: TenantSlice; savedAt: number } | null> {
+  try {
+    const { data, error } = await supabase().from("tenant_states").select("state").eq("tenant_id", tenantId).maybeSingle();
+    if (error || !data?.state) return null;
+    const st = data.state as { savedAt?: number; slice?: TenantSlice };
+    if (!st.slice || !st.savedAt) return null;
+    
+    // update local cache
+    try {
+      localStorage.setItem(keyFor(tenantId), JSON.stringify(st));
+    } catch { /* ignore */ }
+    
+    return { slice: st.slice, savedAt: st.savedAt };
+  } catch {
+    return null;
+  }
+}
+
 export function clearTenantState(tenantId: string): void {
   try {
     localStorage.removeItem(keyFor(tenantId));
@@ -61,7 +74,6 @@ export function clearTenantState(tenantId: string): void {
   }
 }
 
-/** Pick only the persistable keys out of a full store-state object. */
 export function pickTenantSlice<S extends Record<string, unknown>>(state: S): TenantSlice {
   const out: Record<string, unknown> = {};
   for (const k of TENANT_SLICE_KEYS) {

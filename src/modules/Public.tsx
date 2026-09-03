@@ -1,3 +1,4 @@
+import { PaymentModal } from "../components/PaymentModal";
 import { useEffect, useRef, useState } from "react";
 import { cx, moneyRaw, dayKey, addDays, today } from "../lib/format";
 import { Ic, type IconName } from "../components/icons";
@@ -7,6 +8,7 @@ import { TENANTS } from "../lib/tenants";
 import { devTeamEmpty } from "../lib/devTeam";
 import { changeOwnPassword, currentUser, serverAuthReady, signOutServer } from "../lib/authServer";
 import { ChannelMark } from "../components/ota";
+import { Reveal, SplitText, StaggerGroup } from "../components/animations";
 
 const CHANNEL_TICKER = ["airbnb", "booking", "vrbo", "expedia", "agoda", "trip", "mmt", "traveloka", "ical", "direct"] as const;
 
@@ -56,12 +58,13 @@ export function PublicSite() {
 
       {/* Opening: the operations board, not a hero */}
       <section className="mx-auto grid max-w-[1160px] grid-cols-1 gap-10 px-5 pb-16 pt-14 lg:grid-cols-[1.15fr_1fr] lg:pt-20">
-        <div className="anim-rise">
+        <Reveal direction="up" distance={50} delay={100}>
+        <div>
           <p className="mb-4 inline-flex items-center gap-2 rounded-full border border-line bg-card px-3 py-1 text-[11px] font-bold text-mute">
             <span className="h-1.5 w-1.5 rounded-full bg-brand dot-pulse" /> Live from a demo workspace in Bali · 6 channels syncing now
           </p>
           <h1 className="font-display text-[44px] font-extrabold leading-[1.02] tracking-[-0.03em] sm:text-[58px]">
-            Every villa.<br />Every channel.<br /><span className="relative inline-block">One ledger.<span className="absolute inset-x-0 bottom-1 -z-10 h-3 bg-brand-soft" aria-hidden="true" /></span>
+            <SplitText text="Every villa." delay={200} /><br /><SplitText text="Every channel." delay={500} /><br /><span className="relative inline-block"><SplitText text="One ledger." delay={800} /><span className="absolute inset-x-0 bottom-1 -z-10 h-3 bg-brand-soft" aria-hidden="true" /></span>
           </h1>
           <p className="mt-5 max-w-[52ch] text-[15.5px] leading-relaxed text-mute">
             DERZEN is the hospitality OS for operators of 1–100 units: channel distribution,
@@ -78,6 +81,7 @@ export function PublicSite() {
           </div>
           <p className="mt-4 font-mono text-[11px] text-faint">no card · pre-seeded with 7 villas, 22 reservations, a broken VRBO token to fix</p>
         </div>
+        </Reveal>
 
         {/* Live ops pulse — the subject's most characteristic surface */}
         <div className="anim-pop relative" style={{ animationDelay: "0.1s" }}>
@@ -130,6 +134,7 @@ export function PublicSite() {
 
       {/* The index — the switchboard, set like a ledger of contents */}
       <section id="product" className="border-t border-line bg-paper/60 py-20">
+        <Reveal direction="up" distance={40}>
         <div className="mx-auto max-w-[1160px] px-5">
           <div className="mb-10 flex flex-wrap items-end justify-between gap-4">
             <div>
@@ -157,10 +162,12 @@ export function PublicSite() {
             ))}
           </ol>
         </div>
+        </Reveal>
       </section>
 
       {/* Integrations marquee */}
       <section id="integrations" className="border-t border-line py-14">
+        <Reveal direction="left" distance={60}>
         <div className="mx-auto max-w-[1160px] px-5">
           <p className="mb-6 text-center text-[11px] font-bold uppercase tracking-[0.18em] text-mute">Two-way sync, one adapter contract</p>
           <div className="relative overflow-hidden" aria-hidden="true">
@@ -184,10 +191,12 @@ export function PublicSite() {
             PriceLabs-style dynamic pricing and four smart-lock vendors. <button className="font-bold text-brand underline underline-offset-2" onClick={demo}>See how it all connects in a live demo.</button>
           </p>
         </div>
+        </Reveal>
       </section>
 
       {/* Pricing — set like a rate card, not three equal cards */}
       <section id="pricing" className="border-t border-line bg-paper/60 py-20">
+        <Reveal direction="up" distance={50}>
         <div className="mx-auto grid max-w-[1160px] grid-cols-1 gap-10 px-5 lg:grid-cols-[1.5fr_1fr]">
           <div>
             <p className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-brand">Rate card · 2026</p>
@@ -251,10 +260,12 @@ export function PublicSite() {
             <p className="mt-3 text-[11.5px] leading-relaxed text-mute">14-day trial, no card. When it ends the product keeps serving your guests; only the console asks for a payment method.</p>
           </aside>
         </div>
+        </Reveal>
       </section>
 
       {/* Security / tenancy */}
       <section id="security" className="border-t border-line py-16">
+        <Reveal direction="up">
         <div className="mx-auto grid max-w-[1160px] grid-cols-1 gap-8 px-5 lg:grid-cols-2">
           <div>
             <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-brand">Tenancy & trust</p>
@@ -287,6 +298,7 @@ export function PublicSite() {
             <p className="mt-3 border-t border-white/10 pt-3 text-white/45">Same shape on every background job, so “who changed this rate, and when” is always a query, not an investigation.</p>
           </div>
         </div>
+        </Reveal>
       </section>
 
       {/* Footer */}
@@ -417,6 +429,7 @@ export function LoginPage() {
   // forgot-password flow
   const [forgotOpen, setForgotOpen] = useState(false);
   const [forgotEmail, setForgotEmail] = useState("");
+  const [payPlan, setPayPlan] = useState<{id: string, price: number} | null>(null);
   const [sentCode, setSentCode] = useState<string | null>(null);
   const [codeInput, setCodeInput] = useState("");
   const [newPw, setNewPw] = useState("");
@@ -579,7 +592,7 @@ export function LoginPage() {
   return (
     <div className="grid min-h-screen grid-cols-1 lg:grid-cols-[1fr_1.1fr]">
       {/* Brand rail */}
-      <aside className="relative hidden flex-col justify-between overflow-hidden bg-ink p-10 text-white lg:flex">
+      <Reveal direction="right" distance={50} delay={100} className="relative hidden flex-col justify-between overflow-hidden bg-ink p-10 text-white lg:flex h-full w-full">
         <div className="absolute inset-0 opacity-[0.13]" style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cpath d='M0 60h120M60 0v120' stroke='%23ffffff' stroke-width='0.6'/%3E%3C/svg%3E\")" }} aria-hidden="true" />
         <div className="relative flex items-center gap-2">
           <svg width="28" height="28" viewBox="0 0 24 24" fill="none" aria-hidden="true" className="text-white">
@@ -607,11 +620,12 @@ export function LoginPage() {
         <div className="relative flex items-center gap-2 font-mono text-[11px] text-white/40">
           <span className="h-1.5 w-1.5 rounded-full bg-[#4CC38A] dot-pulse" /> all systems operational · 99.98% 30d · 4 regions
         </div>
-      </aside>
+      </Reveal>
 
       {/* Form — customer sign-in / sign-up (developer entry only on dev.* host) */}
       <main className="flex items-center justify-center bg-surface px-5 py-10">
-        <div className="w-full max-w-[430px] anim-rise">
+        <Reveal direction="up" distance={40} delay={300}>
+        <div className="w-full max-w-[430px]">
           <button onClick={() => navigate("/")} className="mb-6 flex items-center gap-1 text-[12.5px] font-bold text-mute hover:text-ink"><Ic name="chevL" size={13} /> Back to derzen.site</button>
 
           {!serverAuth && (
@@ -733,6 +747,7 @@ export function LoginPage() {
             </div>
           )}
         </div>
+        </Reveal>
       </main>
 
       {/* Provisioning overlay during sign-up */}
@@ -754,6 +769,18 @@ export function LoginPage() {
       )}
 
       {/* Forgot password */}
+      {payPlan && (
+        <PaymentModal
+          open={true}
+          onClose={() => setPayPlan(null)}
+          plan={payPlan.id}
+          price={payPlan.price}
+          onComplete={() => {
+            setPayPlan(null);
+            navigate("/login");
+          }}
+        />
+      )}
       {forgotOpen && (
         <div className="fixed inset-0 z-[95] flex items-center justify-center bg-ink/60 px-5 backdrop-blur-sm" onClick={() => setForgotOpen(false)}>
           <div className="w-full max-w-[400px] rounded-xl border border-line bg-card p-6 shadow-2xl anim-pop" onClick={(e) => e.stopPropagation()}>

@@ -5,6 +5,7 @@ import { Avatar, Badge, Btn, Dot, Empty, SearchBox, Select, StatusChip, Textarea
 import { useApp } from "../store";
 import { channelDef, guestById, propertyById, RESERVATIONS } from "../lib/data";
 import { ChannelMark } from "../components/ota";
+import { Reveal, StaggerGroup } from "../components/animations";
 import type { Conversation } from "../lib/types";
 import { aiChat, isAiConfigured, loadProviders } from "../lib/aiGateway";
 
@@ -72,9 +73,8 @@ export default function Inbox() {
         model = `${res.provider}/${res.model}`;
       } catch { /* keep the safe fallback draft */ }
     }
-    addReply(conv.id, body, "ai", { model, citedSources: ["General · brand tone guide", `${p.name} · house rules`] });
-    logAutopilot(`${conv.subject ?? "Thread"} · ${g.name}`, "sent");
-    toast("ok", "Draft inserted (Suggestion mode)", "Nothing is sent until you approve — audit trail updated.");
+    setDraft(body);
+    toast("ok", "Draft generated", "You can edit the draft before sending.");
   };
 
   const send = () => {
@@ -92,7 +92,7 @@ export default function Inbox() {
   return (
     <div className="space-y-3">
       {/* Live channel status — which pipes are actually delivering right now */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-lg border border-line bg-card px-3.5 py-2">
+      <Reveal direction="down" distance={10}><div className="flex flex-wrap items-center gap-x-4 gap-y-1.5 rounded-lg border border-line bg-card px-3.5 py-2">
         <span className="flex items-center gap-1.5 text-[11.5px] font-bold text-ink">
           <span className={cx("h-2 w-2 rounded-full", liveCount ? "bg-brand dot-pulse" : "bg-danger")} />
           {liveCount} channel{liveCount === 1 ? "" : "s"} live
@@ -108,7 +108,7 @@ export default function Inbox() {
         <button onClick={() => navigate("/integrations")} className="ml-auto flex items-center gap-1 text-[11px] font-bold text-brand-deep underline-offset-2 hover:underline">
           <Ic name="plug" size={11} /> manage connections
         </button>
-      </div>
+      </div></Reveal>
 
       <div className="flex h-[calc(100vh-172px)] gap-3">
       {/* Thread list */}
@@ -132,6 +132,7 @@ export default function Inbox() {
           </div>
         </div>
         <div className="flex-1 overflow-y-auto">
+          <StaggerGroup staggerDelay={50} direction="up" distance={15}>
           {list.length === 0 && <Empty icon="inbox" title="No threads match" body="Loosen the filters, or celebrate — the inbox is clear." />}
           {list.map((c) => {
             const g = guestById(c.guestId);
@@ -153,11 +154,12 @@ export default function Inbox() {
               </button>
             );
           })}
+          </StaggerGroup>
         </div>
       </section>
 
       {/* Thread */}
-      <section className="flex min-w-0 flex-1 flex-col rounded-xl border border-line bg-card" aria-label="Conversation">
+      <Reveal direction="left" distance={20} className="flex min-w-0 flex-1 flex-col rounded-xl border border-line bg-card shadow-sm"><section className="flex h-full flex-col" aria-label="Conversation">
         {!conv ? (
           <Empty icon="chat" title="Pick a conversation" body="Unified across Airbnb, Booking.com, VRBO, WhatsApp, email and your direct site — threaded to the right reservation automatically." />
         ) : (
@@ -202,10 +204,10 @@ export default function Inbox() {
             </footer>
           </>
         )}
-      </section>
+      </section></Reveal>
 
       {/* Context rail */}
-      <aside className="hidden w-[264px] shrink-0 flex-col gap-3 overflow-y-auto xl:flex" aria-label="Guest context">
+      <Reveal direction="left" distance={30} delay={100} className="hidden w-[264px] shrink-0 flex-col gap-3 overflow-y-auto xl:flex"><aside className="flex flex-col gap-3 h-full" aria-label="Guest context">
         {conv && guest && (
           <>
             <div className="rounded-xl border border-line bg-card p-3">
@@ -253,7 +255,7 @@ export default function Inbox() {
           </>
         )}
         {!conv && <p className="px-2 text-[11.5px] text-faint">Select a thread to see the guest's full story — spend, stays, verification and open tasks.</p>}
-      </aside>
+      </aside></Reveal>
       </div>
     </div>
   );

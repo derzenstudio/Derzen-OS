@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { cx, timeAgo, copyText } from "../lib/format";
 import { Ic, type IconName } from "../components/icons";
-import { Badge, Btn, Dot, Field, Input, Modal, Select, Tabs, Toggle } from "../components/ui";
+import { Badge, Btn, Dot, Field, Input, Modal, Select, Tabs, Toggle, Textarea } from "../components/ui";
 import { useApp } from "../store";
 import { WORKSPACE, CHANNEL_DEFS } from "../lib/data";
 import { EVENT_CATALOGUE, API_CONVENTIONS } from "../lib/reference";
@@ -16,62 +16,95 @@ export default function Integrations() {
       {tab === "webhooks" && <Webhooks />}
       {tab === "api" && <Api />}
       {tab === "messaging" && <Messaging />}
+
     </div>
   );
 }
 
-const APPS: { cat: string; icon: IconName; items: { name: string; status: "connected" | "available" | "waitlist"; note: string }[] }[] = [
+
+const APPS: { cat: string; icon: IconName; items: { id: string; name: string; status: "connected" | "available" | "waitlist"; note: string }[] }[] = [
   {
-    cat: "The three the others forgot", icon: "sparkle",
+    cat: "Payments (Active)", icon: "card",
     items: [
-      { name: "RatePilot · dynamic pricing", status: "connected", note: "PriceLabs / Beyond / Wheelhouse-style feed into the “Dynamic” rate plan — suggestions await review, never auto-apply." },
-      { name: "LedgerSync · accounting", status: "connected", note: "Xero & QuickBooks: mapped chart of accounts, expenses/invoices/payouts reconciled monthly." },
-      { name: "DoorFlow · smart locks", status: "connected", note: "Nuki, TTLock, August, Igloohome — codes issue at ID-verification and revoke at checkout, tied to reservation windows." },
+      { id: "stripe", name: "Stripe", status: "available", note: "Hosted checkout fields — raw card data never touches DERZEN (PCI-minimised)." },
+      { id: "xendit", name: "Xendit", status: "available", note: "Leading payment gateway in Southeast Asia (Cards, e-Wallets, Virtual Accounts)." },
+      { id: "paypal", name: "PayPal", status: "available", note: "Global PayPal checkout and vaulted payments." },
+      { id: "offline", name: "Offline / Bank Transfer", status: "available", note: "Free-form instructions rendered verbatim on quotes & PDFs." },
     ],
   },
   {
-    cat: "Payments — shipped working, honestly", icon: "card",
+    cat: "United Inbox & Messaging", icon: "email",
     items: [
-      { name: "Stripe", status: "connected", note: "Hosted fields only — raw card data never touches DERZEN (PCI-minimised)." },
-      { name: "Razorpay", status: "available", note: "UPI + cards for INR direct bookings. Connect in two minutes." },
-      { name: "Offline / bank transfer", status: "available", note: "Free-form instructions rendered verbatim on quotes & PDFs." },
-      { name: "HitPay · Xendit · DOKU", status: "waitlist", note: "In development. We'd rather ship two gateways that work than five that don't." },
+      { id: "whatsapp", name: "WhatsApp Business", status: "available", note: "Connect WhatsApp Business API to sync directly with the United Inbox." },
+      { id: "smtp", name: "SMTP / Custom Email", status: "available", note: "Bring your own SMTP server for outbound emails and forwarding." },
+      { id: "custom_site", name: "Website Chat Widget", status: "available", note: "Embed our smart chat widget into your regular site." },
     ],
   },
   {
-    cat: "Calendar & places", icon: "calendar",
+    cat: "OTAs & Channels", icon: "globe",
     items: [
-      { name: "iCal import / export", status: "connected", note: "Per-listing feeds — the 10-minute fast path for new workspaces." },
-      { name: "Places & Maps", status: "connected", note: "Powers guidebook recommendations + address geocoding." },
+      { id: "airbnb", name: "Airbnb", status: "available", note: "Two-way XML sync (Rates, Availability, Inbox push & pull)." },
+      { id: "booking", name: "Booking.com", status: "available", note: "Direct API integration for reservations and guest messaging." },
+      { id: "vrbo", name: "VRBO", status: "available", note: "Full sync for VRBO / Expedia Group listings and communications." },
     ],
   },
+  {
+    cat: "Operations & Smart Home", icon: "sparkle",
+    items: [
+      { id: "gmaps", name: "Google Maps", status: "available", note: "Powers guidebook recommendations, address geocoding, and distance calculations." },
+      { id: "doorflow", name: "DoorFlow · smart locks", status: "available", note: "Nuki, TTLock, August — codes issue at ID-verification and revoke at checkout." },
+      { id: "ratepilot", name: "RatePilot · pricing", status: "available", note: "PriceLabs / Beyond style feed into the Dynamic rate plan." },
+    ],
+  }
 ];
 
 function Apps() {
-  const { toast } = useApp();
+  const [selectedApp, setSelectedApp] = useState<string | null>(null);
+  const { toast, integrationAccounts, connectIntegrationAccount, removeIntegrationAccount } = useApp();
+
   return (
     <div className="space-y-4">
       {APPS.map((g) => (
         <div key={g.cat} className="rounded-xl border border-line bg-card p-4">
           <h3 className="mb-3 flex items-center gap-2 font-display text-[13.5px] font-bold text-ink"><Ic name={g.icon} size={15} className="text-brand" /> {g.cat}</h3>
           <div className="grid grid-cols-1 gap-2.5 md:grid-cols-2 xl:grid-cols-3">
-            {g.items.map((a) => (
+            {g.items.map((originalA) => {
+              const accounts = integrationAccounts[originalA.id] || [];
+              const isConnected = accounts.length > 0 || (originalA.id === "offline" && integrationAccounts[originalA.id]?.length > 0);
+              const a = { ...originalA, status: isConnected ? "connected" : originalA.status };
+              return (
               <div key={a.name} className={cx("rounded-lg border p-3", a.status === "connected" ? "border-brand/40 bg-brand-soft/40" : a.status === "available" ? "border-line" : "border-dashed border-line2")}>
                 <div className="flex items-center justify-between">
                   <p className="text-[12.5px] font-bold text-ink">{a.name}</p>
                   {a.status === "connected" ? <Dot tone="ok" label="connected" /> : a.status === "available" ? <Dot tone="info" label="available" /> : <Dot tone="mute" label="waitlist" />}
                 </div>
                 <p className="mt-1 text-[10.5px] leading-snug text-mute">{a.note}</p>
-                {a.status !== "connected" && (
-                  <Btn size="xs" className="mt-2" icon={a.status === "available" ? "plug" : "clock"} onClick={() => toast(a.status === "available" ? "ok" : "info", a.status === "available" ? `${a.name} connected` : "Added to waitlist", a.status === "available" ? "Scopes granted · first sync queued." : "We'll email you the day it ships.")}>
-                    {a.status === "available" ? "Connect" : "Join waitlist"}
-                  </Btn>
+                {a.status === "waitlist" && (
+                  <Btn size="xs" className="mt-2" icon="clock" onClick={() => toast("info", "Added to waitlist", "We will email you when this is ready.")}>Join waitlist</Btn>
+                )}
+                {a.status !== "waitlist" && (
+                  <div className="mt-2 space-y-2">
+                    {accounts.map(acc => (
+                      <div key={acc.id} className="flex items-center justify-between bg-paper px-2 py-1.5 rounded text-[11px]">
+                        <span className="font-semibold text-ink">{acc.name}</span>
+                        <button onClick={() => removeIntegrationAccount(a.id, acc.id)} className="text-danger hover:underline">Remove</button>
+                      </div>
+                    ))}
+                    <Btn size="xs" icon={accounts.length > 0 ? "plus" : "plug"} onClick={() => setSelectedApp(a.id)}>
+                      {accounts.length > 0 ? "Connect another account" : "Connect"}
+                    </Btn>
+                  </div>
                 )}
               </div>
-            ))}
+            )})}
           </div>
         </div>
       ))}
+      {selectedApp && (
+        <Modal open={true} title="Configure Integration" onClose={() => setSelectedApp(null)} w={480}>
+          <IntegrationForm appId={selectedApp} onClose={() => setSelectedApp(null)} />
+        </Modal>
+      )}
     </div>
   );
 }
@@ -288,6 +321,170 @@ function Messaging() {
       </div>
 
       <p className="rounded-lg border border-line bg-card px-4 py-3 text-[11px] text-mute">Retention: guest PII purges automatically after checkout + N days (configurable). Logs and AI prompts redact identity fields unless the task requires them. {WORKSPACE.name} current window: 90 days.</p>
+    </div>
+  );
+}
+
+
+function IntegrationForm({ appId, onClose }: { appId: string; onClose: () => void }) {
+  const isOAuth = ["stripe", "paypal", "xendit", "airbnb", "booking", "vrbo"].includes(appId);
+  const { toast, connectIntegrationAccount } = useApp();
+  const [accName, setAccName] = useState("");
+  const [isConnecting, setIsConnecting] = useState(false);
+
+  const handleConnect = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    
+    const accountName = accName || "Default Account";
+
+    if (isOAuth) {
+      setIsConnecting(true);
+      try {
+        const redirectUri = `${window.location.origin}/auth/callback`;
+        
+        // 1. Fetch Auth URL from our backend
+        const res = await fetch(`/api/auth/url?provider=${appId}&redirect_uri=${encodeURIComponent(redirectUri)}`);
+        if (!res.ok) throw new Error("Failed to get auth URL");
+        const { url } = await res.json();
+        
+        // 2. Open popup
+        const width = 500, height = 700;
+        const left = window.screenX + (window.outerWidth - width) / 2;
+        const top = window.screenY + (window.outerHeight - height) / 2;
+        const authWindow = window.open(url, 'oauth_popup', `width=${width},height=${height},left=${left},top=${top}`);
+        
+        if (!authWindow) {
+          toast("err", "Popup blocked", "Please allow popups to connect this integration.");
+          setIsConnecting(false);
+          return;
+        }
+
+        // 3. Listen for success message
+        const handleMessage = (event: MessageEvent) => {
+          if (!event.origin.endsWith('.run.app') && !event.origin.includes('localhost')) return;
+          
+          if (event.data?.type === 'OAUTH_AUTH_SUCCESS') {
+            window.removeEventListener('message', handleMessage);
+            connectIntegrationAccount(appId, accountName);
+            toast("ok", "Integration authorized", "Secure connection established successfully.");
+            setIsConnecting(false);
+            onClose();
+          }
+        };
+        
+        window.addEventListener('message', handleMessage);
+        
+        // Cleanup if user closes the window manually
+        const checkClosed = setInterval(() => {
+          if (authWindow.closed) {
+            clearInterval(checkClosed);
+            window.removeEventListener('message', handleMessage);
+            setIsConnecting(false);
+          }
+        }, 1000);
+
+      } catch (err) {
+        console.error(err);
+        toast("err", "Connection failed", "Could not initiate the OAuth flow.");
+        setIsConnecting(false);
+      }
+    } else {
+      connectIntegrationAccount(appId, accountName);
+      toast("ok", "Integration authorized", "Secure connection established successfully.");
+      onClose();
+    }
+  };
+  
+  
+  return (
+    <div className="pt-4">
+      {isOAuth ? (
+        <div className="space-y-4">
+          <Field label="Account Nickname (e.g. My Airbnb, Business Stripe)">
+            <Input value={accName} onChange={e => setAccName(e.target.value)} placeholder="Main Account" />
+          </Field>
+          <div className="flex flex-col items-center justify-center p-6 border border-line rounded-lg bg-paper/50 text-center">
+            <div className="w-12 h-12 bg-white rounded-full shadow-sm border border-line flex items-center justify-center mb-4">
+              <Ic name="plug" size={20} className="text-brand" />
+            </div>
+            <h3 className="text-sm font-bold text-ink mb-2">Secure OAuth Connection</h3>
+            <p className="text-xs text-mute max-w-[280px] leading-relaxed">
+              DERZEN acts as the registered platform. You don't need to generate API keys. You will be redirected to securely log in and authorize access.
+            </p>
+          </div>
+          <div className="flex justify-end gap-3 pt-2">
+            <Btn variant="outline" onClick={onClose}>Cancel</Btn>
+            <Btn variant="solid" onClick={handleConnect} disabled={isConnecting}>Authorize & Connect</Btn>
+          </div>
+        </div>
+      ) : (
+        <form onSubmit={handleConnect} className="space-y-4">
+          <Field label="Account Nickname">
+            <Input value={accName} onChange={e => setAccName(e.target.value)} placeholder="Main Account" />
+          </Field>
+          {appId === "offline" && (
+            <>
+              <div className="mb-4 rounded-md bg-paper p-3 text-[12px] text-mute">
+                <strong>How to connect:</strong> Enter the payment instructions you want your guests to see when they choose "Bank Transfer" or "Offline Payment".
+              </div>
+              <Field label="Bank Transfer Instructions">
+                <Textarea placeholder="Bank Name: \nAccount Number: \n..." required />
+              </Field>
+            </>
+          )}
+          {appId === "whatsapp" && (
+            <>
+              <div className="mb-4 rounded-md bg-paper p-3 text-[12px] text-mute">
+                <strong>Bring Your Own Account (BYOA):</strong> Connect a custom WhatsApp Business Account.
+              </div>
+              <Field label="Phone Number ID"><Input type="text" placeholder="..." required /></Field>
+              <Field label="WhatsApp Business Account ID"><Input type="text" placeholder="..." required /></Field>
+              <Field label="Permanent Access Token"><Input type="password" placeholder="..." required /></Field>
+              <p className="text-xs text-mute mt-2">Webhook URL: <code>https://api.derzen.com/v1/webhooks/whatsapp</code></p>
+            </>
+          )}
+          {appId === "smtp" && (
+            <>
+              <div className="mb-4 rounded-md bg-paper p-3 text-[12px] text-mute">
+                <strong>How to connect:</strong> Enter the SMTP credentials provided by your email host (e.g. Google Workspace, SendGrid, Mailgun).
+              </div>
+              <Field label="SMTP Host"><Input type="text" placeholder="smtp.mailgun.org" required /></Field>
+              <div className="grid grid-cols-2 gap-4">
+                <Field label="Port"><Input type="number" placeholder="587" required /></Field>
+                <Field label="Encryption"><Select defaultValue="tls"><option value="tls">STARTTLS</option><option value="ssl">SSL/TLS</option></Select></Field>
+              </div>
+              <Field label="Username"><Input type="text" placeholder="..." required /></Field>
+              <Field label="Password"><Input type="password" placeholder="..." required /></Field>
+            </>
+          )}
+          {appId === "custom_site" && (
+            <>
+              <p className="text-sm text-ink mb-4">Paste this snippet before the <code>&lt;/body&gt;</code> tag on your website to enable the DERZEN Chat Widget.</p>
+              <div className="bg-paper p-3 rounded text-xs font-mono text-mute overflow-x-auto border border-sand">
+                &lt;script src="https://assets.derzen.com/widget.js" data-tenant="YOUR_TENANT_ID"&gt;&lt;/script&gt;
+              </div>
+            </>
+          )}
+          {appId === "gmaps" && (
+            <>
+              <div className="mb-4 rounded-md bg-paper p-3 text-[12px] text-mute">
+                <strong>Bring Your Own Key:</strong> Go to Google Cloud Console, create an API key, and ensure Maps JavaScript API, Places API, and Geocoding API are enabled.
+              </div>
+              <Field label="Google Maps API Key"><Input type="password" placeholder="AIzaSy..." required /></Field>
+            </>
+          )}
+          {(appId === "doorflow" || appId === "ratepilot") && (
+            <div className="mb-4 rounded-md bg-paper p-3 text-[12px] text-mute">
+              <strong>How to connect:</strong> Generate an API token from your {appId} partner dashboard and paste it below.
+            </div>
+          )}
+          
+          <div className="pt-4 flex justify-end gap-3">
+            <Btn variant="outline" onClick={onClose}>Cancel</Btn>
+            <Btn variant="solid" type="submit">Save & Connect</Btn>
+          </div>
+        </form>
+      )}
     </div>
   );
 }

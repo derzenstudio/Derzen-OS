@@ -3,8 +3,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
+    "dev": "tsx server.ts",
+    "build": "vite build && esbuild server.ts --bundle --platform=node --format=cjs --packages=external --sourcemap --outfile=dist/server.cjs",
+    "start": "node dist/server.cjs",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -12,8 +13,11 @@
     "@dnd-kit/sortable": "^8.0.0",
     "@dnd-kit/utilities": "^3.2.2",
     "@supabase/supabase-js": "^2.98.0",
+    "animejs": "^4.5.0",
     "canvas-confetti": "^1.9.3",
     "date-fns": "^2.30.0",
+    "esbuild": "^0.28.2",
+    "express": "^5.2.1",
     "framer-motion": "^11.16.1",
     "lucide-react": "^0.294.0",
     "react": "^18.2.0",
@@ -21,12 +25,15 @@
     "react-router-dom": "^6.8.0",
     "recharts": "^2.10.0",
     "simple-icons": "^16.29.0",
+    "tsx": "^4.23.13",
     "uuid": "^9.0.1",
     "zustand": "^5.0.15"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.7",
+    "@types/animejs": "^3.1.13",
     "@types/canvas-confetti": "^1.6.4",
+    "@types/express": "^5.0.6",
     "@types/react": "^18.2.0",
     "@types/react-dom": "^18.2.0",
     "@types/uuid": "^9.0.7",

@@ -1,10 +1,12 @@
 import { lazy, Suspense, useEffect, type ComponentType } from "react";
 import { Shell } from "./components/Shell";
+import { AnimateMount } from "./components/AnimateMount";
 import { useApp } from "./store";
 import { refreshFx } from "./lib/fx";
 import { Btn } from "./components/ui";
 import { Ic } from "./components/icons";
 import { SURFACE, SURFACE_LABELS, SURFACE_URLS, type Surface } from "./lib/surface";
+import { supabase, isServerAuthConfigured } from "./lib/supabase";
 
 // ── Route-level code splitting ─────────────────────────────────────────────
 // Every surface loads its own chunk on first visit; the initial payload is
@@ -14,8 +16,6 @@ const LoginPage = lazy(() => import("./modules/Public").then((m) => ({ default: 
 const PaymentPage = lazy(() => import("./modules/ChatWidget").then((m) => ({ default: m.PaymentPage })));
 const Backoffice = lazy(() => import("./components/Backoffice").then((m) => ({ default: m.Backoffice })));
 const DevConsole = lazy(() => import("./modules/DevConsole"));
-const DevBackoffice = lazy(() => import("./modules/DevBackoffice"));
-const DevOps = lazy(() => import("./modules/DevOps"));
 const Dashboard = lazy(() => import("./modules/Dashboard"));
 const Calendar = lazy(() => import("./modules/Calendar"));
 const Inbox = lazy(() => import("./modules/Inbox"));
@@ -139,8 +139,29 @@ export default function App() {
     } catch { /* private mode */ }
   }, []);
 
-  // tenant font injection — heading + body fonts from the tenant's own URLs
   const sessionState = useApp((s) => s.session);
+
+  // Poll server auth to detect revoked sessions server-side
+  useEffect(() => {
+    if (!sessionState || (sessionState.kind === "tenant" && (sessionState as any).impersonated) || !isServerAuthConfigured()) return;
+    const checkAuth = async () => {
+      const { error } = await supabase().auth.getUser();
+      if (error && (error.status === 401 || error.status === 403 || error.message.includes("session_not_found") || error.name === "AuthSessionMissingError")) {
+        useApp.getState().logout();
+        useApp.getState().toast("warn", "Session revoked", "Your session was ended by the server.");
+      }
+    };
+    checkAuth();
+    const handleFocus = () => checkAuth();
+    window.addEventListener("focus", handleFocus);
+    const interval = window.setInterval(checkAuth, 60000);
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      window.clearInterval(interval);
+    };
+  }, [sessionState]);
+
+  // tenant font injection — heading + body fonts from the tenant's own URLs
   const tenantFonts = useApp((s) => s.tenantFonts);
   useEffect(() => {
     const root = document.documentElement;
@@ -176,7 +197,7 @@ export default function App() {
     if (SURFACE === "dev") return <Suspense fallback={<LoadingSurface />}><LoginPage /></Suspense>;
     return (
       <Suspense fallback={<LoadingSurface />}>
-        {route.path[0] === "login" ? <LoginPage /> : <PublicSite />}
+        <AnimateMount>{route.path[0] === "login" ? <LoginPage /> : <PublicSite />}</AnimateMount>
       </Suspense>
     );
   }
@@ -193,9 +214,7 @@ export default function App() {
     return (
       <Suspense fallback={<LoadingSurface />}>
         {sub === "console" ? <DevConsole />
-          : sub === "backoffice" ? <DevBackoffice />
-          : sub === "substrate" ? <DevOps />
-          : <Backoffice />}
+                            : <Backoffice />}
       </Suspense>
     );
   }

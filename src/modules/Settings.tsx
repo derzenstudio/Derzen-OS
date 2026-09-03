@@ -319,6 +319,7 @@ function Billing() {
   const [cycle, setCycle] = useState<"monthly" | "annual">("monthly");
   const [planOpen, setPlanOpen] = useState(false);
   const [portalOpen, setPortalOpen] = useState(false);
+  const [payPlan, setPayPlan] = useState<{id: string, price: number} | null>(null);
   const propUnits = useApp((s) => s.properties).filter((p) => !p.archived).length;
   const tenantId = session?.kind === "tenant" ? session.tenantId : "t-sanggraha";
   const currentPlan = WORKSPACE.plan;

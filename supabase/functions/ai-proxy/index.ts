@@ -33,12 +33,11 @@ const MAX_PROMPT_CHARS = 24_000;
 type Provider = "anthropic" | "groq" | "openrouter" | "gemini";
 
 const CHAIN: { id: Provider; env: string; model: string }[] = [
-  // Anthropic is listed first so that the moment ANTHROPIC_API_KEY exists it
-  // becomes the primary and the three temporary providers below become fallback.
-  { id: "anthropic", env: "ANTHROPIC_API_KEY", model: Deno.env.get("ANTHROPIC_MODEL") ?? "claude-3-5-haiku-latest" },
   { id: "groq", env: "GROQ_API_KEY", model: Deno.env.get("GROQ_MODEL") ?? "llama-3.3-70b-versatile" },
   { id: "openrouter", env: "OPENROUTER_API_KEY", model: Deno.env.get("OPENROUTER_MODEL") ?? "anthropic/claude-3.5-haiku" },
   { id: "gemini", env: "GEMINI_API_KEY", model: Deno.env.get("GEMINI_MODEL") ?? "gemini-2.0-flash" },
+  // Anthropic moved to the end as the final fallback option.
+  { id: "anthropic", env: "ANTHROPIC_API_KEY", model: Deno.env.get("ANTHROPIC_MODEL") ?? "claude-3-5-haiku-latest" },
 ];
 
 async function callProvider(p: Provider, key: string, model: string, system: string, user: string, maxTokens: number): Promise<string> {
@@ -154,6 +153,10 @@ Deno.serve(async (req) => {
   // 4. Fail down the chain. The response names the provider but never the key.
   const tried: string[] = [];
   for (const { id, env, model } of CHAIN) {
+    if (id === "anthropic" && Deno.env.get("DISABLE_ANTHROPIC") === "true") {
+      tried.push(`${id}: disabled via toggle`);
+      continue;
+    }
     const key = Deno.env.get(env);
     // A key that is still the placeholder counts as not configured, so the
     // ANTHROPIC_API_KEY slot can sit there empty-but-visible until the real

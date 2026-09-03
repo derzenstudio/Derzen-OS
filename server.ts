@@ -10,7 +10,9 @@ async function startServer() {
 
   // 1. Get OAuth Auth URL
   
-  // AI proxy
+  // AI proxy — tries each configured provider in order and returns real output.
+  // Anthropic stays OFF until ANTHROPIC_ENABLED === "true" (toggle), so the chain
+  // completely skips it until the toggle is on. No placeholder responses.
   app.post("/api/ai", async (req, res) => {
     try {
       const { system, user, maxTokens } = req.body;
@@ -18,6 +20,8 @@ async function startServer() {
       const geminiKey = process.env.GEMINI_API_KEY;
       const groqKey = process.env.GROQ_API_KEY;
       const anthropicKey = process.env.ANTHROPIC_API_KEY;
+      const anthropicEnabled = process.env.ANTHROPIC_ENABLED === "true";
+      const tokens = typeof maxTokens === "number" ? maxTokens : 1024;
 
       if (openaiKey) {
         const result = await fetch("https://api.openai.com/v1/chat/completions", {
@@ -26,11 +30,11 @@ async function startServer() {
           body: JSON.stringify({
             model: "gpt-4o-mini",
             messages: [{ role: "system", content: system }, { role: "user", content: user }],
-            max_tokens: maxTokens,
+            max_tokens: tokens,
           }),
         });
         const json = await result.json();
-        return res.json({ text: json.choices?.[0]?.message?.content?.trim() || "" });
+        return res.json({ provider: "openai", text: (json.choices?.[0]?.message?.content ?? "").trim() });
       }
 
       if (geminiKey) {
@@ -40,14 +44,48 @@ async function startServer() {
           body: JSON.stringify({
             systemInstruction: { parts: [{ text: system }] },
             contents: [{ parts: [{ text: user }] }],
-            generationConfig: { maxOutputTokens: maxTokens },
+            generationConfig: { maxOutputTokens: tokens },
           }),
         });
         const json = await result.json();
-        return res.json({ text: (json.candidates?.[0]?.content?.parts ?? []).map(p => p.text ?? "").join("").trim() });
+        return res.json({ provider: "gemini", text: (json.candidates?.[0]?.content?.parts ?? []).map((p) => p.text ?? "").join("").trim() });
       }
-      
-      throw new Error("No backend API keys configured for fallback");
+
+      if (groqKey) {
+        const result = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${groqKey}` },
+          body: JSON.stringify({
+            model: "llama-3.3-70b-versatile",
+            messages: [{ role: "system", content: system }, { role: "user", content: user }],
+            max_tokens: tokens,
+          }),
+        });
+        const json = await result.json();
+        return res.json({ provider: "groq", text: (json.choices?.[0]?.message?.content ?? "").trim() });
+      }
+
+      // Anthropic is only reached when the toggle is explicitly enabled.
+      if (anthropicEnabled && anthropicKey) {
+        const result = await fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": anthropicKey,
+            "anthropic-version": "2023-06-01",
+          },
+          body: JSON.stringify({
+            model: "claude-3-5-sonnet-latest",
+            max_tokens: tokens,
+            system,
+            messages: [{ role: "user", content: user }],
+          }),
+        });
+        const json = await result.json();
+        return res.json({ provider: "anthropic", text: (json.content?.[0]?.text ?? "").trim() });
+      }
+
+      return res.status(503).json({ error: "No AI provider is configured on the server." });
     } catch (e) {
       res.status(500).json({ error: e.message });
     }

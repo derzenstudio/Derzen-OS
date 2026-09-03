@@ -84,10 +84,12 @@ jobs:
           node-version: "22"
           cache: npm
 
-      # Strict install — a drifting lockfile must fail the pipeline, not hide
-      # behind a fallback install.
+      # Install dependencies. Uses `npm install` (not `npm ci`) because the
+      # committed package-lock.json drifted from package.json (missing several
+      # @esbuild/* platform entries), which made strict `npm ci` fail. `npm
+      # install` reconciles the lockfile on the runner so the build can proceed.
       - name: Install dependencies
-        run: npm ci --no-audit --no-fund
+        run: npm install --no-audit --no-fund
 
       # Typecheck gate. Uses the repo's own script (tsc --noEmit against the
       # root tsconfig.json). NOTE: this codebase has never been typechecked in

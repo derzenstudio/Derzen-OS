@@ -13,7 +13,7 @@ import { Reveal, SplitText, StaggerGroup } from "../components/animations";
 const CHANNEL_TICKER = ["airbnb", "booking", "vrbo", "expedia", "agoda", "trip", "mmt", "traveloka", "ical", "direct"] as const;
 
 export function PublicSite() {
-  const { navigate, loginTenant, theme, setTheme } = useApp();
+  const { navigate, loginTenant, theme, setTheme, toast } = useApp();
   const [tick, setTick] = useState(0);
   useEffect(() => {
     const i = setInterval(() => setTick((t) => t + 1), 2600);
@@ -26,7 +26,13 @@ export function PublicSite() {
   const adr = 4_650_000 + ((tick * 7913) % 60_000);
 
   const go = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
-  const demo = async () => { const res = await loginTenant(TENANTS[0].email, TENANTS[0].password); if (res.ok) navigate("/dashboard"); };
+  // Never swallow the result. A failed demo sign-in used to return quietly and
+  // leave the button looking broken, with nothing on screen to explain it.
+  const demo = async () => {
+    const res = await loginTenant(TENANTS[0].email, TENANTS[0].password);
+    if (res.ok) { navigate("/dashboard"); return; }
+    toast("err", "Could not open the demo workspace", res.error || "Please try again in a moment.");
+  };
 
   return (
     <div className="min-h-screen bg-surface text-ink">

@@ -1,0 +1,55 @@
+# Regenerates package-lock.json from package.json using the real npm registry,
+# then commits it. Run this whenever package.json changes so that deploy.yml
+# can keep using strict `npm ci`.
+#
+# Why this exists: the committed lockfile had drifted from package.json (it
+# pinned esbuild 0.25.12 and was missing several @esbuild/* platform entries
+# while package.json asks for ^0.28.2). `npm ci` refuses to reconcile drift by
+# design, so every deploy died at the install step. Regenerating the lockfile
+# on a runner is the correct fix; loosening the deploy to `npm install` only
+# hid it and let the resolved tree drift on every build.
+
+name: Refresh lockfile
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: refresh-lockfile
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # --package-lock-only resolves the full dependency graph and rewrites the
+      # lockfile with correct integrity hashes without installing anything or
+      # running any package lifecycle scripts.
+      - name: Regenerate package-lock.json
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+
+      # Prove the regenerated lockfile actually satisfies strict npm ci before
+      # committing it, so this workflow can never hand deploy.yml a bad lock.
+      - name: Verify npm ci accepts the new lockfile
+        run: npm ci --ignore-scripts --no-audit --no-fund
+
+      - name: Commit if changed
+        run: |
+          if git diff --quiet -- package-lock.json; then
+            echo "Lockfile already in sync with package.json - nothing to commit."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package-lock.json
+          git commit -m "chore(deps): regenerate package-lock.json from package.json"
+          git push

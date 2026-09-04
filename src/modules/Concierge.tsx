@@ -120,25 +120,18 @@ function Knowledge() {
         }
         setBusy(false);
         return;
-      } catch { /* fall through to the offline matcher */ }
-    }
-    // Offline fallback: deterministic matcher so the sandbox still demonstrates behaviour.
-    const q = question.toLowerCase();
-    const known = [
-      { re: /(wifi|password|internet)/, a: "The Wi-Fi network and password are in your welcome message and printed on the desk card. Business-grade line, ~120 Mbps.", c: ["General · FAQ deposits & connectivity", "Property · access SOP"] },
-      { re: /(cancel|refund|policy)/, a: "Cancellations up to 14 days before check-in are fully refunded; 7–14 days refund 50%; inside 7 days the deposit is retained. Published policy linked in every quote.", c: ["General · sanggraha.co/cancellation-policy"] },
-      { re: /(chef|dinner|menu|allergen)/, a: "Our private chef serves a 5-course Balinese or Western menu for up to 10 guests. Allergens need 24h notice — same-day changes can't be promised.", c: ["Service · Private Chef Dinner (auto-synced)"] },
-      { re: /(pool|heat)/, a: null, c: [] },
-    ];
-    for (const k of known) {
-      if (k.re.test(q)) {
-        if (!k.a) { setResult({ ok: false, text: "No source covers this in the selected scope. Stopped by guardrail — logged as an action item candidate.", citations: [] }); setBusy(false); return; }
-        setResult({ ok: true, text: k.a, citations: k.c });
+      } catch (err) {
+        const why = err instanceof Error ? err.message : "the gateway did not answer";
+        setResult({ ok: false, text: `No grounded answer came back: ${why}`, citations: [] });
         setBusy(false);
         return;
       }
     }
-    setResult({ ok: false, text: "Retrieval matched 0 of the scope's sources above the confidence floor. The concierge would escalate this and log an action item.", citations: [] });
+    // The deterministic keyword matcher that used to sit here answered from a
+    // four-entry hardcoded table and rendered exactly like a real grounded
+    // answer, so a grounding test could "pass" on canned text. With the
+    // copilot off there is nothing to test, and we say that instead.
+    setResult({ ok: false, text: "The AI copilot is switched off, so this scope cannot be tested. Turn it on in the dev console and run the test again.", citations: [] });
     setBusy(false);
   };
 

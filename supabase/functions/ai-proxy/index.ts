@@ -339,8 +339,16 @@ Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: cors(origin) });
   if (req.method !== "POST") return json({ error: "POST only" }, 405);
 
-  const jwt = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? "";
-  if (!jwt) return json({ error: "unauthenticated" }, 401);
+  // supabase-js only sends an Authorization header when it actually has a
+  // token to send. With the new-style publishable key (sb_publishable_...)
+  // a session-less browser sends `apikey` on its own, so demanding a bearer
+  // here 401d every visitor - the exact failure this rewrite exists to fix.
+  // Accept either credential; the bearer, when present, is still the only
+  // thing that can promote a caller to the trusted tier below.
+  const bearer = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "").trim() ?? "";
+  const apiKey = req.headers.get("apikey")?.trim() ?? "";
+  if (!bearer && !apiKey) return json({ error: "unauthenticated" }, 401);
+  const jwt = bearer;
 
   const admin = createClient(
     Deno.env.get("SUPABASE_URL")!,

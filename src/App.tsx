@@ -8,6 +8,7 @@ import { Ic } from "./components/icons";
 import { SURFACE, SURFACE_LABELS, SURFACE_URLS, type Surface } from "./lib/surface";
 import { supabase, isServerAuthConfigured } from "./lib/supabase";
 import { TENANTS } from "./lib/tenants";
+import { onAiFailure } from "./lib/aiGateway";
 
 // ── Route-level code splitting ─────────────────────────────────────────────
 // Every surface loads its own chunk on first visit; the initial payload is
@@ -123,6 +124,16 @@ export default function App() {
     }
     void refreshFx(); // best-effort live rates; falls back to the dated snapshot
     return () => window.removeEventListener("hashchange", routeForHash);
+  }, []);
+
+  // Wire the AI gateway failure sink to a toast. Every AI call site catches
+  // and falls back to a deterministic local answer, which is good for the
+  // product but used to make a 401 from ai-proxy - or a project with no
+  // provider key saved - indistinguishable from a real model reply. Now the
+  // operator is told, once, exactly why the model did not answer.
+  useEffect(() => {
+    onAiFailure((message) => useApp.getState().toast("err", "AI gateway unavailable", message));
+    return () => onAiFailure(null);
   }, []);
 
   // apply theme attribute (light/dark) — tokens re-value under [data-theme="dark"]

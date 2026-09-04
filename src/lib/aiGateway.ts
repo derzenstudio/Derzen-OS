@@ -263,11 +263,34 @@ async function aiChatViaProxy(system: string, user: string, maxTokens: number): 
   };
 }
 
+// ── failure reporting ───────────────────────────────────────────────────────
+// Every AI call site catches and falls back to a deterministic local answer so
+// the product never dead-ends. That was also hiding real outages: a 401 from
+// ai-proxy, or a project with no provider key saved, produced a canned reply
+// that read exactly like a model answer. The gateway now announces its own
+// failures through this sink - App.tsx wires it to a toast - so a fallback is
+// always visibly a fallback and never passes itself off as AI output.
+type AiFailureSink = (message: string) => void;
+let failureSink: AiFailureSink | null = null;
+
+export function onAiFailure(fn: AiFailureSink | null): void {
+  failureSink = fn;
+}
+
+export function reportAiFailure(err: unknown): void {
+  const message = err instanceof Error ? err.message : String(err);
+  try {
+    failureSink?.(message);
+  } catch {
+    /* reporting must never break the call site that is already failing */
+  }
+}
+
 /**
  * Route a prompt down the chain: Groq → OpenRouter → Gemini.
  * Throws only if every configured provider fails; the error names the chain.
  */
-export async function aiChat(system: string, user: string, opts?: { maxTokens?: number }): Promise<AiResult> {
+async function aiChatRun(system: string, user: string, opts?: { maxTokens?: number }): Promise<AiResult> {
   // Preferred path: the browser sends a prompt and a JWT, the Edge Function
   // holds the keys. Nothing billable is ever in this bundle or in any
   // operator's localStorage.
@@ -309,6 +332,17 @@ for (const { id } of CHAIN) {
   }
   
   throw new Error(`All AI providers unavailable — ${tried.join(" · ")}.`);
+}
+
+
+/** Public entry point. Reports every failure before rethrowing it. */
+export async function aiChat(system: string, user: string, opts?: { maxTokens?: number }): Promise<AiResult> {
+  try {
+    return await aiChatRun(system, user, opts);
+  } catch (err) {
+    reportAiFailure(err);
+    throw err;
+  }
 }
 
 /** Small ping used by the dev console's Test button. */

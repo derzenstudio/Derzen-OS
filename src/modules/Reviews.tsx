@@ -18,7 +18,9 @@ export default function Reviews() {
   const genDraft = async (r: (typeof reviews)[number]) => {
     const providers = loadProviders();
     if (!aiConfigOn || !isAiConfigured(providers)) {
-      setReplyFor(r.id); setDraft(r.aiDraft ?? "");
+      // Opening an empty reply box is honest; prefilling it with the seeded
+      // r.aiDraft string presented stored text as if a model wrote it.
+      setReplyFor(r.id); setDraft("");
       toast("warn", "No AI provider configured", "Set one up in Dev → AI providers, or write the reply manually.");
       return;
     }
@@ -28,9 +30,12 @@ export default function Reviews() {
     try {
       const res = await aiChat(sys, `Review (${r.normalized}/10): "${r.body}"\n\nWrite the public reply.`, { maxTokens: 150 });
       setReplyFor(r.id); setDraft(res.text);
-    } catch {
-      setReplyFor(r.id); setDraft(r.aiDraft ?? "");
-      toast("warn", "AI unavailable", "Falling back to the stored draft.");
+    } catch (err) {
+      // No stored-draft fallback. r.aiDraft is a seeded sentence, and handing
+      // it over labelled as a generated reply is a canned answer in disguise.
+      const why = err instanceof Error ? err.message : "the gateway did not answer";
+      setReplyFor(r.id); setDraft("");
+      toast("err", "No AI draft", why);
     }
     setGenFor(null);
   };
@@ -150,7 +155,7 @@ export default function Reviews() {
                       <Btn size="xs" icon="sparkle" disabled={genFor === r.id} onClick={() => genDraft(r)}>
                         {genFor === r.id ? "Generating…" : "Draft with AI"}
                       </Btn>
-                      <Btn size="xs" variant="solid" icon="chat" onClick={() => { setReplyFor(replyFor === r.id ? null : r.id); setDraft(r.aiDraft ?? ""); }}>{replyFor === r.id ? "Close" : "Reply"}</Btn>
+                      <Btn size="xs" variant="solid" icon="chat" onClick={() => { setReplyFor(replyFor === r.id ? null : r.id); setDraft(""); }}>{replyFor === r.id ? "Close" : "Reply"}</Btn>
                     </div>
                   )}
                   {replyFor === r.id && !r.reply && (

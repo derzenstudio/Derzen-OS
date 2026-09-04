@@ -1,14 +1,18 @@
-// ── ai-proxy ───────────────────────────────────────────────────────────────
-// The browser used to hold Groq, OpenRouter and Gemini keys in localStorage
-// and call the providers directly. Any XSS on the origin drained live billable
-// keys, and every operator's device carried a copy. This function moves the
-// keys server-side: the browser sends a prompt and a JWT, never a key.
+// ── ai-proxy ─────────────────────────────────────────────
+// Provider keys live here, never in the bundle and never behind a VITE_ var.
+// The browser sends a prompt; this function picks a model and answers.
 //
-// Deploy:  supabase functions deploy ai-proxy
-// Secrets: supabase secrets set GROQ_API_KEY=... OPENROUTER_API_KEY=... GEMINI_API_KEY=...
+// Deployed by .github/workflows/deploy-functions.yml. Do not hand-deploy: a
+// manual push is exactly how the live copy drifted away from this file.
 //
-// These are function secrets, not VITE_ variables. Anything prefixed VITE_ is
-// compiled into the static bundle and served to the public.
+// Secrets (Project Settings > Edge Functions > Secrets), entered by hand:
+//   GROQ_API_KEY  OPENROUTER_API_KEY  GEMINI_API_KEY  ANTHROPIC_API_KEY
+//   optional per-provider overrides: GROQ_MODEL / OPENROUTER_MODEL /
+//   GEMINI_MODEL / ANTHROPIC_MODEL - a preference, not a pin: an override
+//   is tried first and then falls through like any other candidate.
+//   ENABLE_ANTHROPIC=true is the only thing that lets Anthropic into the
+//   chain. While it is unset Anthropic is never called, never probed, and
+//   its model list is never fetched.
 
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
@@ -24,23 +28,154 @@ const cors = (origin: string | null) => ({
   Vary: "Origin",
 });
 
-// Per-user token budget, held in Postgres so it survives a cold start and
-// cannot be reset by clearing the browser.
-const DAILY_TOKEN_CAP = 200_000;
-const MAX_TOKENS_PER_CALL = 1_500;
-const MAX_PROMPT_CHARS = 24_000;
+// ── tiers ─────────────────────────────────────────────────
+// A demo tenant is seeded in the browser and has no Supabase user, so
+// supabase-js sends the anon key as the bearer. Rejecting that is why every
+// AI action in a demo workspace 401d. Those callers are now accepted on
+// purpose - visitors should be able to try the thing - which makes this an
+// open endpoint on my own free keys. Hence the caps below: they are the only
+// thing standing between "visitors can try it" and "the keys get farmed".
+type Tier = "trusted" | "untrusted";
 
-type Provider = "anthropic" | "groq" | "openrouter" | "gemini";
+const CAPS: Record<Tier, { maxTokens: number; promptChars: number }> = {
+  trusted: { maxTokens: 1_500, promptChars: 24_000 },
+  untrusted: { maxTokens: 320, promptChars: 2_000 },
+};
 
-const CHAIN: { id: Provider; env: string; model: string }[] = [
-  { id: "groq", env: "GROQ_API_KEY", model: Deno.env.get("GROQ_MODEL") ?? "llama-3.3-70b-versatile" },
-  { id: "openrouter", env: "OPENROUTER_API_KEY", model: Deno.env.get("OPENROUTER_MODEL") ?? "anthropic/claude-3.5-haiku" },
-  { id: "gemini", env: "GEMINI_API_KEY", model: Deno.env.get("GEMINI_MODEL") ?? "gemini-2.0-flash" },
-  // Anthropic moved to the end as the final fallback option.
-  { id: "anthropic", env: "ANTHROPIC_API_KEY", model: Deno.env.get("ANTHROPIC_MODEL") ?? "claude-3-5-haiku-latest" },
-];
+const TRUSTED_DAILY_TOKENS = 200_000;
 
-async function callProvider(p: Provider, key: string, model: string, system: string, user: string, maxTokens: number): Promise<string> {
+// Sliding window, counted in Postgres so it survives a cold start.
+const ANON_WINDOW_MINUTES = 10;
+const ANON_PER_WINDOW = 6;
+const ANON_PER_DAY = 40;
+// Whole-endpoint ceiling, so rotating IPs cannot multiply the per-IP limit.
+const ANON_GLOBAL_PER_DAY = 500;
+const ANON_PRUNE_HOURS = 48;
+
+// ── providers ───────────────────────────────────────────
+type Provider = "groq" | "openrouter" | "gemini" | "anthropic";
+
+const ENV: Record<Provider, { key: string; model: string }> = {
+  groq: { key: "GROQ_API_KEY", model: "GROQ_MODEL" },
+  openrouter: { key: "OPENROUTER_API_KEY", model: "OPENROUTER_MODEL" },
+  gemini: { key: "GEMINI_API_KEY", model: "GEMINI_MODEL" },
+  anthropic: { key: "ANTHROPIC_API_KEY", model: "ANTHROPIC_MODEL" },
+};
+
+const FREE_CHAIN: Provider[] = ["groq", "openrouter", "gemini"];
+const anthropicOn = () => Deno.env.get("ENABLE_ANTHROPIC") === "true";
+const chain = (): Provider[] => (anthropicOn() ? [...FREE_CHAIN, "anthropic"] : FREE_CHAIN);
+
+// Trying every listed model would turn one slow provider into a 60s request.
+const MAX_CANDIDATES_PER_PROVIDER = 4;
+const MODEL_TTL_MS = 60 * 60 * 1000;
+const modelCache = new Map<Provider, { at: number; ids: string[] }>();
+
+class ProviderError extends Error {
+  status: number;
+  body: string;
+  constructor(status: number, body: string) {
+    super(`${status}`);
+    this.status = status;
+    this.body = body;
+  }
+}
+
+// Model ids that are not chat completions at all.
+const NOT_CHAT = /whisper|tts|embed|guard|moderat|imagen|veo|aqa|rerank|audio|image-gen/i;
+
+// Cheap, fast, high-quota variants first; previews and dated snapshots last,
+// since those are the ones that get decommissioned out from under you.
+const rankModels = (ids: string[]): string[] => {
+  const score = (id: string): number => {
+    let s = 0;
+    if (/:free$/.test(id)) s -= 5;
+    if (/lite|instant|mini|8b|7b|flash/i.test(id)) s -= 2;
+    if (/preview|experimental|-exp|alpha|beta/i.test(id)) s += 3;
+    if (/\d{4}-\d{2}-\d{2}|\d{8}/.test(id)) s += 1;
+    return s;
+  };
+  return [...ids].sort((a, b) => score(a) - score(b) || a.localeCompare(b));
+};
+
+// ── dynamic model discovery ────────────────────────────────────
+// Nothing is pinned. Each provider is asked what it currently serves, the
+// zero-cost entries are kept, and the answer is cached for an hour. A model
+// being decommissioned stops being a deploy-blocking outage and becomes one
+// skipped candidate.
+async function listFreeModels(p: Provider, key: string): Promise<string[]> {
+  const hit = modelCache.get(p);
+  if (hit && Date.now() - hit.at < MODEL_TTL_MS) return hit.ids;
+
+  let ids: string[] = [];
+
+  if (p === "groq") {
+    // Groq serves one free tier; the catalogue it returns for a free key IS
+    // the free list, so there is no price field to filter on.
+    const r = await fetch("https://api.groq.com/openai/v1/models", {
+      headers: { Authorization: `Bearer ${key}` },
+    });
+    if (!r.ok) throw new ProviderError(r.status, await r.text());
+    const j = await r.json();
+    ids = (j.data ?? [])
+      .filter((m: { id?: string; active?: boolean }) => m.active !== false && !NOT_CHAT.test(String(m.id ?? "")))
+      .map((m: { id?: string }) => String(m.id ?? ""))
+      .filter(Boolean);
+  } else if (p === "openrouter") {
+    // OpenRouter publishes per-token pricing, so zero-cost is measurable
+    // rather than guessed. Prompt, completion and per-request must all be 0.
+    const r = await fetch("https://openrouter.ai/api/v1/models");
+    if (!r.ok) throw new ProviderError(r.status, await r.text());
+    const j = await r.json();
+    ids = (j.data ?? [])
+      .filter((m: { id?: string; pricing?: Record<string, string> }) => {
+        const pr = m.pricing ?? {};
+        const free = ["prompt", "completion", "request"].every((k) => Number(pr[k] ?? 0) === 0);
+        return free && !NOT_CHAT.test(String(m.id ?? ""));
+      })
+      .map((m: { id?: string }) => String(m.id ?? ""))
+      .filter(Boolean);
+  } else if (p === "gemini") {
+    const r = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(key)}&pageSize=200`,
+    );
+    if (!r.ok) throw new ProviderError(r.status, await r.text());
+    const j = await r.json();
+    ids = (j.models ?? [])
+      .filter((m: { name?: string; supportedGenerationMethods?: string[] }) =>
+        (m.supportedGenerationMethods ?? []).includes("generateContent"))
+      .map((m: { name?: string }) => String(m.name ?? "").replace(/^models\//, ""))
+      // The Gemini free tier is the flash family; pro carries a real bill.
+      .filter((id: string) => /flash/i.test(id) && !NOT_CHAT.test(id));
+  } else {
+    // Anthropic. chain() never yields it unless ENABLE_ANTHROPIC is true, so
+    // while the toggle is off the key is not touched at all - not to chat and
+    // not to list. Once it is on, the lineup is discovered like any other.
+    const r = await fetch("https://api.anthropic.com/v1/models?limit=100", {
+      headers: { "x-api-key": key, "anthropic-version": "2023-06-01" },
+    });
+    if (!r.ok) throw new ProviderError(r.status, await r.text());
+    const j = await r.json();
+    ids = (j.data ?? [])
+      .map((m: { id?: string }) => String(m.id ?? ""))
+      .filter((id: string) => id && !NOT_CHAT.test(id));
+  }
+
+  const ranked = rankModels(ids);
+  modelCache.set(p, { at: Date.now(), ids: ranked });
+  return ranked;
+}
+
+const forgetModel = (p: Provider, model: string): void => {
+  const hit = modelCache.get(p);
+  if (hit) modelCache.set(p, { at: hit.at, ids: hit.ids.filter((m) => m !== model) });
+};
+
+// ── completions ──────────────────────────────────────────
+async function callProvider(
+  p: Provider, key: string, model: string,
+  system: string, user: string, maxTokens: number,
+): Promise<string> {
   if (p === "gemini") {
     const res = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(key)}`,
@@ -54,12 +189,13 @@ async function callProvider(p: Provider, key: string, model: string, system: str
         }),
       },
     );
-    if (!res.ok) throw new Error(`gemini ${res.status}`);
+    if (!res.ok) throw new ProviderError(res.status, await res.text());
     const j = await res.json();
     const text = (j.candidates?.[0]?.content?.parts ?? []).map((x: { text?: string }) => x.text ?? "").join("").trim();
-    if (!text) throw new Error("gemini empty");
+    if (!text) throw new ProviderError(200, "empty completion");
     return text;
   }
+
   if (p === "anthropic") {
     const res = await fetch("https://api.anthropic.com/v1/messages", {
       method: "POST",
@@ -68,21 +204,14 @@ async function callProvider(p: Provider, key: string, model: string, system: str
         "x-api-key": key,
         "anthropic-version": "2023-06-01",
       },
-      body: JSON.stringify({
-        model,
-        system,
-        messages: [{ role: "user", content: user }],
-        max_tokens: maxTokens,
-        temperature: 0.4,
-      }),
+      body: JSON.stringify({ model, system, messages: [{ role: "user", content: user }], max_tokens: maxTokens, temperature: 0.4 }),
     });
-    if (!res.ok) throw new Error(`anthropic ${res.status}`);
+    if (!res.ok) throw new ProviderError(res.status, await res.text());
     const j = await res.json();
     const text = (j.content ?? []).map((x: { text?: string }) => x.text ?? "").join("").trim();
-    if (!text) throw new Error("anthropic empty");
+    if (!text) throw new ProviderError(200, "empty completion");
     return text;
   }
-
 
   const url = p === "groq"
     ? "https://api.groq.com/openai/v1/chat/completions"
@@ -105,79 +234,236 @@ async function callProvider(p: Provider, key: string, model: string, system: str
       temperature: 0.4,
     }),
   });
-  if (!res.ok) throw new Error(`${p} ${res.status}`);
+  if (!res.ok) throw new ProviderError(res.status, await res.text());
   const j = await res.json();
   const text = j.choices?.[0]?.message?.content?.trim();
-  if (!text) throw new Error(`${p} empty`);
+  if (!text) throw new ProviderError(200, "empty completion");
   return text;
 }
 
+// Which failures mean "try the next model" versus "this provider is out".
+const modelGone = (s: number, b: string) => s === 404 || (s === 400 && /model|decommission|deprecat|not.?found|unsupported|invalid/i.test(b));
+const throttled = (s: number, b: string) => s === 429 || s === 503 || s === 529 || /rate.?limit|quota|overloaded|capacity|too many/i.test(b);
+const keyRejected = (s: number) => s === 401 || s === 403 || s === 402;
+
+// ── identity ─────────────────────────────────────────────
+// The platform gateway already verifies that the bearer is a JWT signed by
+// this project, so anything arriving here is the anon key, the service key,
+// or a real user token. That check stays on - it is what keeps strangers
+// with no key out - and this function only decides what each one may do.
+const jwtRole = (jwt: string): string => {
+  try {
+    const payload = jwt.split(".")[1] ?? "";
+    const json = JSON.parse(atob(payload.replace(/-/g, "+").replace(/_/g, "/")));
+    return String(json.role ?? "");
+  } catch {
+    return "";
+  }
+};
+
+const sha256Hex = async (s: string): Promise<string> => {
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(s));
+  return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, "0")).join("");
+};
+
+// ── sliding window ─────────────────────────────────────────
+// One row per accepted untrusted call, counted over a moving window. A
+// module-level counter would reset on every cold start, which on edge is
+// often enough to be no limit at all.
+type Admin = ReturnType<typeof createClient>;
+
+async function countSince(admin: Admin, bucket: string, sinceIso: string): Promise<number> {
+  const { count, error } = await admin
+    .from("ai_anon_usage")
+    .select("id", { count: "exact", head: true })
+    .eq("bucket", bucket)
+    .gte("created_at", sinceIso);
+  if (error) throw new Error(error.message);
+  return count ?? 0;
+}
+
+async function anonGate(admin: Admin, bucket: string): Promise<string | null> {
+  const now = Date.now();
+  const windowIso = new Date(now - ANON_WINDOW_MINUTES * 60_000).toISOString();
+  const dayIso = new Date(now - 24 * 60 * 60_000).toISOString();
+
+  if (await countSince(admin, bucket, windowIso) >= ANON_PER_WINDOW) {
+    return `Free-tier limit: ${ANON_PER_WINDOW} AI requests per ${ANON_WINDOW_MINUTES} minutes. Try again shortly.`;
+  }
+  if (await countSince(admin, bucket, dayIso) >= ANON_PER_DAY) {
+    return `Free-tier limit: ${ANON_PER_DAY} AI requests per day. Sign in to a real workspace for the full quota.`;
+  }
+  if (await countSince(admin, "global", dayIso) >= ANON_GLOBAL_PER_DAY) {
+    return "The shared demo AI budget for today is used up. Try again tomorrow.";
+  }
+  return null;
+}
+
+async function recordAnon(admin: Admin, bucket: string): Promise<void> {
+  await admin.from("ai_anon_usage").insert([{ bucket }, { bucket: "global" }]);
+  // Opportunistic prune - no cron on this project, and the table is tiny.
+  if (Math.random() < 0.05) {
+    await admin.from("ai_anon_usage").delete()
+      .lt("created_at", new Date(Date.now() - ANON_PRUNE_HOURS * 60 * 60_000).toISOString());
+  }
+}
+
+// ── handler ────────────────────────────────────────────
 Deno.serve(async (req) => {
   const origin = req.headers.get("origin");
   const headers = { ...cors(origin), "Content-Type": "application/json" };
+  const json = (payload: unknown, status = 200) => new Response(JSON.stringify(payload), { status, headers });
 
   if (req.method === "OPTIONS") return new Response(null, { headers: cors(origin) });
-  if (req.method !== "POST") return new Response(JSON.stringify({ error: "POST only" }), { status: 405, headers });
+  if (req.method !== "POST") return json({ error: "POST only" }, 405);
 
-  // 1. Authenticate. An unauthenticated caller must never reach a provider,
-  //    or this function is just the old leak with an extra hop.
   const jwt = req.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? "";
-  if (!jwt) return new Response(JSON.stringify({ error: "unauthenticated" }), { status: 401, headers });
+  if (!jwt) return json({ error: "unauthenticated" }, 401);
 
   const admin = createClient(
     Deno.env.get("SUPABASE_URL")!,
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     { auth: { persistSession: false } },
   );
-  const { data: userData, error: userErr } = await admin.auth.getUser(jwt);
-  const user = userData?.user;
-  if (userErr || !user) return new Response(JSON.stringify({ error: "unauthenticated" }), { status: 401, headers });
 
-  // 2. Validate input before spending anyone's money.
-  let body: { system?: string; user?: string; maxTokens?: number };
-  try { body = await req.json(); } catch { return new Response(JSON.stringify({ error: "bad json" }), { status: 400, headers }); }
-  const system = String(body.system ?? "").slice(0, MAX_PROMPT_CHARS);
-  const prompt = String(body.user ?? "").slice(0, MAX_PROMPT_CHARS);
-  const maxTokens = Math.min(Math.max(1, Number(body.maxTokens) || 600), MAX_TOKENS_PER_CALL);
-  if (!prompt) return new Response(JSON.stringify({ error: "empty prompt" }), { status: 400, headers });
-
-  // 3. Quota. Without this, one compromised account can burn the whole budget.
-  const day = new Date().toISOString().slice(0, 10);
-  const { data: usage } = await admin
-    .from("ai_usage").select("tokens").eq("user_id", user.id).eq("day", day).maybeSingle();
-  const used = (usage as { tokens?: number } | null)?.tokens ?? 0;
-  if (used >= DAILY_TOKEN_CAP) {
-    return new Response(JSON.stringify({ error: "daily AI quota reached" }), { status: 429, headers });
+  // Tier the caller. A real user token takes the normal path; the anon key
+  // is accepted but untrusted. Note this changes nothing about who may read
+  // data - RLS is still the only thing deciding that, and this function
+  // never reads tenant rows on the caller behalf.
+  const role = jwtRole(jwt);
+  let tier: Tier = "untrusted";
+  let userId: string | null = null;
+  if (role !== "anon") {
+    const { data, error } = await admin.auth.getUser(jwt);
+    if (!error && data?.user) {
+      tier = "trusted";
+      userId = data.user.id;
+    }
   }
 
-  // 4. Fail down the chain. The response names the provider but never the key.
+  let body: { system?: string; user?: string; maxTokens?: number };
+  try {
+    body = await req.json();
+  } catch {
+    return json({ error: "bad json" }, 400);
+  }
+
+  const caps = CAPS[tier];
+  const system = String(body.system ?? "").slice(0, caps.promptChars);
+  const prompt = String(body.user ?? "").slice(0, caps.promptChars);
+  const maxTokens = Math.min(Math.max(1, Number(body.maxTokens) || 600), caps.maxTokens);
+  if (!prompt) return json({ error: "empty prompt" }, 400);
+
+  let bucket = "";
+  if (tier === "untrusted") {
+    const ip = (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || "unknown";
+    // Hashed with a server-side salt: the limiter needs to tell callers
+    // apart, it does not need to store anyone address.
+    bucket = await sha256Hex(`${ip}|${Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? ""}`);
+    try {
+      const blocked = await anonGate(admin, bucket);
+      if (blocked) return json({ error: blocked, code: "rate_limited" });
+    } catch (e) {
+      // Fail closed. If the ledger cannot be read the cap cannot be enforced,
+      // and an unenforceable cap on an open endpoint is no cap at all.
+      console.error("anon rate-limit check failed", e);
+      return json({ error: "AI is temporarily unavailable for demo sessions.", code: "limiter_unavailable" });
+    }
+    await recordAnon(admin, bucket);
+  }
+
+  const day = new Date().toISOString().slice(0, 10);
+  let used = 0;
+  if (tier === "trusted" && userId) {
+    const { data: usage } = await admin.from("ai_usage").select("tokens").eq("user_id", userId).eq("day", day).maybeSingle();
+    used = (usage as { tokens?: number } | null)?.tokens ?? 0;
+    if (used >= TRUSTED_DAILY_TOKENS) return json({ error: "Daily AI quota reached.", code: "quota" }, 429);
+  }
+
+  // ── walk providers, then models inside each provider ───────────────
   const tried: string[] = [];
-  for (const { id, env, model } of CHAIN) {
-    if (id === "anthropic" && Deno.env.get("DISABLE_ANTHROPIC") === "true") {
-      tried.push(`${id}: disabled via toggle`);
+  let sawThrottle = false;
+  const t0 = performance.now();
+
+  for (const p of chain()) {
+    const key = Deno.env.get(ENV[p].key);
+    if (!key || key.startsWith("PLACEHOLDER")) {
+      tried.push(`${p}: not configured`);
       continue;
     }
-    const key = Deno.env.get(env);
-    // A key that is still the placeholder counts as not configured, so the
-    // ANTHROPIC_API_KEY slot can sit there empty-but-visible until the real
-    // key is bought, without costing every request a failed round trip.
-    if (!key || key.startsWith("PLACEHOLDER")) { tried.push(`${id}: not configured`); continue; }
-    const t0 = performance.now();
+
+    let candidates: string[];
     try {
-      const text = await callProvider(id, key, model, system, prompt, maxTokens);
-      const spend = used + Math.ceil((system.length + prompt.length) / 4) + maxTokens;
-      await admin.from("ai_usage").upsert(
-        { user_id: user.id, day, tokens: spend },
-        { onConflict: "user_id,day" },
-      );
-      return new Response(
-        JSON.stringify({ text, provider: id, model, ms: Math.round(performance.now() - t0), chain: tried }),
-        { headers },
-      );
+      candidates = await listFreeModels(p, key);
     } catch (e) {
-      tried.push(`${id}: ${e instanceof Error ? e.message : "failed"}`);
+      const st = e instanceof ProviderError ? e.status : 0;
+      tried.push(`${p}: model list failed (${st || "network"})`);
+      continue;
     }
+
+    // An override is a preference, not a pin: it is tried first and then
+    // falls through like anything else the moment it stops existing.
+    const override = Deno.env.get(ENV[p].model);
+    if (override) candidates = [override, ...candidates.filter((m) => m !== override)];
+
+    if (!candidates.length) {
+      tried.push(`${p}: no free models listed`);
+      continue;
+    }
+
+    let providerDead = false;
+    for (const model of candidates.slice(0, MAX_CANDIDATES_PER_PROVIDER)) {
+      try {
+        const text = await callProvider(p, key, model, system, prompt, maxTokens);
+        if (tier === "trusted" && userId) {
+          const spend = used + Math.ceil((system.length + prompt.length) / 4) + maxTokens;
+          await admin.from("ai_usage").upsert({ user_id: userId, day, tokens: spend }, { onConflict: "user_id,day" });
+        }
+        return json({ text, provider: p, model, tier, ms: Math.round(performance.now() - t0), chain: tried });
+      } catch (e) {
+        const st = e instanceof ProviderError ? e.status : 0;
+        const bd = e instanceof ProviderError ? e.body : String(e);
+        if (keyRejected(st)) {
+          tried.push(`${p}: key rejected (${st})`);
+          providerDead = true;
+          break;
+        }
+        if (modelGone(st, bd)) {
+          tried.push(`${p}/${model}: gone (${st})`);
+          forgetModel(p, model);
+          continue;
+        }
+        if (throttled(st, bd)) {
+          sawThrottle = true;
+          tried.push(`${p}/${model}: rate-limited (${st})`);
+          continue;
+        }
+        tried.push(`${p}/${model}: failed (${st || "network"})`);
+      }
+    }
+    if (providerDead) continue;
   }
 
-  return new Response(JSON.stringify({ error: "all providers unavailable", chain: tried }), { status: 502, headers });
+  // Nothing answered. This function returns no text in that case, ever.
+  // A canned sentence here would be indistinguishable from a real draft, and
+  // the whole point of moving off the old client fallback was that a silent
+  // fake reply reads exactly like model output. The caller gets an explicit
+  // state to render instead.
+  //
+  // These come back as HTTP 200 with an error field on purpose: supabase-js
+  // collapses a non-2xx into "Edge Function returned a non-2xx status code"
+  // and throws the body away, which is how the original 401 stayed invisible
+  // for so long.
+  if (sawThrottle) {
+    return json({
+      error: "All free models are rate-limited right now. Try again in a few minutes.",
+      code: "all_models_rate_limited",
+      chain: tried,
+    });
+  }
+  return json({
+    error: "No AI provider is available right now.",
+    code: "no_provider_available",
+    chain: tried,
+  });
 });

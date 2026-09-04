@@ -77,7 +77,7 @@ export default function Inbox() {
     try {
       const res = await aiChat(sys, `Guest ${g.name} wrote: "${lastGuest}"\n\nWrite the reply.`, { maxTokens: 200 });
       setDraft(res.text);
-      toast("ok", "Draft generated", `${res.provider}/${res.model} - edit before sending.`);
+      toast("ok", "Draft generated", "Review and edit it before sending.");
     } catch (e) {
       // Surfaces the gateway's own words: rate limited, quota reached, no
       // provider configured. The draft box is left exactly as it was.

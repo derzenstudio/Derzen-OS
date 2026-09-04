@@ -131,6 +131,8 @@ jobs:
       # import 404ed, and the UI rendered blank with unresponsive controls.
       # Fail the run rather than ship an unprotected, badly-cached surface.
       - name: Install surface .htaccess
+        env:
+          DEV_HTPASSWD_PATH: ${{ secrets.DEV_HTPASSWD_PATH }}
         run: |
           src="deploy/htaccess.${{ matrix.surface }}"
           if [ ! -f "$src" ]; then
@@ -138,6 +140,25 @@ jobs:
             exit 1
           fi
           cp "$src" dist/.htaccess
+          # deploy/htaccess.dev ships an optional HTTP basic-auth wall whose
+          # AuthUserFile is the placeholder /home/CHANGEME/.htpasswd-derzen.
+          # LiteSpeed cannot open that file, so it answered 503 to every single
+          # request on dev.alvianpermana.art - robots.txt included - and every
+          # deploy reinstalled the same broken file. Keep the wall only when a
+          # real htpasswd path is supplied through the DEV_HTPASSWD_PATH secret.
+          if [ "${{ matrix.surface }}" = "dev" ]; then
+            if [ -n "$DEV_HTPASSWD_PATH" ]; then
+              sed -i "s#^AuthUserFile .*#AuthUserFile $DEV_HTPASSWD_PATH#" dist/.htaccess
+              echo "Basic auth enabled - AuthUserFile taken from DEV_HTPASSWD_PATH."
+            else
+              sed -i "/^AuthType Basic/d;/^AuthName /d;/^AuthUserFile /d;/^Require valid-user/d" dist/.htaccess
+              echo "::warning::DEV_HTPASSWD_PATH is unset - shipping dev without HTTP basic auth. Set the secret to re-enable it."
+            fi
+            if grep -q "CHANGEME" dist/.htaccess; then
+              echo "::error::dist/.htaccess still contains a CHANGEME placeholder - refusing to ship a 503."
+              exit 1
+            fi
+          fi
           echo "Installed $src as dist/.htaccess ($(wc -c < dist/.htaccess) bytes)"
 
       # Hostinger's FTP control socket sometimes refuses the first connection

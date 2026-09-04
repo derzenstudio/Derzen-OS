@@ -162,7 +162,31 @@ jobs:
         run: sleep 20
 
       - name: Deploy to Hostinger, retry (${{ matrix.surface }}.alvianpermana.art)
+        id: ftp_retry
+        continue-on-error: true
         if: steps.ftp.outcome == 'failure'
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets[matrix.ftp_user_key] }}
+          password: ${{ secrets[matrix.ftp_pass_key] }}
+          local-dir: ./dist/
+          server-dir: ${{ vars[matrix.server_dir_var] || './' }}
+          timeout: 120000
+
+      # Hostinger sometimes refuses connections for a whole minute rather than
+      # for a single attempt. Run 31 lost the dev leg because both passes landed
+      # inside the same short outage, while the app leg - which ran earlier -
+      # went through untouched. One more attempt after a longer pause turns that
+      # class of failure into a slow deploy instead of a lost one. Every pass is
+      # idempotent: the action keeps a sync-state file on the server and
+      # re-uploads only what is still missing.
+      - name: Cool off before the final attempt
+        if: steps.ftp.outcome == 'failure' && steps.ftp_retry.outcome == 'failure'
+        run: sleep 60
+
+      - name: Deploy to Hostinger, final attempt (${{ matrix.surface }}.alvianpermana.art)
+        if: steps.ftp.outcome == 'failure' && steps.ftp_retry.outcome == 'failure'
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
           server: ${{ secrets.FTP_SERVER }}

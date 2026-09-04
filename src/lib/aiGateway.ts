@@ -254,8 +254,27 @@ async function aiChatViaProxy(system: string, user: string, maxTokens: number): 
   const { data, error } = await supabase().functions.invoke("ai-proxy", {
     body: { system, user, maxTokens },
   });
-  if (error) throw new Error(`AI gateway unavailable: ${error.message}`);
-  const r = data as { text?: string; provider?: AiProviderId; model?: string; chain?: string[]; error?: string };
+  if (error) {
+    // supabase-js collapses every non-2xx into "Edge Function returned a
+    // non-2xx status code" and throws the body away. That is how a plain
+    // {"error":"unauthenticated"} 401 read as a generic gateway outage for
+    // as long as it did. Dig the real message back out of the response.
+    let detail = `AI gateway unavailable: ${error.message}`;
+    const res = (error as { context?: Response }).context;
+    if (res && typeof res.text === "function") {
+      try {
+        const parsed = JSON.parse(await res.text()) as { error?: string };
+        if (parsed?.error) detail = parsed.error;
+      } catch {
+        /* body was not JSON - keep the generic message */
+      }
+    }
+    throw new Error(detail);
+  }
+  const r = data as { text?: string; provider?: AiProviderId; model?: string; chain?: string[]; error?: string; code?: string };
+  // The proxy answers with real model text or with an error - never filler.
+  // Anything without text is a failure and is raised as one, so no call site
+  // can mistake an outage for a completion.
   if (r.error || !r.text) throw new Error(r.error ?? "The AI gateway returned nothing.");
   return {
     text: r.text, provider: r.provider ?? "groq", model: r.model ?? "server-selected",

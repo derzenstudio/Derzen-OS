@@ -7,6 +7,7 @@ import { Btn } from "./components/ui";
 import { Ic } from "./components/icons";
 import { SURFACE, SURFACE_LABELS, SURFACE_URLS, type Surface } from "./lib/surface";
 import { supabase, isServerAuthConfigured } from "./lib/supabase";
+import { TENANTS } from "./lib/tenants";
 
 // ── Route-level code splitting ─────────────────────────────────────────────
 // Every surface loads its own chunk on first visit; the initial payload is
@@ -144,6 +145,18 @@ export default function App() {
   // Poll server auth to detect revoked sessions server-side
   useEffect(() => {
     if (!sessionState || (sessionState.kind === "tenant" && (sessionState as any).impersonated) || !isServerAuthConfigured()) return;
+    // A seeded demo workspace is public sample data behind a plaintext
+    // password - there is no Supabase user for it. Polling auth.getUser()
+    // for such a session always returns AuthSessionMissingError, which fired
+    // logout() one tick after "Launch live demo" signed the visitor in. The
+    // session vanished before React painted the dashboard, so every demo
+    // entry point on the marketing site and the login page looked like a
+    // dead button. Demo sessions hold no server data and nothing to revoke,
+    // so they are exempt from the revoke poll.
+    const isSeededDemoSession =
+      sessionState.kind === "tenant" &&
+      TENANTS.some((t) => t.id === sessionState.tenantId && t.isDemo);
+    if (isSeededDemoSession) return;
     const checkAuth = async () => {
       const { error } = await supabase().auth.getUser();
       if (error && (error.status === 401 || error.status === 403 || error.message.includes("session_not_found") || error.name === "AuthSessionMissingError")) {

@@ -4,7 +4,8 @@ import { Ic, type IconName } from "../components/icons";
 import { Badge, Btn, Dot, Toggle } from "../components/ui";
 import { NumStepper } from "../components/controls";
 import { useApp } from "../store";
-import { MODULE_FLAGS, PLATFORM_ENV, type PlatformIntegration } from "../lib/tenants";
+import { MODULE_FLAGS, type PlatformIntegration } from "../lib/tenants";
+import { Platform } from "./DevPlatform";
 import {
   addDevMember, listDevMembers, removeDevMember, setDevPassword, type DevMember, type DevRole,
 } from "../lib/devTeam";
@@ -634,78 +635,6 @@ function AiControl() {
   );
 }
 
-// ── Platform & infra ───────────────────────────────────────────────────────
-function Platform() {
-  const { toast } = useApp();
-  const [rls, setRls] = useState<"idle" | "running" | "pass">("idle");
-  const [progress, setProgress] = useState(0);
-  const [reveal, setReveal] = useState<Record<string, boolean>>({});
-  const runSuite = () => {
-    setRls("running"); setProgress(0);
-    const i = setInterval(() => {
-      setProgress((p) => {
-        if (p >= 100) { clearInterval(i); setRls("pass"); return 100; }
-        return p + 7;
-      });
-    }, 120);
-  };
-  return (
-    <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-      <section className="rounded-xl border border-white/10 bg-[#0a0a09] p-5">
-        <h2 className="mb-3 font-display text-[15px] font-bold text-white">Infrastructure</h2>
-        {[
-          ["Zustand Store", "Local storage persistence", "healthy", "derzen.store.v1"],
-          ["AI Proxy", "Server-side Express proxy", "healthy", "/api/ai"],
-          ["Platform Registry", "Local state manager", "healthy", "derzen.platform.v1"],
-          ["Authentication", "Local developer fallback", "healthy", "derzen.devteam.v1"],
-          ["OTA Sync", "Background channel sync", "healthy", "mock simulation"],
-        ].map(([name, role, state, detail]) => (
-          <div key={name} className="mb-2 flex items-center gap-3 rounded-md border border-white/10 px-3 py-2.5">
-            <Ic name="server" size={14} className={state === "healthy" ? "text-[#4CC38A]" : "text-[#e2a33c]"} />
-            <div className="min-w-0 flex-1">
-              <p className="text-[12.5px] font-bold text-white/85">{name} <span className="font-normal text-white/40">· {role}</span></p>
-              <p className="font-mono text-[10px] text-white/35">{detail}</p>
-            </div>
-            <span className={cx("rounded-full px-2 py-0.5 font-mono text-[9.5px] font-bold uppercase", state === "healthy" ? "bg-[#1d3527] text-[#4CC38A]" : "bg-[#3a3320] text-[#e2a33c]")}>{state}</span>
-          </div>
-        ))}
-        <div className="mt-4 rounded-lg border border-white/10 p-4">
-          <div className="flex items-center justify-between">
-            <p className="text-[12.5px] font-bold text-white/85">State Integrity Check</p>
-            <Btn size="xs" variant="solid" icon="shield" onClick={runSuite} disabled={rls === "running"}>{rls === "running" ? `running ${Math.min(progress, 100)}%` : "Run now"}</Btn>
-          </div>
-          {rls === "running" && <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-white/10"><div className="h-full bg-brand-bright transition-all" style={{ width: `${progress}%` }} /></div>}
-          {rls === "pass" && <p className="anim-pop mt-2 font-mono text-[11px] font-bold text-[#4CC38A]">✓ Pass — State validation successful. No orphaned reservations or broken links found.</p>}
-          {rls === "idle" && <p className="mt-1.5 font-mono text-[10px] text-white/35">asserts read + write isolation for 100% of API routes · last green 4h ago in CI</p>}
-        </div>
-      </section>
-
-      <section className="rounded-xl border border-white/10 bg-[#0a0a09] p-5">
-        <h2 className="mb-1 font-display text-[15px] font-bold text-white">Environment & secrets</h2>
-        <p className="mb-3 font-mono text-[10px] text-white/35">sourced from the secrets manager · values masked unless revealed · rotate from here, never in files</p>
-        <div className="space-y-1.5">
-          {PLATFORM_ENV.map((e) => (
-            <div key={e.key} className="rounded-md border border-white/10 px-3 py-2">
-              <div className="flex items-center gap-2">
-                <span className="font-mono text-[11px] font-bold text-white/80">{e.key}</span>
-                <span className="ml-auto flex items-center gap-1.5">
-                  {e.masked && (
-                    <button aria-label={`Reveal ${e.key}`} onClick={() => setReveal({ ...reveal, [e.key]: !reveal[e.key] })} className="rounded p-1 text-white/40 hover:text-white"><Ic name="eye" size={12} /></button>
-                  )}
-                  <button aria-label={`Copy ${e.key}`} onClick={() => { navigator.clipboard?.writeText(e.key).catch(() => undefined); toast("ok", `${e.key} copied`); }} className="rounded p-1 text-white/40 hover:text-white"><Ic name="copy" size={12} /></button>
-                </span>
-              </div>
-              <p className="mt-0.5 truncate font-mono text-[10.5px] text-[#4CC38A]/80">{e.masked && !reveal[e.key] ? e.value : e.value.replace(/•{4,}/g, "demo-value-")} <span className="text-white/25">· {e.note}</span></p>
-            </div>
-          ))}
-        </div>
-        <p className="mt-4 rounded-md border border-white/10 bg-[#171714] px-3 py-2.5 font-mono text-[10px] leading-relaxed text-white/45">
-          PII retention: <b className="text-white/70">{PLATFORM_ENV.find((e) => e.key === "PII_RETENTION_DAYS")?.value} days</b> after checkout · guest erase/export workflows per tenant · ID documents field-encrypted · card PANs never stored (gateways tokenise).
-        </p>
-      </section>
-    </div>
-  );
-}
 
 // ── Team access ────────────────────────────────────────────────────────────
 // Seats for the developer consoles. The registry is per-device (see the note

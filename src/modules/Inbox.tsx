@@ -60,21 +60,30 @@ export default function Inbox() {
     if (!conv) return;
     const g = guestById(conv.guestId);
     const p = propertyById(conv.propertyId);
-    const first = g.name.split(" ")[0];
     const providers = loadProviders();
-    let body = `Hi ${first}! Thanks for the message — yes, that works. Anything else before your stay at ${p.name}? We're happy to arrange transfers, chef dinners or spa slots from your guidebook. — Kadek`;
-    let model = "concierge-v2";
-    if (aiConfigOn && isAiConfigured(providers)) {
-      const lastGuest = [...conv.messages].reverse().find((m) => m.from === "guest")?.body ?? "";
-      const sys = `You are the guest concierge for ${p.name}, a boutique villa. Write a short, warm, professional reply (2-4 sentences) to the guest's message. Never invent policies, prices or availability you weren't given. Sign off as Kadek.`;
-      try {
-        const res = await aiChat(sys, `Guest ${g.name} wrote: "${lastGuest}"\n\nWrite the reply.`, { maxTokens: 200 });
-        body = res.text;
-        model = `${res.provider}/${res.model}`;
-      } catch { /* keep the safe fallback draft */ }
+
+    // There is deliberately no local fallback draft any more. This used to
+    // pre-fill the box with a fixed "Hi {first}! Thanks for the message..."
+    // sentence, label it concierge-v2, and toast "Draft generated" even when
+    // the gateway had failed - a canned reply wearing an AI result's clothes.
+    // If there is no model output there is no draft, and the toast says why.
+    if (!aiConfigOn || !isAiConfigured(providers)) {
+      toast("warn", "AI copilot is off", "Turn it on before drafting replies.");
+      return;
     }
-    setDraft(body);
-    toast("ok", "Draft generated", "You can edit the draft before sending.");
+
+    const lastGuest = [...conv.messages].reverse().find((m) => m.from === "guest")?.body ?? "";
+    const sys = `You are the guest concierge for ${p.name}, a boutique villa. Write a short, warm, professional reply (2-4 sentences) to the guest's message. Never invent policies, prices or availability you weren't given. Sign off as Kadek.`;
+    try {
+      const res = await aiChat(sys, `Guest ${g.name} wrote: "${lastGuest}"\n\nWrite the reply.`, { maxTokens: 200 });
+      setDraft(res.text);
+      toast("ok", "Draft generated", `${res.provider}/${res.model} - edit before sending.`);
+    } catch (e) {
+      // Surfaces the gateway's own words: rate limited, quota reached, no
+      // provider configured. The draft box is left exactly as it was.
+      const why = e instanceof Error ? e.message : "The AI gateway did not respond.";
+      toast("err", "No AI draft", why);
+    }
   };
 
   const send = () => {

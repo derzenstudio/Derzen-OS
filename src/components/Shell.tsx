@@ -381,23 +381,26 @@ function CopilotPanel() {
     setInput("");
     setMsgs((m) => [...m, { role: "user", text: question }]);
     spendCredit(1);
-    // If a live provider chain is configured, route through it; otherwise (or on
-    // failure) fall back to the deterministic local answer so the copilot never dead-ends.
+    // No local answer fallback, and no provider attribution. copilotAnswer()
+    // is a deterministic string matcher; piping its output into a bubble
+    // labelled "ai" dressed a canned reply up as model output. If the chain
+    // cannot answer we say so. The reply also no longer carries a
+    // provider/model or latency suffix - that belongs in the dev console.
     const providers = loadProviders();
-    if (aiConfigOn && isAiConfigured(providers)) {
-      try {
-        const sys = `You are the DERZEN operator copilot for a boutique villa portfolio. Answer concise, operational, in under 120 words. You can read live data: ${properties.filter((p) => !p.archived).length} active listings (${properties.filter((p) => !p.archived).slice(0, 6).map((p) => p.name).join(", ")}). Never invent prices you weren't given; if you lack data, say so and suggest where to look.`;
-        const res = await aiChat(sys, question, { maxTokens: 280 });
-        setMsgs((m) => [...m, { role: "ai", text: `${res.text}\n\n— via ${res.provider}/${res.model} · ${res.ms}ms` }]);
-        setTimeout(() => endRef.current?.scrollIntoView({ behavior: "smooth" }), 40);
-        return;
-      } catch { /* fall through to local answer */ }
-    }
-    setTimeout(() => {
-      const a = copilotAnswer(question, properties);
-      setMsgs((m) => [...m, { role: "ai", text: a.text, confirm: a.confirm }]);
+    if (!aiConfigOn || !isAiConfigured(providers)) {
+      setMsgs((m) => [...m, { role: "ai", text: "The AI copilot is switched off, so there is nothing behind me right now. Turn it back on from the dev console." }]);
       setTimeout(() => endRef.current?.scrollIntoView({ behavior: "smooth" }), 40);
-    }, 500);
+      return;
+    }
+    try {
+      const sys = `You are the DERZEN operator copilot for a boutique villa portfolio. Answer concise, operational, in under 120 words. You can read live data: ${properties.filter((p) => !p.archived).length} active listings (${properties.filter((p) => !p.archived).slice(0, 6).map((p) => p.name).join(", ")}). Never invent prices you weren't given; if you lack data, say so and suggest where to look.`;
+      const res = await aiChat(sys, question, { maxTokens: 280 });
+      setMsgs((m) => [...m, { role: "ai", text: res.text }]);
+    } catch (err) {
+      const why = err instanceof Error ? err.message : "the gateway did not answer";
+      setMsgs((m) => [...m, { role: "ai", text: `I could not get a model to answer that: ${why}` }]);
+    }
+    setTimeout(() => endRef.current?.scrollIntoView({ behavior: "smooth" }), 40);
   };
 
   const confirmWrite = (taskId: string) => {

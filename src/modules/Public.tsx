@@ -632,7 +632,9 @@ export function LoginPage() {
       <main className="flex items-center justify-center bg-surface px-5 py-10">
         <Reveal direction="up" distance={40} delay={300}>
         <div className="w-full max-w-[430px]">
+          {!devHost && (
           <button onClick={() => navigate("/")} className="mb-6 flex items-center gap-1 text-[12.5px] font-bold text-mute hover:text-ink"><Ic name="chevL" size={13} /> Back to derzen.site</button>
+          )}
 
           {!serverAuth && (
             <p className="mb-5 rounded-md border border-danger/40 bg-danger-soft px-3 py-2.5 text-[11.5px] leading-relaxed text-danger">
@@ -641,6 +643,13 @@ export function LoginPage() {
             </p>
           )}
 
+          {/* Customer sign-in and sign-up belong to the app host only. On the
+              dev host they used to be the first thing offered: a correct
+              workspace email and password produced a tenant session, the
+              surface guard answered "Wrong door", and the visitor was thrown
+              back to this page - a sign-in loop with valid credentials. */}
+          {!devHost && (
+          <>
           <div className="mb-5 flex items-center rounded-lg border border-line bg-paper p-0.5">
             <button onClick={() => { setTab("login"); setErr(null); }} className={cx("flex-1 rounded-md py-2 text-[12.5px] font-bold transition-colors", tab === "login" ? "bg-ink text-white" : "text-mute hover:text-ink")}>Sign in</button>
             <button onClick={() => { setTab("signup"); setErr(null); }} className={cx("flex-1 rounded-md py-2 text-[12.5px] font-bold transition-colors", tab === "signup" ? "bg-brand text-white" : "text-mute hover:text-ink")}>Create account</button>
@@ -721,9 +730,11 @@ export function LoginPage() {
               </form>
             </>
           )}
+          </>
+          )}
 
           {devHost && (
-            <div className="mt-6 border-t border-line pt-5">
+            <div className="mt-1">
               <p className="mb-1 text-[10.5px] font-bold uppercase tracking-widest text-faint">Internal · dev host only</p>
               {firstRun ? (
                 <p className="mb-3 rounded-md border border-brand/40 bg-brand-soft/50 px-3 py-2.5 text-[11.5px] leading-relaxed text-ink">

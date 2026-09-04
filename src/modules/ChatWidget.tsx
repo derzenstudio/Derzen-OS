@@ -56,9 +56,17 @@ export function ChatbotPreview({ st, onBooked }: { st: WidgetStyle; onBooked: (r
         setTyping(false);
         setMsgs((m) => [...m, { from: "bot", text: res.text }]);
         return;
-      } catch { setTyping(false); }
+      } catch {
+        setTyping(false);
+        setMsgs((m) => [...m, { from: "bot", text: "I cannot reach the concierge assistant right now, so I would rather not guess at an answer. Please try again in a moment, or use Check availability for live dates and rates." }]);
+        return;
+      }
     }
-    bot("I'd love to help with that. Tap “Check availability” and I'll show you live dates and rates.", 500);
+    // What used to sit here was a fixed sentence delivered through bot(), in a
+    // bubble a guest reads as the assistant answering them. That is a canned
+    // reply wearing an AI reply as a costume, so it now states plainly that
+    // the assistant is unavailable rather than pretending to have answered.
+    setMsgs((m) => [...m, { from: "bot", text: "The concierge assistant is switched off for this site at the moment. Use Check availability for live dates and rates, and a human will pick up anything else." }]);
   };
 
   const estimate = () => {

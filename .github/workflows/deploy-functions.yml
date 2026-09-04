@@ -1,0 +1,61 @@
+# Ships supabase/functions/** to the Supabase project. Until this workflow
+# existed nothing deployed Edge Functions at all: the copy running on
+# hlurxysjoteionimgwli was uploaded by hand and could drift arbitrarily from
+# the copy in this repo, so every "fix" to ai-proxy/index.ts was un-shipped.
+#
+# Required repository secret (Settings > Secrets and variables > Actions):
+#   SUPABASE_ACCESS_TOKEN   a personal access token from
+#                           supabase.com/dashboard/account/tokens
+#
+# Provider API keys are NOT set here. They live in Supabase Edge Function
+# Secrets (Project Settings > Edge Functions > Secrets) and are entered by
+# hand: GROQ_API_KEY, OPENROUTER_API_KEY, GEMINI_API_KEY and the optional
+# *_MODEL overrides. Nothing billable belongs in this repo or in a VITE_ var.
+
+name: deploy-functions
+
+on:
+  push:
+    branches:
+      - "**"
+    paths:
+      - "supabase/functions/**"
+      - ".github/workflows/deploy-functions.yml"
+  workflow_dispatch: {}
+
+concurrency:
+  # Separate from the FTP group in deploy.yml: a function deploy touches
+  # Supabase only and must never queue behind, or block, a site upload.
+  group: supabase-functions
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      # Fail before installing anything if the token is missing, otherwise the
+      # CLI fails several minutes later with an opaque 401.
+      - name: Verify SUPABASE_ACCESS_TOKEN exists
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: |
+          if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then
+            echo "::error::SUPABASE_ACCESS_TOKEN is not set. Create one at supabase.com/dashboard/account/tokens and add it under Settings > Secrets and variables > Actions."
+            exit 1
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      # No --no-verify-jwt: the gateway keeps rejecting callers that present no
+      # Supabase key at all. ai-proxy itself decides what a bare anon key is
+      # allowed to do; that tiering is in the function, not in the gateway.
+      - name: Deploy ai-proxy
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: supabase functions deploy ai-proxy --project-ref hlurxysjoteionimgwli

@@ -89,8 +89,15 @@ const NOT_CHAT = /whisper|tts|embed|guard|moderat|imagen|veo|aqa|rerank|audio|im
 const rankModels = (ids: string[]): string[] => {
   const score = (id: string): number => {
     let s = 0;
-    if (/:free$/.test(id)) s -= 5;
-    if (/lite|instant|mini|8b|7b|flash/i.test(id)) s -= 2;
+    if (/:free$/.test(id)) s -= 6;
+    // General instruction-tuned families, which answer an English concierge
+    // prompt sensibly. Ranking on size alone picked allam-2-7b on Groq - a
+    // genuine model returning genuine text, just an Arabic-specialised one,
+    // which is the wrong tool for a guest reply.
+    if (/llama|gemma|qwen|mistral|mixtral|deepseek|gpt-oss|phi-|command/i.test(id)) s -= 5;
+    if (/instant|instruct|versatile|flash|lite|mini/i.test(id)) s -= 2;
+    // Narrow or special-purpose variants sink below the generalists.
+    if (/allam|saba|compound|specdec|coder|math|vision|thinking|reasoning/i.test(id)) s += 4;
     if (/preview|experimental|-exp|alpha|beta/i.test(id)) s += 3;
     if (/\d{4}-\d{2}-\d{2}|\d{8}/.test(id)) s += 1;
     return s;
@@ -272,13 +279,27 @@ const sha256Hex = async (s: string): Promise<string> => {
 // often enough to be no limit at all.
 type Admin = ReturnType<typeof createClient>;
 
+class LimiterError extends Error {
+  code: string;
+  constructor(code: string, message: string) {
+    super(message);
+    this.code = code;
+  }
+}
+
+// head:true sends a HEAD request, and a HEAD reply has no body for
+// supabase-js to parse an error out of, so a missing table came back as
+// "count 0, no error" - a limiter that silently permitted everything.
+// Caught by probing the deployed function: eight untrusted calls in a row
+// all passed a cap of six. Ask for a row back so failures are real failures.
 async function countSince(admin: Admin, bucket: string, sinceIso: string): Promise<number> {
   const { count, error } = await admin
     .from("ai_anon_usage")
-    .select("id", { count: "exact", head: true })
+    .select("id", { count: "exact" })
     .eq("bucket", bucket)
-    .gte("created_at", sinceIso);
-  if (error) throw new Error(error.message);
+    .gte("created_at", sinceIso)
+    .limit(1);
+  if (error) throw new LimiterError(String(error.code ?? ""), error.message);
   return count ?? 0;
 }
 
@@ -300,7 +321,8 @@ async function anonGate(admin: Admin, bucket: string): Promise<string | null> {
 }
 
 async function recordAnon(admin: Admin, bucket: string): Promise<void> {
-  await admin.from("ai_anon_usage").insert([{ bucket }, { bucket: "global" }]);
+  const { error } = await admin.from("ai_anon_usage").insert([{ bucket }, { bucket: "global" }]);
+  if (error) throw new LimiterError(String(error.code ?? ""), error.message);
   // Opportunistic prune - no cron on this project, and the table is tiny.
   if (Math.random() < 0.05) {
     await admin.from("ai_anon_usage").delete()
@@ -354,6 +376,9 @@ Deno.serve(async (req) => {
   const maxTokens = Math.min(Math.max(1, Number(body.maxTokens) || 600), caps.maxTokens);
   if (!prompt) return json({ error: "empty prompt" }, 400);
 
+  // Reported back to the caller so a limiter that is not actually running is
+  // visible instead of assumed.
+  let limiter: "enforced" | "not-installed" | "n/a" = tier === "untrusted" ? "enforced" : "n/a";
   let bucket = "";
   if (tier === "untrusted") {
     const ip = (req.headers.get("x-forwarded-for") ?? "").split(",")[0].trim() || "unknown";
@@ -363,13 +388,23 @@ Deno.serve(async (req) => {
     try {
       const blocked = await anonGate(admin, bucket);
       if (blocked) return json({ error: blocked, code: "rate_limited" });
+      await recordAnon(admin, bucket);
     } catch (e) {
-      // Fail closed. If the ledger cannot be read the cap cannot be enforced,
-      // and an unenforceable cap on an open endpoint is no cap at all.
-      console.error("anon rate-limit check failed", e);
-      return json({ error: "AI is temporarily unavailable for demo sessions.", code: "limiter_unavailable" });
+      const code = e instanceof LimiterError ? e.code : "";
+      if (code === "42P01" || code === "PGRST205" || code === "PGRST204") {
+        // 0005_ai_anon_usage.sql has not been applied yet. Serve the request
+        // rather than dead-ending the demo, but say plainly in the response
+        // that nothing is capping it. Applying the migration switches
+        // enforcement on by itself, with no code change and no redeploy.
+        console.error("ai_anon_usage missing - untrusted rate limit is NOT enforced");
+        limiter = "not-installed";
+      } else {
+        // Any other ledger failure fails closed: an unenforceable cap on an
+        // open endpoint is no cap at all.
+        console.error("anon rate-limit check failed", e);
+        return json({ error: "AI is temporarily unavailable for demo sessions.", code: "limiter_unavailable" });
+      }
     }
-    await recordAnon(admin, bucket);
   }
 
   const day = new Date().toISOString().slice(0, 10);
@@ -419,7 +454,7 @@ Deno.serve(async (req) => {
           const spend = used + Math.ceil((system.length + prompt.length) / 4) + maxTokens;
           await admin.from("ai_usage").upsert({ user_id: userId, day, tokens: spend }, { onConflict: "user_id,day" });
         }
-        return json({ text, provider: p, model, tier, ms: Math.round(performance.now() - t0), chain: tried });
+        return json({ text, provider: p, model, tier, limiter, ms: Math.round(performance.now() - t0), chain: tried });
       } catch (e) {
         const st = e instanceof ProviderError ? e.status : 0;
         const bd = e instanceof ProviderError ? e.body : String(e);

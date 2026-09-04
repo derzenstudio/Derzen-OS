@@ -3,7 +3,7 @@ import { Shell } from "./components/Shell";
 import { AnimateMount } from "./components/AnimateMount";
 import { useApp } from "./store";
 import { refreshFx } from "./lib/fx";
-import { Btn } from "./components/ui";
+import { Btn, ToastHost } from "./components/ui";
 import { Ic } from "./components/icons";
 import { SURFACE, SURFACE_LABELS, SURFACE_URLS, type Surface } from "./lib/surface";
 import { supabase, isServerAuthConfigured } from "./lib/supabase";
@@ -89,7 +89,7 @@ function ModuleGated({ name }: { name: string }) {
   );
 }
 
-export default function App() {
+function AppRoutes() {
   const route = useApp((s) => s.route);
   const session = useApp((s) => s.session);
   const navigate = useApp((s) => s.navigate);
@@ -261,6 +261,20 @@ export default function App() {
     <Shell>
       {enabled ? <Suspense fallback={<LoadingSurface />}><def.el key={page} /></Suspense> : <ModuleGated name={page} />}
     </Shell>
+  );
+}
+
+// Every toast in the product was firing into a void: ToastHost is defined in
+// components/ui.tsx and was never rendered anywhere, so sign-in failures, the
+// demo-workspace notice, saved designs, session expiry and AI gateway errors
+// all produced silence. Mount it once at the root, outside the route switch,
+// so it covers the marketing site, the tenant app and the internal consoles.
+export default function App() {
+  return (
+    <>
+      <AppRoutes />
+      <ToastHost />
+    </>
   );
 }
 

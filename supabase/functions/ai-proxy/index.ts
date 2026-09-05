@@ -44,6 +44,16 @@ const CAPS: Record<Tier, { maxTokens: number; promptChars: number }> = {
 
 const TRUSTED_DAILY_TOKENS = 200_000;
 
+// Monthly token allowance by account type, used when no explicit row exists
+// in ai_token_quota for a workspace. A tenant that signs up today therefore
+// has a real allowance from its first request instead of silently inheriting
+// whatever default happened to be compiled in.
+const PLAN_TOKENS: Record<string, number> = {
+  Starter: 250_000,
+  Scale: 1_000_000,
+  Enterprise: 5_000_000,
+};
+
 // Sliding window, counted in Postgres so it survives a cold start.
 const ANON_WINDOW_MINUTES = 10;
 const ANON_PER_WINDOW = 6;
@@ -399,11 +409,76 @@ Deno.serve(async (req) => {
     }
   }
 
-  let body: { system?: string; user?: string; maxTokens?: number; scope?: string; surface?: string };
+  let body: { op?: string; system?: string; user?: string; maxTokens?: number; scope?: string; surface?: string };
   try {
     body = await req.json();
   } catch {
     return json({ error: "bad json" }, 400);
+  }
+
+  // ── gateway status ─────────────────────────────────────────
+  // The developer console needs to show what this deployment can actually
+  // reach. Asking each provider for its current lineup is the only honest
+  // answer to that, so it is answered here rather than assembled from
+  // constants in the browser. No completion is generated and nothing is
+  // billed, and it is trusted-only so a visitor cannot enumerate which of
+  // my keys are live. Anthropic is reported from the presence of its secret
+  // alone: while ENABLE_ANTHROPIC is unset its key is never used, not even
+  // to list models.
+  if (body.op === "status") {
+    if (tier !== "trusted") return json({ error: "Sign in to read gateway status." }, 403);
+    const live = chain();
+    const providers: Record<string, unknown>[] = [];
+    for (const p of ["groq", "openrouter", "gemini", "anthropic"] as Provider[]) {
+      const secret = ENV[p].key;
+      const key = Deno.env.get(secret);
+      const override = Deno.env.get(ENV[p].model) || null;
+      const inChain = live.includes(p);
+      if (!key || key.startsWith("PLACEHOLDER")) {
+        providers.push({ provider: p, secret, override, inChain, configured: false, state: "no-key", models: 0, candidates: [], ms: 0 });
+        continue;
+      }
+      if (!inChain) {
+        providers.push({ provider: p, secret, override, inChain, configured: true, state: "held-back", models: 0, candidates: [], ms: 0 });
+        continue;
+      }
+      const ts = performance.now();
+      try {
+        const ids = await listFreeModels(p, key);
+        providers.push({
+          provider: p, secret, override, inChain, configured: true,
+          state: ids.length ? "ready" : "no-free-models",
+          models: ids.length,
+          candidates: ids.slice(0, MAX_CANDIDATES_PER_PROVIDER),
+          ms: Math.round(performance.now() - ts),
+        });
+      } catch (e) {
+        const st = e instanceof ProviderError ? e.status : 0;
+        const bd = e instanceof ProviderError ? e.body : String(e);
+        providers.push({
+          provider: p, secret, override, inChain, configured: true,
+          state: keyRejected(st) ? "key-rejected" : throttled(st, bd) ? "throttled" : "list-failed",
+          status: st, models: 0, candidates: [], ms: Math.round(performance.now() - ts),
+        });
+      }
+    }
+    return json({
+      op: "status",
+      anthropicEnabled: anthropicOn(),
+      chain: live,
+      caps: CAPS,
+      maxCandidates: MAX_CANDIDATES_PER_PROVIDER,
+      modelTtlMs: MODEL_TTL_MS,
+      limits: {
+        anonPerWindow: ANON_PER_WINDOW,
+        anonWindowMinutes: ANON_WINDOW_MINUTES,
+        anonPerDay: ANON_PER_DAY,
+        anonGlobalPerDay: ANON_GLOBAL_PER_DAY,
+        trustedDailyTokens: TRUSTED_DAILY_TOKENS,
+      },
+      planTokens: PLAN_TOKENS,
+      providers,
+    });
   }
 
   const caps = CAPS[tier];
@@ -459,6 +534,13 @@ Deno.serve(async (req) => {
     if (wanted && owned.includes(wanted)) {
       scope = wanted;
       tenantId = wanted;
+    } else if (owned.length === 1) {
+      // A signed-in member of exactly one workspace is billed to that
+      // workspace even when the client did not name it. Without this the
+      // spend landed on user:<uuid>, which no per-tenant quota can ever
+      // match - and metering by account type was the point.
+      scope = owned[0];
+      tenantId = owned[0];
     } else {
       scope = `user:${userId}`;
     }
@@ -482,6 +564,16 @@ Deno.serve(async (req) => {
     const row = qRow.data as { plan: string; monthly_tokens: number };
     plan = row.plan || plan;
     quota = Number(row.monthly_tokens) || quota;
+  } else if (ledger === "enforced" && tenantId) {
+    // No explicit override for this workspace: its account type is the
+    // allowance. Read on the service role so the answer does not depend on
+    // what the caller session is allowed to see.
+    const { data: tRow } = await admin.from("tenants").select("plan").eq("id", tenantId).maybeSingle();
+    const planName = String((tRow as { plan?: string } | null)?.plan ?? "").trim();
+    if (planName) {
+      plan = planName;
+      quota = PLAN_TOKENS[planName] ?? quota;
+    }
   }
 
   if (ledger === "enforced") {

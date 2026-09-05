@@ -9,10 +9,7 @@ import { SURFACE, SURFACE_LABELS, SURFACE_URLS, type Surface } from "./lib/surfa
 import { supabase, isServerAuthConfigured } from "./lib/supabase";
 import { TENANTS } from "./lib/tenants";
 import { onAiFailure } from "./lib/aiGateway";
-import { syncModulesFromSlice } from "./lib/data";
-import {
-  onPersistFailure, pullTenantState, subscribeTenantState, isServerBackedTenant,
-} from "./lib/tenantPersist";
+import { onPersistFailure } from "./lib/tenantPersist";
 
 // ── Route-level code splitting ─────────────────────────────────────────────
 // Every surface loads its own chunk on first visit; the initial payload is
@@ -196,44 +193,6 @@ function AppRoutes() {
     onPersistFailure((message) => useApp.getState().toast("err", "Workspace not saved", message));
     return () => onPersistFailure(null);
   }, []);
-
-  // ── two-way workspace sync ───────────────────────────────
-  // A signed-in workspace is pulled from the server on entry, so signing in
-  // from a browser with no local cache restores the real thing instead of the
-  // empty scaffold, and then followed live: what the developer console changes
-  // for this tenant lands here without a reload, and what the tenant changes
-  // travels the other way through the same table. Seeded demo workspaces have
-  // no row in tenants and are skipped rather than retried forever.
-  useEffect(() => {
-    const tid = sessionState?.kind === "tenant" ? sessionState.tenantId : null;
-    if (!tid || !isServerBackedTenant(tid)) return;
-    let stop: (() => void) | null = null;
-    let cancelled = false;
-    let seen = 0;
-    try {
-      const raw = localStorage.getItem("derzen.tenant." + tid + ".v1");
-      if (raw) seen = (JSON.parse(raw) as { savedAt: number }).savedAt;
-    } catch {
-      /* an unreadable cache counts as no cache */
-    }
-    const apply = (remote: { slice: unknown; savedAt: number }): void => {
-      // Our own write echoes back through realtime with the stamp we just
-      // saved; applying it again would loop the store against itself.
-      if (remote.savedAt <= seen) return;
-      seen = remote.savedAt;
-      useApp.setState(remote.slice as never);
-      syncModulesFromSlice(remote.slice as Record<string, unknown>);
-    };
-    void pullTenantState(tid).then((remote) => {
-      if (cancelled) return;
-      if (remote) apply(remote);
-      stop = subscribeTenantState(tid, apply);
-    });
-    return () => {
-      cancelled = true;
-      if (stop) stop();
-    };
-  }, [sessionState]);
 
   // tenant font injection — heading + body fonts from the tenant's own URLs
   const tenantFonts = useApp((s) => s.tenantFonts);

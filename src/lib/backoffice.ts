@@ -4,6 +4,7 @@
 // for internal teams — support, success, finance, integrations, on-call.
 
 import { TENANTS, type TenantMeta } from "./tenants";
+import { PLAN_TIERS } from "./pricing";
 
 const now = Date.now();
 const H = 3_600_000;
@@ -77,11 +78,23 @@ export const LIFECYCLE_RULES: Record<string, string> = {
 };
 
 // ── Section C · Commercial engine ─────────────────────────────────────────
-export const PLANS = [
-  { id: "starter", name: "Starter", version: 4, monthly: 49, annual: 39, units: 3, services: 0, credits: 1000, grandfathered: 12 },
-  { id: "scale", name: "Scale", version: 7, monthly: 118, annual: 94, units: 15, services: 5, credits: 5000, grandfathered: 31 },
-  { id: "enterprise", name: "Enterprise", version: 3, monthly: 480, annual: 384, units: 100, services: 25, credits: 20000, grandfathered: 4 },
-];
+// The plan catalogue is the same one the landing page and the tenant billing
+// screen read. It used to be a second literal with its own figures and an
+// invented "credits" allowance, which is how the public rate card came to
+// advertise 1,000 credits a month for Starter while the gateway was enforcing
+// 250,000 tokens. Contract version and grandfathered-tenant counts were made
+// up as well, so they are gone rather than shown as fact.
+export const PLANS = PLAN_TIERS.map((p) => ({
+  id: p.id,
+  name: p.name,
+  monthly: p.monthly,
+  annual: p.annual,
+  units: p.units,
+  services: p.services,
+  aiTokens: p.aiTokens,
+  overageUnit: p.overageUnit,
+  quoteOnly: p.quoteOnly === true,
+}));
 
 export const METERING = [
   { tenant: "Azure Coast Rentals", listingsActive: 38, listingsArchived: 5, childListings: 9, services: 11, peakThisPeriod: 38, billedUnits: 38, serviceUnits: 11, drift: 0 },

@@ -7,7 +7,7 @@ import { Avatar, Badge, Btn, IconBtn, Kbd, Modal, Ring, Toggle } from "./ui";
 import { useApp, useOverdue, useSyncAlerts, useUnreadTotal, nightsInRange, arrivalsOn } from "../store";
 import { channelDef, MEMBERS, MONTHLY, propertyById, WORKSPACE, RESERVATIONS } from "../lib/data";
 import type { Property } from "../lib/types";
-import { aiChat, isAiConfigured, loadProviders } from "../lib/aiGateway";
+import { aiChat, isAiConfigured } from "../lib/aiGateway";
 
 // ── Nav model ──────────────────────────────────────────────────────────────
 const NAV: { group: string; items: { path: string; icon: IconName; label: string }[] }[] = [
@@ -386,8 +386,7 @@ function CopilotPanel() {
     // labelled "ai" dressed a canned reply up as model output. If the chain
     // cannot answer we say so. The reply also no longer carries a
     // provider/model or latency suffix - that belongs in the dev console.
-    const providers = loadProviders();
-    if (!aiConfigOn || !isAiConfigured(providers)) {
+    if (!aiConfigOn || !isAiConfigured()) {
       setMsgs((m) => [...m, { role: "ai", text: "The AI copilot is switched off, so there is nothing behind me right now. Turn it back on from the dev console." }]);
       setTimeout(() => endRef.current?.scrollIntoView({ behavior: "smooth" }), 40);
       return;

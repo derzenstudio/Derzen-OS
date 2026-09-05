@@ -192,7 +192,7 @@ export default function Inbox() {
                     )}
                     <p>{m.body}</p>
                     <p className={cx("mt-1 flex items-center gap-1.5 text-[9.5px] font-semibold", m.from === "operator" ? "text-pine-200/60" : "text-faint")}>
-                      {m.from === "ai" ? `Concierge · ${m.model}` : m.authorName ?? guest!.name} · {timeAgo(m.ts)}
+                      {m.from === "ai" ? "Concierge" : m.authorName ?? guest!.name} · {timeAgo(m.ts)}
                       {m.citedSources && <span className="rounded bg-brand/10 px-1 text-brand-deep">cited: {m.citedSources.length}</span>}
                     </p>
                   </div>

@@ -275,27 +275,26 @@ export function CommercialsView() {
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
-        <Card title="Plan & pricing catalogue" sub="Data, not code — price changes never need a deploy" className="xl:col-span-2">
+        <Card title="Plan and pricing catalogue" sub="One catalogue, shared with the public rate card and the tenant billing screen" className="xl:col-span-2">
           <div className="overflow-x-auto">
             <table className="w-full min-w-[560px] text-left">
-              <thead><tr className="text-[9.5px] uppercase tracking-[0.12em] text-white/40">{["Plan", "Version", "Monthly", "Annual", "Units", "Services", "Credits", "Grandfathered"].map((h) => <th key={h} className="py-2 pr-4 font-bold">{h}</th>)}</tr></thead>
+              <thead><tr className="text-[9.5px] uppercase tracking-[0.12em] text-white/40">{["Plan", "Monthly", "Annual", "Units", "Services", "AI tokens / mo", "Extra unit"].map((h) => <th key={h} className="py-2 pr-4 font-bold">{h}</th>)}</tr></thead>
               <tbody>
                 {PLANS.map((p) => (
                   <tr key={p.id} className="border-t border-white/8">
-                    <td className="py-2.5 pr-4 text-[13px] font-bold text-white">{p.name}</td>
-                    <td className="py-2.5 pr-4 font-mono text-[11px] text-white/50">v{p.version}</td>
+                    <td className="py-2.5 pr-4 text-[13px] font-bold text-white">{p.name}{p.quoteOnly && <span className="ml-2 font-mono text-[9px] uppercase tracking-[0.12em] text-[#e2a33c]">quoted</span>}</td>
                     <td className="py-2.5 pr-4 font-mono text-[12px] text-white">${p.monthly}</td>
                     <td className="py-2.5 pr-4 font-mono text-[12px] text-white/70">${p.annual}/mo</td>
                     <td className="py-2.5 pr-4 font-mono text-[12px] text-white/70">{p.units}</td>
                     <td className="py-2.5 pr-4 font-mono text-[12px] text-white/70">{p.services}</td>
-                    <td className="py-2.5 pr-4 font-mono text-[12px] text-white/70">{p.credits.toLocaleString()}</td>
-                    <td className="py-2.5 font-mono text-[11px] text-[#e2a33c]">{p.grandfathered} tenants on older v</td>
+                    <td className="py-2.5 pr-4 font-mono text-[12px] text-white/70">{p.aiTokens.toLocaleString()}</td>
+                    <td className="py-2.5 font-mono text-[12px] text-white/70">${p.overageUnit}</td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
-          <p className="mt-2 font-mono text-[10px] text-white/35">Existing tenants stay on their signed plan version until explicitly migrated.</p>
+          <p className="mt-2 font-mono text-[10px] text-white/35">Edited in src/lib/pricing.ts, which the landing page reads too, so the two cannot drift apart. The AI allowance is the figure ai-proxy enforces.</p>
         </Card>
 
         <Card title="MRR movement · this month" sub="Decomposed, not a single number">

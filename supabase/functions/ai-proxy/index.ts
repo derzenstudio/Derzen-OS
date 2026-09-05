@@ -98,6 +98,11 @@ const rankModels = (ids: string[]): string[] => {
     if (/instant|instruct|versatile|flash|lite|mini/i.test(id)) s -= 2;
     // Narrow or special-purpose variants sink below the generalists.
     if (/allam|saba|compound|specdec|coder|math|vision|thinking|reasoning/i.test(id)) s += 4;
+    // Reasoning-first families narrate their scratchpad in the answer body,
+    // with or without <think> tags: genuine output, wrong shape for a guest
+    // reply. They sit behind the plain chat models rather than being dropped,
+    // so they are still a real fallback when nothing else answers.
+    if (/qwen3|qwq|deepseek-r1|magistral|-r1\b/i.test(id)) s += 8;
     if (/preview|experimental|-exp|alpha|beta/i.test(id)) s += 3;
     if (/\d{4}-\d{2}-\d{2}|\d{8}/.test(id)) s += 1;
     return s;

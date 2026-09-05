@@ -3,9 +3,10 @@ import { cx, money, moneyRaw, fmtDate, dayKey, addDays, today, range } from "../
 import { Ic } from "../components/icons";
 import { Btn } from "../components/ui";
 import { useApp } from "../store";
-import { PROPERTIES, propertyById } from "../lib/data";
+import { KNOWLEDGE, PROPERTIES, WORKSPACE, propertyById } from "../lib/data";
 import type { WidgetStyle } from "../lib/widgetTheme";
-import { aiChat, isAiConfigured, loadProviders } from "../lib/aiGateway";
+import { aiChat, isAiConfigured } from "../lib/aiGateway";
+import { plainText, systemPrompt } from "../lib/aiVoice";
 
 // ── Live preview of the embeddable concierge chatbot ──────────────────────
 // Guests see this bubble on the tenant's own website. It answers from the
@@ -14,10 +15,21 @@ import { aiChat, isAiConfigured, loadProviders } from "../lib/aiGateway";
 
 interface Msg { from: "guest" | "bot"; text: string; picker?: boolean; }
 
+// The signed-in tenant knowledge, and nothing else. hydrateTenantData()
+// refills KNOWLEDGE in place on every sign-in, so these are the same scopes
+// the Knowledge base tab manages for this workspace. Nothing shared sits
+// behind the embed: a scope with no sources means the bot says it cannot
+// confirm, never that it borrowed an answer from another tenant.
+const scopesFor = (propertyId: string) =>
+  KNOWLEDGE.filter((k) => k.scope !== "property" || k.refId === propertyId);
+
+const initialsOf = (name: string): string =>
+  name.split(/\s+/).filter(Boolean).map((w) => w[0]).join("").slice(0, 2).toUpperCase() || "OS";
+
 export function ChatbotPreview({ st, onBooked }: { st: WidgetStyle; onBooked: (ref: string) => void }) {
   const { chatBooking, brand } = useApp();
   const [msgs, setMsgs] = useState<Msg[]>([
-    { from: "bot", text: "Hi! I'm the Sanggraha concierge. Ask me about our villas, or tap below to check availability." },
+    { from: "bot", text: `Hi, you are through to the ${WORKSPACE.name} concierge. Ask anything about the stay, or tap below to check availability.` },
   ]);
   const [typing, setTyping] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
@@ -34,46 +46,74 @@ export function ChatbotPreview({ st, onBooked }: { st: WidgetStyle; onBooked: (r
     setTimeout(() => { setTyping(false); setMsgs((m) => [...m, { from: "bot", text }]); }, delay);
   };
 
-  const ask = (q: string, a: string) => {
-    setMsgs((m) => [...m, { from: "guest", text: q }]);
-    bot(a);
-  };
-
   const [input, setInput] = useState("");
   const aiOn = useApp((s) => s.aiConfig.enabled);
-  const sendFree = async () => {
+  const aiLive = aiOn && isAiConfigured();
+
+  // One path for everything a guest can ask, typed or tapped. The canned
+  // question and answer pairs that used to sit behind those buttons arrived
+  // in a bubble the guest reads as the assistant speaking, which is a script
+  // wearing a real answer as a costume. Every reply now comes back through
+  // the same ai-proxy gateway the concierge and the dev console call, grounded
+  // in this tenant scopes, and is stripped to plain text before it is shown.
+  const askAi = async (q: string) => {
+    const question = q.trim();
+    if (!question || typing) return;
+    setMsgs((m) => [...m, { from: "guest", text: question }]);
+    if (!aiLive) {
+      setMsgs((m) => [...m, { from: "bot", text: "The concierge assistant is switched off for this site, so I would rather not guess at an answer. Use Check availability for live dates and rates, and a human picks up anything else." }]);
+      return;
+    }
+    const p = propertyById(propId);
+    const scopes = scopesFor(propId);
+    const base = p.pricing.plans.find((pl) => pl.kind === "base")?.nightly;
+    setTyping(true);
+    try {
+      const sys = systemPrompt(
+        `You are the guest concierge for ${WORKSPACE.name}, answering on the website of ${p.name} in ${p.city}. Answer only from the material below. When it does not cover the question, say you cannot confirm it and point the guest at Check availability or a human.`,
+        "chat",
+        {
+          Sources: scopes.flatMap((k) => k.sources.map((s) => `${k.name}: ${s.name}`)).join("\n"),
+          Rules: scopes.flatMap((k) => k.rules.map((r) => `${r.kind === "hard" ? "HARD RULE" : "tone"}: ${r.text}`)).join("\n"),
+          Facts: [
+            `Property: ${p.name}, ${p.city}`,
+            base ? `Nightly rate from ${moneyRaw(base, p.currency)}` : "No nightly rate is published for this listing",
+          ].join("\n"),
+        },
+      );
+      const res = await aiChat(sys, question, { maxTokens: 160 });
+      setTyping(false);
+      setMsgs((m) => [...m, { from: "bot", text: plainText(res.text) }]);
+    } catch {
+      setTyping(false);
+      setMsgs((m) => [...m, { from: "bot", text: "I cannot reach the concierge assistant right now, so I would rather not guess at an answer. Try again in a moment, or use Check availability for live dates and rates." }]);
+    }
+  };
+
+  const sendFree = () => {
     const q = input.trim();
     if (!q || typing) return;
     setInput("");
-    setMsgs((m) => [...m, { from: "guest", text: q }]);
-    const p = propertyById(propId);
-    const providers = loadProviders();
-    if (aiOn && isAiConfigured(providers)) {
-      setTyping(true);
-      try {
-        const sys = `You are the ${p.name} concierge chatbot. Answer the guest briefly (1-3 sentences), warm and helpful. Never invent prices, dates or availability. If you can't confirm, invite them to check availability.`;
-        const res = await aiChat(sys, q, { maxTokens: 120 });
-        setTyping(false);
-        setMsgs((m) => [...m, { from: "bot", text: res.text }]);
-        return;
-      } catch {
-        setTyping(false);
-        setMsgs((m) => [...m, { from: "bot", text: "I cannot reach the concierge assistant right now, so I would rather not guess at an answer. Please try again in a moment, or use Check availability for live dates and rates." }]);
-        return;
-      }
-    }
-    // What used to sit here was a fixed sentence delivered through bot(), in a
-    // bubble a guest reads as the assistant answering them. That is a canned
-    // reply wearing an AI reply as a costume, so it now states plainly that
-    // the assistant is unavailable rather than pretending to have answered.
-    setMsgs((m) => [...m, { from: "bot", text: "The concierge assistant is switched off for this site at the moment. Use Check availability for live dates and rates, and a human will pick up anything else." }]);
+    void askAi(q);
   };
 
-  const estimate = () => {
-    const p = propertyById(propId);
-    const base = p.pricing.plans.find((pl) => pl.kind === "base")?.nightly ?? 3_500_000;
-    return base * nights;
+  // Suggested questions come from the sources this tenant has actually
+  // loaded, so an empty knowledge base offers none rather than inventing a
+  // topic it cannot answer.
+  const topics = scopesFor(propId).flatMap((k) => k.sources.map((s) => s.name)).slice(0, 2);
+  const chips: [string, () => void][] = [
+    ["Check availability", () => { setMsgs((m) => [...m, { from: "guest", text: "I would like to check availability" }]); bot("Of course. Pick the stay and dates below.", 450); setPickerOpen(true); }],
+    ...topics.map((t): [string, () => void] => [t, () => { void askAi(`Tell me about ${t.toLowerCase()}`); }]),
+  ];
+
+  // No invented nightly rate. A listing with no published base plan shows no
+  // estimate at all, because a made-up number inside a booking flow is worse
+  // than an absent one.
+  const estimate = (): number | null => {
+    const base = propertyById(propId).pricing.plans.find((pl) => pl.kind === "base")?.nightly;
+    return typeof base === "number" ? base * nights : null;
   };
+  const est = estimate();
 
   const book = () => {
     const to = dayKey(addDays(from, nights));
@@ -86,10 +126,10 @@ export function ChatbotPreview({ st, onBooked }: { st: WidgetStyle; onBooked: (r
   return (
     <div className="overflow-hidden rounded-lg shadow-2xl" style={{ background: st.bg, border: `${st.borderW}px solid ${st.borderColor}`, borderRadius: st.radius, width: 320, fontFamily: st.fontFamily || `'${brand.bodyFamily}', sans-serif` }}>
       <div className="flex items-center gap-2.5 px-3.5 py-3" style={{ background: brand.ink }}>
-        <span className="flex h-8 w-8 items-center justify-center rounded-full text-[11px] font-bold" style={{ background: st.accent, color: "#fff" }}>SV</span>
+        <span className="flex h-8 w-8 items-center justify-center rounded-full text-[11px] font-bold" style={{ background: st.accent, color: "#fff" }}>{initialsOf(WORKSPACE.name)}</span>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[12.5px] font-bold text-white">Sanggraha concierge</p>
-          <p className="flex items-center gap-1 text-[9.5px] font-semibold" style={{ color: "#8FE3BF" }}><span className="h-1.5 w-1.5 rounded-full bg-[#4CC38A] blink" /> online · answers in seconds</p>
+          <p className="truncate text-[12.5px] font-bold text-white">{WORKSPACE.name} concierge</p>
+          <p className="flex items-center gap-1 text-[9.5px] font-semibold" style={{ color: aiLive ? "#8FE3BF" : "#E7C9A0" }}><span className={cx("h-1.5 w-1.5 rounded-full", aiLive ? "bg-[#4CC38A] blink" : "bg-[#e2a33c]")} /> {aiLive ? "online" : "assistant off, a human replies"}</p>
         </div>
         <span className="font-mono text-[8px] font-bold uppercase tracking-widest text-white/40">powered by DERZEN</span>
       </div>
@@ -123,7 +163,7 @@ export function ChatbotPreview({ st, onBooked }: { st: WidgetStyle; onBooked: (r
                 <select value={guests} onChange={(e) => setGuests(Number(e.target.value))} className="h-7 w-full rounded-sm border px-1 text-[10px]" style={{ borderColor: st.borderColor, background: st.bg, color: st.text }}>{range(12).map((n) => <option key={n + 1} value={n + 1}>{n + 1}</option>)}</select></label>
             </div>
             <div className="flex items-center justify-between pt-0.5">
-              <p className="text-[10px] font-bold opacity-70">≈ {moneyRaw(estimate(), propertyById(propId).currency, { compact: true })} <span className="font-normal opacity-70">+ fees</span></p>
+              <p className="text-[10px] font-bold opacity-70">{est === null ? "Rate on request" : <>≈ {moneyRaw(est, propertyById(propId).currency, { compact: true })} <span className="font-normal opacity-70">+ fees</span></>}</p>
               <button onClick={book} className="rounded-sm px-3 py-1.5 text-[10.5px] font-bold text-white transition-transform hover:scale-[1.03]" style={{ background: st.accent, borderRadius: st.btnRadius }}>Book now →</button>
             </div>
           </div>
@@ -131,12 +171,8 @@ export function ChatbotPreview({ st, onBooked }: { st: WidgetStyle; onBooked: (r
       </div>
 
       <div className="flex flex-wrap gap-1.5 border-t px-3 py-2.5" style={{ borderColor: st.borderColor, background: st.bg }}>
-        {[
-          ["Check availability", () => { setMsgs((m) => [...m, { from: "guest", text: "I'd like to check availability" }]); bot("Of course. Pick your villa and dates below.", 450); setPickerOpen(true); }],
-          ["Pool heated?", () => ask("Is the pool heated?", "Pools sit around 29°, and Bali rarely needs more. Want me to check dates for you?")],
-          ["Airport transfer?", () => ask("Do you do airport transfers?", "Yes. Share your flight number after booking and a driver meets you at DPS arrivals.")],
-        ].map(([label, fn]) => (
-          <button key={String(label)} onClick={fn as () => void} className="rounded-full border px-2.5 py-1 text-[10px] font-bold transition-colors hover:opacity-80" style={{ borderColor: st.borderColor, color: st.text, background: st.card }}>{String(label)}</button>
+        {chips.map(([label, fn]) => (
+          <button key={label} onClick={fn} className="rounded-full border px-2.5 py-1 text-[10px] font-bold transition-colors hover:opacity-80" style={{ borderColor: st.borderColor, color: st.text, background: st.card }}>{label}</button>
         ))}
       </div>
 

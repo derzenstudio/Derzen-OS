@@ -444,6 +444,7 @@ export const useApp = create<App>((set, get) => ({
       });
       setDisplayCurrency(meta.currency);
       const restored = applyStoredSlice(meta.id);
+      attachTenantSync(meta.id);
       const session: Session = { kind: "tenant", tenantId: meta.id };
       saveSession(session);
       set({ session, features: { ...meta.features }, displayCurrency: meta.currency, fxTick: get().fxTick + 1, tenants: [...TENANTS] });
@@ -481,6 +482,7 @@ export const useApp = create<App>((set, get) => ({
     setDisplayCurrency(meta.currency);
     tenantPersisted = true;
     const restored = applyStoredSlice(meta.id);
+    attachTenantSync(meta.id);
     const session: Session = { kind: "tenant", tenantId: meta.id };
     saveSession(session);
     set({ session, features: { ...meta.features }, displayCurrency: meta.currency, fxTick: get().fxTick + 1, tenants: [...TENANTS] });
@@ -1646,30 +1648,49 @@ function applyStoredSlice(tenantId: string): boolean {
 }
 
 
+// ── two-way workspace sync ──────────────────────────────────
+// Pull whatever the server holds for this workspace, take it when it is newer
+// than the local copy, then keep a live subscription open so a change written
+// by the developer console - or by the same account in another tab - arrives
+// without a reload. Only one tail is ever open, so switching workspaces does
+// not leave the previous one listening.
+let localSavedAt = 0;
+let detachTenantSync: (() => void) | null = null;
+
+function attachTenantSync(tenantId: string): void {
+  if (detachTenantSync) detachTenantSync();
+  detachTenantSync = null;
+  void import("./lib/tenantPersist").then(async (m) => {
+    if (!m.isServerBackedTenant(tenantId)) return;
+    const applyIfNewer = (remote: { slice: unknown; savedAt: number }): void => {
+      if (remote.savedAt <= localSavedAt) return;
+      localSavedAt = remote.savedAt;
+      useApp.setState(remote.slice as Partial<App>);
+      syncModulesFromSlice(remote.slice as Record<string, unknown>);
+    };
+    try {
+      const raw = localStorage.getItem("derzen.tenant." + tenantId + ".v1");
+      if (raw) localSavedAt = (JSON.parse(raw) as { savedAt: number }).savedAt;
+    } catch { /* an unreadable cache counts as no cache */ }
+    const remote = await m.pullTenantState(tenantId);
+    if (remote) applyIfNewer(remote);
+    detachTenantSync = m.subscribeTenantState(tenantId, applyIfNewer);
+  });
+}
+
 // Boot restore: layer the customer's saved workspace over the empty scaffold.
 if (bootCustomer) {
   tenantPersisted = true;
   applyStoredSlice(bootCustomer.tenantId);
-  // Pull latest from server in background
-  import("./lib/tenantPersist").then((m) => {
-    m.pullTenantState(bootCustomer!.tenantId).then((remote) => {
-      if (remote) {
-        try {
-          const raw = localStorage.getItem("derzen.tenant." + bootCustomer!.tenantId + ".v1");
-          const localTs = raw ? JSON.parse(raw).savedAt : 0;
-          if (remote.savedAt > localTs) {
-             useApp.setState(remote.slice as Partial<App>);
-             syncModulesFromSlice(remote.slice as Record<string, unknown>);
-          }
-        } catch { /* ignore */ }
-      }
-    });
-  });
+  attachTenantSync(bootCustomer.tenantId);
 }
 
 
 // Debounced auto-save: every state change for a registered customer is
-// serialized to their private, tenant-scoped key.
+// serialized to their private, tenant-scoped key and, for a server-backed
+// workspace, upserted into tenant_states. `localSavedAt` remembers the stamp
+// we wrote, so the realtime echo of our own write is not applied back as if
+// it had come from somewhere else.
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 useApp.subscribe((st) => {
   const s = st.session;
@@ -1678,6 +1699,8 @@ useApp.subscribe((st) => {
   saveTimer = setTimeout(() => {
     try {
       saveTenantState(s.tenantId, snapshotSlice());
+      const raw = localStorage.getItem("derzen.tenant." + s.tenantId + ".v1");
+      if (raw) localSavedAt = (JSON.parse(raw) as { savedAt: number }).savedAt;
     } catch { /* storage full — in-memory state remains authoritative for the session */ }
   }, 600);
 });

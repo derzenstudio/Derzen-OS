@@ -380,7 +380,7 @@ function Autopilot() {
             {autopilot.audit.map((a, i) => (
               <li key={i} className="rounded-lg border border-line p-2.5">
                 <p className="flex items-center justify-between text-[11.5px] font-bold text-ink">{a.conv} <Badge tone={a.outcome === "sent" ? "ok" : "warn"}>{a.outcome}</Badge></p>
-                <p className="mt-0.5 font-mono text-[10px] text-mute">model={a.model} · prompt={a.promptV} · cited={a.cited.length} · {timeAgo(a.ts)}</p>
+                <p className="mt-0.5 font-mono text-[10px] text-mute">prompt={a.promptV} · cited={a.cited.length} · {timeAgo(a.ts)}</p>
               </li>
             ))}
           </ul>

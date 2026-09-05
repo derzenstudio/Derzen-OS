@@ -47,10 +47,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # `version: latest` made the action resolve the newest release through
+      # the unauthenticated GitHub API, which rate-limits shared runner IPs -
+      # run #5 died on exactly that. The redirect below is a plain download
+      # with no API call, so it cannot be rate limited.
       - name: Setup Supabase CLI
-        uses: supabase/setup-cli@v1
-        with:
-          version: latest
+        run: |
+          curl -fsSL -o /tmp/supabase.tar.gz https://github.com/supabase/cli/releases/latest/download/supabase_linux_amd64.tar.gz
+          tar -xzf /tmp/supabase.tar.gz -C /tmp
+          sudo install -m 0755 /tmp/supabase /usr/local/bin/supabase
+          supabase --version
 
       # No --no-verify-jwt: the gateway keeps rejecting callers that present no
       # Supabase key at all. ai-proxy itself decides what a bare anon key is

@@ -3,8 +3,9 @@ import { cx, money, timeAgo, fmtDateTime, fmtShort } from "../lib/format";
 import { Ic, type IconName } from "../components/icons";
 import { Badge, Btn, Dot, Empty, Field, Input, Modal, Select, Tabs, Textarea, Toggle } from "../components/ui";
 import { useApp, type AutopilotMode } from "../store";
-import { KNOWLEDGE, MSG_TEMPLATES, UPSELLS, VARIABLES, WORKSPACE, propertyById, serviceById } from "../lib/data";
-import { aiChat, isAiConfigured, loadProviders } from "../lib/aiGateway";
+import { KNOWLEDGE, MSG_TEMPLATES, UPSELLS, VARIABLES, propertyById, serviceById } from "../lib/data";
+import { aiChat, isAiConfigured, lastAiTokens } from "../lib/aiGateway";
+import { plainText, systemPrompt } from "../lib/aiVoice";
 
 const LIFE: Record<string, string> = {
   new_reservation: "New reservation", pre_arrival: "Pre-arrival", check_in: "Check-in",
@@ -38,53 +39,93 @@ export default function Concierge() {
   );
 }
 
+// Nothing on this tab is a stand-in any more. The figures that used to sit
+// here - 1,284 answers in thirty days, three escalations, and a hand-written
+// readiness percentage for each property - were literals in this file. They
+// are replaced by what the workspace and the gateway actually report, and
+// where there is genuinely nothing to report the card says so rather than
+// showing a number.
 function Overview() {
-  const creditsUsed = useApp((s) => s.creditsUsed);
-  const upsellRevenue = UPSELLS.reduce((s, u) => s + u.revenue, 0);
-  const offered = UPSELLS.reduce((s, u) => s + u.offered, 0);
-  const accepted = UPSELLS.reduce((s, u) => s + u.accepted, 0);
-  const sourcesReady = KNOWLEDGE.reduce((s, k) => s + k.sources.length, 0);
-  const cards = [
-    { label: "Answered by concierge · 30d", value: "1,284", icon: "checkCircle" as IconName, tone: "text-brand-deep" },
-    { label: "Needs human attention", value: "3", icon: "flag" as IconName, tone: "text-danger" },
-    { label: "Knowledge sources ready", value: String(sourcesReady), icon: "book" as IconName, tone: "text-sea" },
-    { label: "Upsell revenue · accept rate", value: `${money(upsellRevenue, "IDR", { compact: true })} · ${Math.round((accepted / offered) * 100)}%`, icon: "trendUp" as IconName, tone: "text-[#8a5c07]" },
-    { label: "AI credits consumed", value: `${creditsUsed} / ${WORKSPACE.credits.limit}`, icon: "bolt" as IconName, tone: "text-plum" },
+  const properties = useApp((s) => s.properties);
+  const actionItems = useApp((s) => s.actionItems);
+  const openActions = actionItems.filter((a) => a.status === "open").length;
+  const closedActions = actionItems.length - openActions;
+  const sources = KNOWLEDGE.reduce((n, k) => n + k.sources.length, 0);
+  const rules = KNOWLEDGE.reduce((n, k) => n + k.rules.length, 0);
+  const propScopes = KNOWLEDGE.filter((k) => k.scope === "property");
+  const kbFor = (pid: string) => propScopes.filter((k) => k.refId === pid);
+  const documented = properties.filter((p) => kbFor(p.id).some((k) => k.sources.length + k.rules.length > 0)).length;
+  // What ai-proxy reported on the last completion this browser ran: the scope
+  // it was billed to, the allowance for that account type, and the spend so
+  // far this month. Before any call there is nothing to show, and we say that.
+  const tokens = lastAiTokens();
+
+  const cards: { label: string; value: string; sub: string; icon: IconName; tone: string }[] = [
+    {
+      label: "AI tokens this month",
+      value: tokens ? tokens.used.toLocaleString() : "not measured yet",
+      sub: tokens
+        ? `${tokens.plan} · of ${tokens.quota.toLocaleString()} · billed to ${tokens.scope}`
+        : "run one AI action and the gateway reports the real figure",
+      icon: "bolt", tone: "text-plum",
+    },
+    {
+      label: "Open action items",
+      value: String(openActions),
+      sub: `${closedActions} resolved`,
+      icon: "flag", tone: openActions ? "text-danger" : "text-brand-deep",
+    },
+    {
+      label: "Knowledge sources",
+      value: String(sources),
+      sub: `${rules} rules across ${KNOWLEDGE.length} scopes`,
+      icon: "book", tone: "text-sea",
+    },
+    {
+      label: "Properties with own knowledge",
+      value: `${documented}/${properties.length}`,
+      sub: documented === properties.length
+        ? "no property falls back to general"
+        : "the rest answer from general knowledge only",
+      icon: "home", tone: "text-brand-deep",
+    },
   ];
-  const readiness = [
-    { pid: "p-anggrek", pct: 0.92 }, { pid: "p-cemara", pct: 0.74 }, { pid: "p-senja", pct: 0.08 },
-    { pid: "p-purnama", pct: 0.81 }, { pid: "p-kelapa", pct: 0.66 }, { pid: "p-samudra", pct: 0.55 },
-  ];
+
   return (
-    <div className="grid grid-cols-2 gap-3 lg:grid-cols-5">
+    <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
       {cards.map((c, i) => (
-        <div key={i} className="anim-rise rounded-xl border border-line bg-card p-4" style={{ animationDelay: `${i * 60}ms` }}>
+        <div key={c.label} className="anim-rise rounded-xl border border-line bg-card p-4" style={{ animationDelay: `${i * 60}ms` }}>
           <Ic name={c.icon} size={16} className={c.tone} />
           <p className="mt-2 font-display text-[19px] font-bold leading-tight text-ink">{c.value}</p>
           <p className="mt-0.5 text-[10.5px] font-semibold uppercase tracking-wide text-mute">{c.label}</p>
+          <p className="mt-1 text-[10.5px] leading-snug text-faint">{c.sub}</p>
         </div>
       ))}
       <div className="col-span-2 rounded-xl border border-line bg-card p-4 lg:col-span-3">
-        <h3 className="font-display text-[13.5px] font-bold text-ink">Readiness by property</h3>
-        <p className="mb-3 text-[11px] text-mute">Property knowledge overrides general knowledge. Below 50% the concierge will escalate rather than guess.</p>
+        <h3 className="font-display text-[13.5px] font-bold text-ink">Knowledge coverage by property</h3>
+        <p className="mb-3 text-[11px] text-mute">Counted from the scopes on the Knowledge base tab. Property knowledge overrides general; a property with none of its own answers from general only, and the concierge escalates rather than guessing.</p>
         <div className="grid grid-cols-1 gap-x-6 gap-y-2 sm:grid-cols-2">
-          {readiness.map((r) => (
-            <div key={r.pid} className="flex items-center gap-3">
-              <span className="w-[120px] truncate text-[12px] font-bold text-ink">{propertyById(r.pid).name}</span>
-              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-line">
-                <div className={cx("h-full rounded-full", r.pct >= 0.7 ? "bg-brand" : r.pct >= 0.4 ? "bg-gold" : "bg-danger")} style={{ width: `${r.pct * 100}%` }} />
+          {properties.filter((p) => !p.archived).map((p) => {
+            const own = kbFor(p.id);
+            const s = own.reduce((n, k) => n + k.sources.length, 0);
+            const r = own.reduce((n, k) => n + k.rules.length, 0);
+            return (
+              <div key={p.id} className="flex items-center gap-3">
+                <span className="w-[120px] truncate text-[12px] font-bold text-ink">{p.name}</span>
+                <span className="flex-1 font-mono text-[10.5px] text-mute">{s} source{s === 1 ? "" : "s"} · {r} rule{r === 1 ? "" : "s"}</span>
+                {s + r === 0 ? <Dot tone="danger" label="general only" /> : s > 0 ? <Dot tone="ok" label="documented" /> : <Dot tone="warn" label="rules only" />}
               </div>
-              {r.pct >= 0.7 ? <Dot tone="ok" label="ready" /> : r.pct >= 0.4 ? <Dot tone="warn" label="partial" /> : <Dot tone="danger" label="gaps" />}
-            </div>
-          ))}
+            );
+          })}
+          {properties.length === 0 && <p className="text-[11.5px] text-faint">No properties in this workspace yet.</p>}
         </div>
       </div>
       <div className="col-span-2 rounded-xl border border-line bg-card p-4">
         <h3 className="font-display text-[13.5px] font-bold text-ink">Guardrails</h3>
         <ul className="mt-2 space-y-1.5 text-[12px] text-mute">
-          <li className="flex gap-2"><Ic name="shield" size={13} className="mt-0.5 text-brand" /> Unanswerable questions become action items — never invented answers (tested against a 40-question hallucination fixture set).</li>
-          <li className="flex gap-2"><Ic name="shield" size={13} className="mt-0.5 text-brand" /> Payment, complaint & keyword topics always route to a human.</li>
-          <li className="flex gap-2"><Ic name="shield" size={13} className="mt-0.5 text-brand" /> Every auto-send logs model, prompt version and cited sources.</li>
+          <li className="flex gap-2"><Ic name="shield" size={13} className="mt-0.5 text-brand" /> A question the sources do not cover becomes an action item. The gateway returns model text or an error, never filler.</li>
+          <li className="flex gap-2"><Ic name="shield" size={13} className="mt-0.5 text-brand" /> Payment, complaint and keyword topics route to a human.</li>
+          <li className="flex gap-2"><Ic name="shield" size={13} className="mt-0.5 text-brand" /> Provider keys stay in the Edge Function; this browser never holds one, and every call is metered against the workspace allowance.</li>
         </ul>
       </div>
     </div>
@@ -105,18 +146,24 @@ function Knowledge() {
     if (!question.trim() || busy || !scope) return;
     setBusy(true);
     setResult(null);
-    const providers = loadProviders();
     const srcNames = scope.sources.map((s) => s.name);
     const ruleText = scope.rules.map((r) => `${r.kind === "hard" ? "HARD RULE" : "tone"}: ${r.text}`).join("\n");
     // Live path: ground the answer strictly in this scope's sources + rules.
-    if (aiConfigOn && isAiConfigured(providers)) {
+    if (aiConfigOn && isAiConfigured()) {
       try {
-        const sys = `You are a property concierge answering ONLY from the knowledge scope below. Scope: ${scope.name}.\nSources: ${srcNames.join("; ") || "none"}.\nRules:\n${ruleText || "none"}.\nAnswer in 2-4 sentences. If the answer is not covered by these sources/rules, reply exactly: ESCALATE. Never invent facts.`;
+        // Grounded in this scope only, and read in the one house voice the
+        // whole product uses, so the sandbox tests what a guest would get.
+        const sys = systemPrompt(
+          `You are the concierge for ${scope.name}. Answer only from the material below, in two to four sentences. When it does not cover the question, reply with the single word ESCALATE and nothing else.`,
+          "chat",
+          { Sources: srcNames.join("\n") || "none", Rules: ruleText || "none" },
+        );
         const res = await aiChat(sys, question, { maxTokens: 200 });
-        if (/^ESCALATE/i.test(res.text)) {
-          setResult({ ok: false, text: "No source in this scope covers it — the concierge would escalate and log an action item.", citations: [] });
+        const answer = plainText(res.text);
+        if (/^ESCALATE/i.test(answer)) {
+          setResult({ ok: false, text: "No source in this scope covers it, so the concierge would escalate and log an action item.", citations: [] });
         } else {
-          setResult({ ok: true, text: res.text, citations: srcNames.length ? srcNames : ["scope rules"] });
+          setResult({ ok: true, text: answer, citations: srcNames.length ? srcNames : ["scope rules"] });
         }
         setBusy(false);
         return;

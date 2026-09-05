@@ -179,10 +179,27 @@ const forgetModel = (p: Provider, model: string): void => {
 };
 
 // ── completions ──────────────────────────────────────────
+type Usage = { prompt: number; completion: number; total: number };
+type Completion = { text: string; usage: Usage };
+
+// Real counts when the provider reports them. When it does not, four
+// characters to a token is the usual rule of thumb, and it is used only as a
+// floor so a call that was actually served is never recorded as free.
+const tokNum = (n: unknown): number => (typeof n === "number" && n > 0 ? Math.round(n) : 0);
+const estUsage = (system: string, user: string, out: string): Usage => {
+  const prompt = Math.ceil((system.length + user.length) / 4);
+  const completion = Math.ceil(out.length / 4);
+  return { prompt, completion, total: prompt + completion };
+};
+const pickUsage = (prompt: number, completion: number, system: string, user: string, out: string): Usage =>
+  prompt > 0 || completion > 0
+    ? { prompt, completion, total: prompt + completion }
+    : estUsage(system, user, out);
+
 async function callProvider(
   p: Provider, key: string, model: string,
   system: string, user: string, maxTokens: number,
-): Promise<string> {
+): Promise<Completion> {
   if (p === "gemini") {
     const res = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(key)}`,
@@ -200,7 +217,7 @@ async function callProvider(
     const j = await res.json();
     const text = (j.candidates?.[0]?.content?.parts ?? []).map((x: { text?: string }) => x.text ?? "").join("").trim();
     if (!text) throw new ProviderError(200, "empty completion");
-    return text;
+    return { text, usage: pickUsage(tokNum(j.usageMetadata?.promptTokenCount), tokNum(j.usageMetadata?.candidatesTokenCount), system, user, text) };
   }
 
   if (p === "anthropic") {
@@ -217,7 +234,7 @@ async function callProvider(
     const j = await res.json();
     const text = (j.content ?? []).map((x: { text?: string }) => x.text ?? "").join("").trim();
     if (!text) throw new ProviderError(200, "empty completion");
-    return text;
+    return { text, usage: pickUsage(tokNum(j.usage?.input_tokens), tokNum(j.usage?.output_tokens), system, user, text) };
   }
 
   const url = p === "groq"
@@ -245,7 +262,7 @@ async function callProvider(
   const j = await res.json();
   const text = j.choices?.[0]?.message?.content?.trim();
   if (!text) throw new ProviderError(200, "empty completion");
-  return text;
+  return { text, usage: pickUsage(tokNum(j.usage?.prompt_tokens), tokNum(j.usage?.completion_tokens), system, user, text) };
 }
 
 // Which failures mean "try the next model" versus "this provider is out".
@@ -371,7 +388,7 @@ Deno.serve(async (req) => {
     }
   }
 
-  let body: { system?: string; user?: string; maxTokens?: number };
+  let body: { system?: string; user?: string; maxTokens?: number; scope?: string; surface?: string };
   try {
     body = await req.json();
   } catch {
@@ -413,6 +430,73 @@ Deno.serve(async (req) => {
         return json({ error: "AI is temporarily unavailable for demo sessions.", code: "limiter_unavailable" });
       }
     }
+  }
+
+  // ── token accounting ────────────────────────────────
+  // Scope is the bucket a call is billed to. Untrusted callers - demo
+  // workspaces, the dev console, any visitor - all draw on one shared "demo"
+  // pool, which is what makes the figure the dev console shows a real one.
+  // A trusted caller may only bill a tenant it actually belongs to, and that
+  // membership is checked here on the service role, never in the client.
+  const wanted = String(body.scope ?? "").trim().slice(0, 64);
+  const surface = String(body.surface ?? "").trim().slice(0, 32) || null;
+  let scope = "demo";
+  let tenantId: string | null = null;
+  if (tier === "trusted" && userId) {
+    const { data: mine } = await admin.from("tenant_members").select("tenant_id").eq("user_id", userId);
+    const owned = ((mine as { tenant_id: string }[] | null) ?? []).map((r) => r.tenant_id);
+    if (wanted && owned.includes(wanted)) {
+      scope = wanted;
+      tenantId = wanted;
+    } else {
+      scope = `user:${userId}`;
+    }
+  }
+
+  // Same honesty rule as the rate limiter: when the ledger is not installed,
+  // say so in the response rather than imply a quota was checked.
+  let ledger: "enforced" | "not-installed" = "enforced";
+  let plan = tier === "trusted" ? "tenant" : "demo";
+  let quota = tier === "trusted" ? 1_000_000 : 200_000;
+  let monthUsed = 0;
+  const nowTs = new Date();
+  const monthStart = new Date(Date.UTC(nowTs.getUTCFullYear(), nowTs.getUTCMonth(), 1)).toISOString();
+  const tableMissing = (c?: string) => c === "42P01" || c === "PGRST205" || c === "PGRST204";
+
+  const qRow = await admin.from("ai_token_quota").select("plan, monthly_tokens").eq("scope", scope).maybeSingle();
+  if (qRow.error && tableMissing(qRow.error.code)) {
+    console.error("ai_token_quota missing - the AI token quota is NOT enforced");
+    ledger = "not-installed";
+  } else if (qRow.data) {
+    const row = qRow.data as { plan: string; monthly_tokens: number };
+    plan = row.plan || plan;
+    quota = Number(row.monthly_tokens) || quota;
+  }
+
+  if (ledger === "enforced") {
+    const uRows = await admin.from("ai_token_usage").select("total_tokens").eq("scope", scope).gte("created_at", monthStart);
+    if (uRows.error) {
+      if (tableMissing(uRows.error.code)) {
+        console.error("ai_token_usage missing - the AI token quota is NOT enforced");
+        ledger = "not-installed";
+      } else {
+        console.error("token ledger read failed", uRows.error.code, uRows.error.message);
+        return json({ error: "AI usage accounting is unavailable, so the request was not run.", code: "ledger_unavailable" });
+      }
+    } else {
+      monthUsed = ((uRows.data as { total_tokens: number }[] | null) ?? []).reduce((a, r) => a + (Number(r.total_tokens) || 0), 0);
+    }
+  }
+
+  if (ledger === "enforced" && monthUsed >= quota) {
+    return json({
+      error: tier === "trusted"
+        ? "This workspace has used its monthly AI token allowance."
+        : "The shared demo AI allowance for this month is used up.",
+      code: "token_quota",
+      tier, limiter, ledger,
+      tokens: { scope, plan, used: monthUsed, quota },
+    });
   }
 
   const day = new Date().toISOString().slice(0, 10);
@@ -457,12 +541,31 @@ Deno.serve(async (req) => {
     let providerDead = false;
     for (const model of candidates.slice(0, MAX_CANDIDATES_PER_PROVIDER)) {
       try {
-        const text = await callProvider(p, key, model, system, prompt, maxTokens);
+        const done = await callProvider(p, key, model, system, prompt, maxTokens);
+        const text = done.text;
+        const ms = Math.round(performance.now() - t0);
         if (tier === "trusted" && userId) {
-          const spend = used + Math.ceil((system.length + prompt.length) / 4) + maxTokens;
+          const spend = used + done.usage.total;
           await admin.from("ai_usage").upsert({ user_id: userId, day, tokens: spend }, { onConflict: "user_id,day" });
         }
-        return json({ text, provider: p, model, tier, limiter, ms: Math.round(performance.now() - t0), chain: tried });
+        if (ledger === "enforced") {
+          // supabase-js returns its errors, it does not throw them. Logging
+          // the real one is the whole difference between a ledger and a no-op.
+          const { error: ledErr } = await admin.from("ai_token_usage").insert({
+            scope, tenant_id: tenantId, user_id: userId, tier, surface,
+            provider: p, model,
+            prompt_tokens: done.usage.prompt,
+            completion_tokens: done.usage.completion,
+            total_tokens: done.usage.total,
+            latency_ms: ms, ok: true,
+          });
+          if (ledErr) console.error("ai_token_usage insert failed", ledErr.code, ledErr.message);
+        }
+        return json({
+          text, provider: p, model, tier, limiter, ledger, ms, chain: tried,
+          usage: done.usage,
+          tokens: { scope, plan, used: monthUsed + done.usage.total, quota },
+        });
       } catch (e) {
         const st = e instanceof ProviderError ? e.status : 0;
         const bd = e instanceof ProviderError ? e.body : String(e);

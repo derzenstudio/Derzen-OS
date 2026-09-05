@@ -1,4 +1,4 @@
-import { PaymentModal } from "../components/PaymentModal";
+import { PLAN_TIERS, annualSaving, formatPrice, planById, planRows, startCheckout, type CheckoutCycle, type PlanId, type PlanTier } from "../lib/pricing";
 import { useEffect, useRef, useState } from "react";
 import { cx, moneyRaw, dayKey, addDays, today } from "../lib/format";
 import { Ic, type IconName } from "../components/icons";
@@ -200,74 +200,8 @@ export function PublicSite() {
         </Reveal>
       </section>
 
-      {/* Pricing — set like a rate card, not three equal cards */}
-      <section id="pricing" className="border-t border-line bg-paper/60 py-20">
-        <Reveal direction="up" distance={50}>
-        <div className="mx-auto grid max-w-[1160px] grid-cols-1 gap-10 px-5 lg:grid-cols-[1.5fr_1fr]">
-          <div>
-            <p className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-brand">Rate card · 2026</p>
-            <h2 className="mt-1 font-display text-[38px] font-extrabold uppercase leading-[0.95] tracking-tight sm:text-[48px]">Metered per unit,<br />not per seat.</h2>
-            <p className="mt-3 max-w-[52ch] text-[13.5px] leading-relaxed text-mute">Active property units and active service units are counted separately. Your whole team logs in free.</p>
-
-            <div className="mt-8 overflow-x-auto">
-              <table className="w-full min-w-[520px] border-collapse text-left">
-                <thead>
-                  <tr className="border-b-2 border-ink">
-                    <th className="py-2.5 pr-4 font-mono text-[9.5px] font-bold uppercase tracking-[0.16em] text-faint">Plan</th>
-                    <th className="py-2.5 pr-4 font-mono text-[9.5px] font-bold uppercase tracking-[0.16em] text-faint">Units</th>
-                    <th className="py-2.5 pr-4 font-mono text-[9.5px] font-bold uppercase tracking-[0.16em] text-faint">AI credits / mo</th>
-                    <th className="py-2.5 text-right font-mono text-[9.5px] font-bold uppercase tracking-[0.16em] text-faint">Per month</th>
-                  </tr>
-                </thead>
-                <tbody className="font-mono text-[13px] tabular-nums">
-                  <tr className="border-b border-line transition-colors hover:bg-card">
-                    <td className="py-3.5 pr-4"><span className="font-display text-[18px] font-extrabold uppercase text-ink">Starter</span></td>
-                    <td className="py-3.5 pr-4 text-mute">3 properties</td>
-                    <td className="py-3.5 pr-4 text-mute">1,000</td>
-                    <td className="py-3.5 text-right font-bold text-ink">$49</td>
-                  </tr>
-                  <tr className="relative border-b border-line bg-brand-soft/60 transition-colors hover:bg-brand-soft">
-                    <td className="py-3.5 pr-4 shadow-[inset_3px_0_0_var(--color-brand)]">
-                      <span className="font-display text-[18px] font-extrabold uppercase text-ink">Scale</span>
-                      <span className="ml-2 align-middle font-mono text-[8.5px] font-bold uppercase tracking-[0.14em] text-brand-deep">most operators</span>
-                    </td>
-                    <td className="py-3.5 pr-4 text-mute">15 + 5 services</td>
-                    <td className="py-3.5 pr-4 text-mute">5,000</td>
-                    <td className="py-3.5 text-right font-bold text-ink">$118</td>
-                  </tr>
-                  <tr className="border-b border-line transition-colors hover:bg-card">
-                    <td className="py-3.5 pr-4"><span className="font-display text-[18px] font-extrabold uppercase text-ink">Enterprise</span></td>
-                    <td className="py-3.5 pr-4 text-mute">100+, multi-brand</td>
-                    <td className="py-3.5 pr-4 text-mute">custom</td>
-                    <td className="py-3.5 text-right font-bold text-ink">talk</td>
-                  </tr>
-                </tbody>
-              </table>
-              <div className="dbl-rule mt-0" aria-hidden="true" />
-              <p className="mt-2 font-mono text-[10px] text-faint">per-unit metering · proration both directions · channel + gateway fees itemised on every invoice</p>
-            </div>
-
-            <div className="mt-6 flex flex-wrap gap-3">
-              <button onClick={demo} className="btn-grad rounded-sm px-5 py-2.5 text-[13px] font-bold text-white transition-transform hover:-translate-y-0.5">Open the demo workspace</button>
-              <button onClick={() => navigate("/login")} className="rounded-sm border border-ink px-5 py-2.5 text-[13px] font-bold text-ink transition-colors hover:bg-ink hover:text-paper">Compare in product</button>
-            </div>
-          </div>
-
-          <aside className="h-fit border border-line bg-card p-6">
-            <p className="font-mono text-[9.5px] font-bold uppercase tracking-[0.18em] text-faint">What every plan carries</p>
-            <ul className="mt-4 space-y-3">
-              {["Multi-calendar + iCal fast path", "Unified inbox & Command Center", "Quotes, guidebooks & store", "Owner portal & statements", "SSO, audit export, DR-tested backups"].map((f) => (
-                <li key={f} className="flex items-start gap-2.5 text-[12.5px] font-medium text-ink">
-                  <span className="mt-[7px] h-[2px] w-3 shrink-0 bg-brand" aria-hidden="true" />{f}
-                </li>
-              ))}
-            </ul>
-            <div className="dbl-rule mt-5" aria-hidden="true" />
-            <p className="mt-3 text-[11.5px] leading-relaxed text-mute">14-day trial, no card. When it ends the product keeps serving your guests; only the console asks for a payment method.</p>
-          </aside>
-        </div>
-        </Reveal>
-      </section>
+      {/* Pricing, on one set of numbers, with checkout wired to the server */}
+      <PricingSection onDemo={demo} />
 
       {/* Security / tenancy */}
       <section id="security" className="border-t border-line py-16">
@@ -354,20 +288,145 @@ function BentoTile({ span, icon, title, body, tag, dark }: { span: string; icon:
   );
 }
 
-function PriceCard({ name, price, per, units, feats, cta, featured, badge }: { name: string; price: string; per: string; units: string; feats: string[]; cta: () => void; featured?: boolean; badge?: string }) {
+// ── Pricing ─────────────────────────────────────────────────────────
+// The rate card used to be three table rows with the prices typed straight
+// into the markup, and they had already drifted from what the product
+// enforces: the table promised 1,000 AI credits a month on Starter while
+// ai-proxy caps that account type at 250,000 tokens. Every figure here now
+// comes from src/lib/pricing.ts, which the billing screen reads too, so the
+// two cannot disagree again.
+//
+// Checkout is wired rather than mimed. The path that used to sit behind this
+// section opened a modal asking for a card number and resolved itself after
+// a setTimeout: no money moved, and the card detail went nowhere. Now the
+// button asks the server for a hosted payment page, and while no gateway is
+// connected it says exactly that instead of implying an order went through.
+function PricingSection({ onDemo }: { onDemo: () => void }) {
+  const { toast } = useApp();
+  const [cycle, setCycle] = useState<CheckoutCycle>("monthly");
+  const [open, setOpen] = useState<PlanId | null>(null);
+  const [busy, setBusy] = useState<PlanId | null>(null);
+  const detail = open ? planById(open) : null;
+
+  const checkout = async (plan: PlanId) => {
+    setBusy(plan);
+    const res = await startCheckout(plan, cycle);
+    setBusy(null);
+    if (res.url) { window.location.assign(res.url); return; }
+    toast("err", "Checkout did not open", res.error || "No payment page came back, so nothing was charged.");
+  };
+
   return (
-    <div className={cx("relative flex flex-col rounded-xl border p-6", featured ? "border-brand bg-ink text-white shadow-2xl lg:-my-4 lg:py-10" : "border-line bg-card")}>
-      {badge && <span className="absolute -top-3 left-6 rounded-full bg-brand px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white">{badge}</span>}
-      <p className={cx("font-display text-[15px] font-bold", featured ? "text-white" : "text-ink")}>{name}</p>
-      <p className="mt-2"><span className={cx("font-display text-[40px] font-extrabold tracking-tight", featured ? "text-white" : "text-ink")}>{price}</span><span className={cx("text-[13px] font-semibold", featured ? "text-white/50" : "text-mute")}>{per}</span></p>
-      <p className={cx("text-[11.5px] font-bold", featured ? "text-brand-bright" : "text-brand-deep")}>{units}</p>
-      <ul className={cx("mt-4 flex-1 space-y-2 border-t pt-4", featured ? "border-white/15" : "border-line")}>
-        {feats.map((f) => (
-          <li key={f} className={cx("flex gap-2 text-[12.5px]", featured ? "text-white/75" : "text-mute")}><Ic name="check" size={13} className={cx("mt-0.5 shrink-0", featured ? "text-brand-bright" : "text-brand")} sw={2.6} /> {f}</li>
-        ))}
-      </ul>
-      <button onClick={cta} className={cx("mt-6 rounded-md py-2.5 text-[13.5px] font-bold transition-colors", featured ? "bg-brand text-white hover:bg-brand-bright" : "border border-ink bg-card text-ink hover:bg-ink hover:text-white")}>
-        {name === "Enterprise" ? "Talk to us" : "Start with the demo"}
+    <section id="pricing" className="border-t border-line bg-paper/60 py-20">
+      <div className="mx-auto max-w-[1160px] px-5">
+        <Reveal direction="up" distance={50}>
+          <div className="flex flex-wrap items-end justify-between gap-6">
+            <div>
+              <p className="font-mono text-[10px] font-bold uppercase tracking-[0.2em] text-brand">Rate card</p>
+              <h2 className="mt-1 font-display text-[38px] font-extrabold uppercase leading-[0.95] tracking-tight sm:text-[48px]">Metered per unit,<br />not per seat.</h2>
+              <p className="mt-3 max-w-[52ch] text-[13.5px] leading-relaxed text-mute">Active property units and active service units are counted separately. Your whole team logs in free, on every plan.</p>
+            </div>
+            <div className="flex items-center gap-1 rounded-sm border border-line bg-card p-1" role="group" aria-label="Billing period">
+              {(["monthly", "annual"] as CheckoutCycle[]).map((c) => (
+                <button
+                  key={c} onClick={() => setCycle(c)} aria-pressed={cycle === c}
+                  className={cx("rounded-sm px-4 py-2 text-[12px] font-bold transition-colors", cycle === c ? "bg-ink text-paper" : "text-mute hover:text-ink")}
+                >
+                  {c === "annual" ? `Annual, save ${annualSaving(planById("scale"))}%` : "Monthly"}
+                </button>
+              ))}
+            </div>
+          </div>
+        </Reveal>
+
+        <div className="mt-9 grid grid-cols-1 gap-4 md:grid-cols-3">
+          {PLAN_TIERS.map((p) => (
+            <PlanCard
+              key={p.id} plan={p} cycle={cycle} featured={p.id === "scale"}
+              open={open === p.id} onToggle={() => setOpen(open === p.id ? null : p.id)}
+            />
+          ))}
+        </div>
+
+        {/* The hidden part. Shut until a card asks for it, so the three cards
+            stay readable and the whole rate card is still one click away. */}
+        <div id="pricing-detail" hidden={!detail} aria-live="polite">
+          {detail && (
+            <div className="anim-rise mt-4 rounded-xl border border-ink bg-card p-6">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div>
+                  <p className="font-mono text-[9.5px] font-bold uppercase tracking-[0.18em] text-faint">Detailed pricing</p>
+                  <h3 className="mt-1 font-display text-[24px] font-extrabold uppercase tracking-tight text-ink">{detail.name}</h3>
+                  <p className="mt-1 max-w-[54ch] text-[12.5px] leading-relaxed text-mute">{detail.summary}</p>
+                </div>
+                <button onClick={() => setOpen(null)} className="rounded-sm border border-line px-3 py-1.5 text-[11.5px] font-bold text-mute transition-colors hover:text-ink">Close</button>
+              </div>
+
+              <div className="mt-5 grid grid-cols-1 gap-8 lg:grid-cols-2">
+                <table className="w-full border-collapse text-left">
+                  <tbody className="font-mono text-[12.5px] tabular-nums">
+                    {planRows(detail, cycle).map((r) => (
+                      <tr key={r.label} className="border-b border-line">
+                        <td className="py-2.5 pr-4 text-mute">{r.label}</td>
+                        <td className="py-2.5 text-right font-bold text-ink">{r.value}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <div>
+                  <p className="font-mono text-[9.5px] font-bold uppercase tracking-[0.18em] text-faint">What it carries</p>
+                  <ul className="mt-3 space-y-2">
+                    {detail.includes.map((f) => (
+                      <li key={f} className="flex items-start gap-2.5 text-[12.5px] font-medium text-ink">
+                        <Ic name="check" size={13} className="mt-0.5 shrink-0 text-brand" sw={2.6} />{f}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+
+              <div className="dbl-rule mt-5" aria-hidden="true" />
+              <div className="mt-4 flex flex-wrap items-center gap-3">
+                <button
+                  onClick={() => checkout(detail.id)} disabled={busy === detail.id}
+                  className="btn-grad rounded-sm px-5 py-2.5 text-[13px] font-bold text-white transition-transform hover:-translate-y-0.5 disabled:translate-y-0 disabled:opacity-60"
+                >
+                  {busy === detail.id
+                    ? "Opening checkout"
+                    : detail.quoteOnly
+                      ? `Ask for an ${detail.name} quote`
+                      : `Check out ${detail.name}, ${formatPrice(detail, cycle)} a month`}
+                </button>
+                <button onClick={onDemo} className="rounded-sm border border-ink px-5 py-2.5 text-[13px] font-bold text-ink transition-colors hover:bg-ink hover:text-paper">See it working first</button>
+                <p className="max-w-[38ch] text-[11px] leading-snug text-faint">Card detail is entered on the payment provider page, never on this site.</p>
+              </div>
+            </div>
+          )}
+        </div>
+
+        <p className="mt-6 font-mono text-[10px] text-faint">per-unit metering · proration both directions · channel and gateway fees itemised on every invoice · 14-day trial, no card</p>
+      </div>
+    </section>
+  );
+}
+
+function PlanCard({ plan, cycle, featured, open, onToggle }: { plan: PlanTier; cycle: CheckoutCycle; featured?: boolean; open: boolean; onToggle: () => void }) {
+  return (
+    <div className={cx("relative flex flex-col rounded-xl border p-6 transition-all duration-300", featured ? "border-brand bg-ink text-white shadow-2xl" : "border-line bg-card hover:border-ink/40", open && "ring-2 ring-brand")}>
+      {featured && <span className="absolute -top-3 left-6 rounded-full bg-brand px-3 py-1 text-[10px] font-bold uppercase tracking-wider text-white">Most operators</span>}
+      <p className={cx("font-display text-[15px] font-bold uppercase tracking-wide", featured ? "text-white" : "text-ink")}>{plan.name}</p>
+      <p className="mt-2">
+        <span className={cx("font-display text-[40px] font-extrabold tracking-tight", featured ? "text-white" : "text-ink")}>{formatPrice(plan, cycle)}</span>
+        <span className={cx("text-[13px] font-semibold", featured ? "text-white/50" : "text-mute")}>{cycle === "annual" ? " / mo, billed yearly" : " / mo"}</span>
+      </p>
+      <p className={cx("text-[11.5px] font-bold", featured ? "text-brand-bright" : "text-brand-deep")}>{plan.unitsLabel}</p>
+      <p className={cx("mt-3 flex-1 text-[12.5px] leading-relaxed", featured ? "text-white/60" : "text-mute")}>{plan.summary}</p>
+      <p className={cx("mt-3 font-mono text-[11px]", featured ? "text-white/45" : "text-faint")}>{plan.aiTokens.toLocaleString()} AI tokens a month</p>
+      <button
+        onClick={onToggle} aria-expanded={open} aria-controls="pricing-detail"
+        className={cx("mt-5 rounded-md py-2.5 text-[13.5px] font-bold transition-colors", featured ? "bg-brand text-white hover:bg-brand-bright" : "border border-ink bg-card text-ink hover:bg-ink hover:text-white")}
+      >
+        {open ? "Hide the detail" : "See the detail"}
       </button>
     </div>
   );
@@ -435,7 +494,6 @@ export function LoginPage() {
   // forgot-password flow
   const [forgotOpen, setForgotOpen] = useState(false);
   const [forgotEmail, setForgotEmail] = useState("");
-  const [payPlan, setPayPlan] = useState<{id: string, price: number} | null>(null);
   const [sentCode, setSentCode] = useState<string | null>(null);
   const [codeInput, setCodeInput] = useState("");
   const [newPw, setNewPw] = useState("");
@@ -786,18 +844,6 @@ export function LoginPage() {
       )}
 
       {/* Forgot password */}
-      {payPlan && (
-        <PaymentModal
-          open={true}
-          onClose={() => setPayPlan(null)}
-          plan={payPlan.id}
-          price={payPlan.price}
-          onComplete={() => {
-            setPayPlan(null);
-            navigate("/login");
-          }}
-        />
-      )}
       {forgotOpen && (
         <div className="fixed inset-0 z-[95] flex items-center justify-center bg-ink/60 px-5 backdrop-blur-sm" onClick={() => setForgotOpen(false)}>
           <div className="w-full max-w-[400px] rounded-xl border border-line bg-card p-6 shadow-2xl anim-pop" onClick={(e) => e.stopPropagation()}>

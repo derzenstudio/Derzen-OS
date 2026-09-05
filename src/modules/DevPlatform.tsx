@@ -5,7 +5,7 @@ import { Btn } from "../components/ui";
 import { useApp } from "../store";
 import { SUPABASE_URL, SUPABASE_ANON_KEY, isServerAuthConfigured, supabase, functionsUrl } from "../lib/supabase";
 import { SURFACE } from "../lib/surface";
-import { PROVIDER_META, aiKeyLocation, loadProviders, type AiProviderId } from "../lib/aiGateway";
+import { aiKeyLocation } from "../lib/aiGateway";
 
 // ── Platform · infra ────────────────────────────────────────────────────────
 // Everything on this tab is measured when it opens. Nothing here is seeded.
@@ -99,18 +99,16 @@ export function Platform() {
         out.push({ key: "fn", icon: "bolt", name: "AI proxy", role: "Edge Function", detail: "ai-proxy", state: "down", note: (err as Error).message });
       }
     }
-    const providers = loadProviders();
-    const keyed = (Object.keys(PROVIDER_META) as AiProviderId[]).filter((id) => providers[id].apiKey.trim().length > 0);
-    const home = aiKeyLocation();
+    // aiKeyLocation() has one answer now: the browser-key chain was deleted,
+    // so there is no browser-held case left to draw. What is worth reporting
+    // is whether this build has a project to reach at all.
     out.push({
-      key: "keys", icon: "key", name: "Model credentials", role: home === "server" ? "server-held" : "browser-held",
-      detail: home === "server" ? "Edge Function secrets" : "localStorage · development only",
-      state: home === "server" ? "ok" : keyed.length ? "warn" : "off",
-      note: home === "server"
-        ? "keys never reach the browser - the fallback chain resolves inside ai-proxy"
-        : keyed.length
-          ? `${keyed.map((id) => PROVIDER_META[id].name).join(", ")} keyed in this browser; never ship this path`
-          : "no key on either side - AI features refuse instead of inventing",
+      key: "keys", icon: "key", name: "Model credentials", role: `${aiKeyLocation()}-held`,
+      detail: "Edge Function secrets",
+      state: isServerAuthConfigured() ? "ok" : "off",
+      note: isServerAuthConfigured()
+        ? "no provider key reaches this browser: ai-proxy resolves the chain, and every call is metered against the workspace allowance"
+        : "no Supabase project is compiled into this build, so AI features refuse rather than invent",
     });
 
     const store = measureStorage("derzen.");

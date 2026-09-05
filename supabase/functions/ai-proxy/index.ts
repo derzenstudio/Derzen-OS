@@ -185,6 +185,12 @@ type Completion = { text: string; usage: Usage };
 // Real counts when the provider reports them. When it does not, four
 // characters to a token is the usual rule of thumb, and it is used only as a
 // floor so a call that was actually served is never recorded as free.
+// Some free models (qwen3, deepseek-r1) emit their scratchpad in <think>
+// tags. That is not an answer and must never reach a guest-facing draft, so
+// it is removed and a completion that was nothing but scratchpad counts as a
+// failure and falls through to the next model.
+const stripReasoning = (s: string): string =>
+  s.replace(/<think>[\s\S]*?<\/think>/gi, "").replace(/<\/?think>/gi, "").trim();
 const tokNum = (n: unknown): number => (typeof n === "number" && n > 0 ? Math.round(n) : 0);
 const estUsage = (system: string, user: string, out: string): Usage => {
   const prompt = Math.ceil((system.length + user.length) / 4);
@@ -542,7 +548,8 @@ Deno.serve(async (req) => {
     for (const model of candidates.slice(0, MAX_CANDIDATES_PER_PROVIDER)) {
       try {
         const done = await callProvider(p, key, model, system, prompt, maxTokens);
-        const text = done.text;
+        const text = stripReasoning(done.text);
+        if (!text) throw new ProviderError(200, "reasoning-only completion");
         const ms = Math.round(performance.now() - t0);
         if (tier === "trusted" && userId) {
           const spend = used + done.usage.total;

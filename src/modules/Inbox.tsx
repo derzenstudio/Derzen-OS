@@ -7,7 +7,7 @@ import { channelDef, guestById, propertyById, RESERVATIONS } from "../lib/data";
 import { ChannelMark } from "../components/ota";
 import { Reveal, StaggerGroup } from "../components/animations";
 import type { Conversation } from "../lib/types";
-import { aiChat, isAiConfigured, loadProviders } from "../lib/aiGateway";
+import { aiChat, isAiConfigured } from "../lib/aiGateway";
 
 export default function Inbox() {
   const { route, navigate, markConvRead, addReply, setConvNote, logAutopilot, toast } = useApp();
@@ -60,14 +60,13 @@ export default function Inbox() {
     if (!conv) return;
     const g = guestById(conv.guestId);
     const p = propertyById(conv.propertyId);
-    const providers = loadProviders();
 
     // There is deliberately no local fallback draft any more. This used to
     // pre-fill the box with a fixed "Hi {first}! Thanks for the message..."
     // sentence, label it concierge-v2, and toast "Draft generated" even when
     // the gateway had failed - a canned reply wearing an AI result's clothes.
     // If there is no model output there is no draft, and the toast says why.
-    if (!aiConfigOn || !isAiConfigured(providers)) {
+    if (!aiConfigOn || !isAiConfigured()) {
       toast("warn", "AI copilot is off", "Turn it on before drafting replies.");
       return;
     }

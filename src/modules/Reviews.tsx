@@ -4,7 +4,7 @@ import { Ic } from "../components/icons";
 import { Badge, Btn, Dot, Empty, Hist, Select, Textarea } from "../components/ui";
 import { useApp } from "../store";
 import { propertyById } from "../lib/data";
-import { aiChat, isAiConfigured, loadProviders } from "../lib/aiGateway";
+import { aiChat, isAiConfigured } from "../lib/aiGateway";
 
 const PLATFORMS = ["airbnb", "booking", "trip", "google", "direct"] as const;
 const P_COLOR: Record<string, string> = { airbnb: "#E8485F", booking: "#2557D6", trip: "#3E9BFF", google: "#9A6A0B", direct: "#0E6B4E" };
@@ -16,8 +16,7 @@ export default function Reviews() {
   const [filter, setFilter] = useState(route.query.get("filter") ?? "all");
 
   const genDraft = async (r: (typeof reviews)[number]) => {
-    const providers = loadProviders();
-    if (!aiConfigOn || !isAiConfigured(providers)) {
+    if (!aiConfigOn || !isAiConfigured()) {
       // Opening an empty reply box is honest; prefilling it with the seeded
       // r.aiDraft string presented stored text as if a model wrote it.
       setReplyFor(r.id); setDraft("");

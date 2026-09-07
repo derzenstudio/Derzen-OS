@@ -173,13 +173,17 @@ jobs:
               # travels in a cookie. What is compared is its SHA-256 digest,
               # which is hex whatever the phrase looks like, so a phrase with
               # punctuation in it is safe here and safe to carry to the server.
+              # No literal space may appear in a RewriteCond pattern: the
+              # server splits the directive on whitespace and a pattern with a
+              # space in it becomes a malformed directive, which the host
+              # answers with 503 for every request on the surface.
               digest=$(printf '%s' "$DEV_ACCESS_TOKEN" | sha256sum | cut -d' ' -f1)
               printf '%s\n' \
                 '# Shared phrase wall. gate.html and gate.js are the only two' \
                 '# files served without the cookie, and neither one carries' \
                 '# the phrase.' \
                 'RewriteCond %{REQUEST_URI} !^/gate\.(html|js)$' \
-                "RewriteCond %{HTTP_COOKIE} !(^|;[ ]*)derzen_dev=$digest([ ]*;|\$)" \
+                "RewriteCond %{HTTP_COOKIE} !(^|;[[:space:]]*)derzen_dev=$digest([[:space:]]*;|\$)" \
                 'RewriteRule ^ /gate.html [L]' > "$wall"
               mode=token
               echo "Wall: shared phrase, compared as a SHA-256 digest in the derzen_dev cookie."

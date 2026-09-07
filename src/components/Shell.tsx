@@ -7,7 +7,8 @@ import { Avatar, Badge, Btn, IconBtn, Kbd, Modal, Ring, Toggle } from "./ui";
 import { useApp, useOverdue, useSyncAlerts, useUnreadTotal, nightsInRange, arrivalsOn } from "../store";
 import { channelDef, MEMBERS, MONTHLY, propertyById, WORKSPACE, RESERVATIONS } from "../lib/data";
 import type { Property } from "../lib/types";
-import { aiChat, isAiConfigured } from "../lib/aiGateway";
+import { aiChat, isAiConfigured, lastAiTokens } from "../lib/aiGateway";
+import { plainText, systemPrompt } from "../lib/aiVoice";
 
 // ── Nav model ──────────────────────────────────────────────────────────────
 const NAV: { group: string; items: { path: string; icon: IconName; label: string }[] }[] = [
@@ -160,7 +161,10 @@ function Sidebar({ open, onClose }: { open: boolean; onClose: () => void }) {
 function Topbar({ title, sub, onMenu, onPalette }: { title: string; sub?: string; onMenu: () => void; onPalette: () => void }) {
   const { route, navigate, t, chatOpen, setChatOpen, copilotOpen, setCopilotOpen, displayCurrency, setWorkspaceCurrency, refreshRates, fxTick, session, tenants, logout, toast, theme, setTheme } = useApp();
   const syncAlerts = useSyncAlerts();
-  const creditsUsed = useApp((s) => s.creditsUsed);
+  // What ai-proxy billed on the last completion this browser ran. The badge
+  // used to subtract a local counter from a seeded WORKSPACE.credits.limit,
+  // which was a number no server ever agreed to.
+  const aiTokens = lastAiTokens();
   const locale = route.locale;
   void fxTick;
   const fx = fxInfo();
@@ -215,7 +219,7 @@ function Topbar({ title, sub, onMenu, onPalette }: { title: string; sub?: string
         <button onClick={() => setCopilotOpen(!copilotOpen)} className="flex items-center gap-1.5 rounded-md border border-line bg-card px-2.5 py-1.5 text-[11.5px] font-bold text-mute transition-colors hover:border-brand hover:text-brand-deep" aria-label="Open AI copilot">
           <Ic name="sparkle" size={13} className="text-brand" />
           Copilot
-          <span className="font-mono text-[10px] text-faint">{WORKSPACE.credits.limit - creditsUsed} cr</span>
+          <span className="font-mono text-[10px] text-faint">{aiTokens ? `${aiTokens.used.toLocaleString()} / ${aiTokens.quota.toLocaleString()} tokens` : "no AI spend measured yet"}</span>
         </button>
         <button
           onClick={() => setTheme(theme === "light" ? "dark" : "light")}
@@ -332,45 +336,22 @@ function ChatPanel() {
 
 // ── Copilot ────────────────────────────────────────────────────────────────
 interface CoMsg { role: "user" | "ai"; text: string; confirm?: { label: string; taskId: string } }
-function copilotAnswer(q: string, props: Property[]): { text: string; confirm?: CoMsg["confirm"] } {
-  const s = q.toLowerCase();
-  const t = today();
-  const weekendStart = addDays(t, ((6 - t.getDay()) + 7) % 7 || 7);
-  if (/(adr|average.*rate|revenue.*last year|last year)/.test(s)) {
-    const adrNow = Math.round(MONTHLY.slice(-3).reduce((a, m) => a + m.adr, 0) / 3);
-    return { text: `Trailing-90-day ADR is €${adrNow} vs €${Math.round(adrNow / 1.12)} in the same window last year, up 12%. Villa Anggrek is pulling the average up (+18%); Rumah Senja is flat. I'd test a +4% mid-week overlay on Senja for next month.` };
-  }
-  if (/(open|available|free).*(weekend|next)/.test(s)) {
-    const open = props.filter((p) => !p.archived && !p.isParent && arrivalsOn(RESERVATIONS, ((6 - t.getDay()) + 7) % 7 || 7, p.id).length === 0);
-    return { text: `For next weekend (${fmtShort(weekendStart)}–${fmtShort(addDays(weekendStart, 2))}) these are open: ${open.slice(0, 5).map((p) => p.name).join(", ") || "none, every villa has an arrival"}. Samudra Three is open but its direct checkout is disabled.` };
-  }
-  if (/(overdue|behind|late)/.test(s)) {
-    return { text: `3 tasks are overdue: the AC drip at Villa Purnama (urgent, 20h over), water heater descale at Kelapa, and nothing else critical. The AC one has a flagged ceiling stain, so I'd escalate to Bali Pool & Plumbing today. Want me to create the provider task?`, confirm: { label: "Create provider task", taskId: "Fix: master suite ceiling (Bali Pool & Plumbing)" } };
-  }
-  if (/(draft|reply).*(jonas|weber|cottage|cot)/.test(s) || /draft.*reply/.test(s)) {
-    return { text: `Draft for Jonas Weber (Booking.com, Villa Cemara):\n\n"Hi Jonas, yes to both! We'll have a cot set up in the ground-floor bedroom, and while the pool isn't heated it sits at a lovely 29° this week. See you at 14:00. Kadek"\n\nTone-checked against your brand rules. Send it from the Inbox, or I can queue it under Autopilot → Suggestion.` };
-  }
-  if (/(automation|automate|sop)/.test(s)) {
-    return { text: `Two automation gaps I can see:\n1. No "guest cancellation notice" template fires for VRBO cancellations (R-2432 was cancelled with no outbound message).\n2. Kelapa has no checkout-cleaning task generated because it's unmanaged. Set a template anyway?\nI can wire both. Write actions need your confirm.` };
-  }
-  if (/(anomal|weird|unusual|issue)/.test(s)) {
-    return { text: `Anomalies right now:\n• Agoda rate pushes failing: base USD 322 is below their USD 348 floor (4th failure).\n• VRBO OAuth token expired 26h ago, 6 pushes queued behind it.\n• Rumah Senja knowledge scope is empty → concierge escalated 2 guest questions this week.\n• Samudra Two ↔ Booking.com room-type conflict is 2h old and holding an inbound reservation.` };
-  }
-  if (/(occupancy|occup)/.test(s)) {
-    return { text: `Occupancy next 30 days: 71% across 9 active units (83% if you include holds). Best week is the 21st–27th at 89%. Weakest is Kelapa mid-week, where the Traveloka markup is your lowest (7%); a flash rate there would likely fill it.` };
-  }
-  if (/create.*task|add.*task/.test(s)) {
-    return { text: `Got it, I'll create a task from your request. Confirm below and I'll write it to the Command Center (logged to the audit trail as source: ai).`, confirm: { label: "Confirm & create task", taskId: "Copilot task: follow up on request" } };
-  }
-  return { text: `I read your tenant data (properties, calendar, ledger, inbox). Try:\n• "Which villas are open next weekend?"\n• "What's my ADR vs last year?"\n• "Show anomalies"\n• "Draft a reply to Jonas"\n• "Create a task to …" (write actions always ask you first).` };
-}
 
 function CopilotPanel() {
-  const { copilotOpen, setCopilotOpen, creditsUsed, spendCredit, toast, addTask, audit } = useApp();
+  const { copilotOpen, setCopilotOpen, toast, addTask, audit } = useApp();
   const properties = useApp((s) => s.properties);
+  const reservations = useApp((s) => s.reservations);
+  const actionItems = useApp((s) => s.actionItems);
   const aiConfigOn = useApp((s) => s.aiConfig.enabled);
+  const active = properties.filter((p) => !p.archived);
+  // The opening line used to greet Sarah and state nine units, twenty-two
+  // reservations and six channels as literals. It now counts what is actually
+  // loaded for the signed-in workspace, so it is right in every tenant.
   const [msgs, setMsgs] = useState<CoMsg[]>([
-    { role: "ai", text: "Hi Sarah, I'm wired into Sanggraha's live data: 9 units, 22 reservations, 6 channels. Ask me anything operational, or have me draft guest replies and review responses." },
+    {
+      role: "ai",
+      text: `You are through to the ${WORKSPACE.name} copilot. I can read this workspace as it stands, ${active.length} active ${active.length === 1 ? "unit" : "units"} and ${reservations.length} ${reservations.length === 1 ? "reservation" : "reservations"}. Ask me something operational, or ask me to draft a reply.`,
+    },
   ]);
   const [input, setInput] = useState("");
   const endRef = useRef<HTMLDivElement>(null);
@@ -380,21 +361,30 @@ function CopilotPanel() {
     if (!question) return;
     setInput("");
     setMsgs((m) => [...m, { role: "user", text: question }]);
-    spendCredit(1);
-    // No local answer fallback, and no provider attribution. copilotAnswer()
-    // is a deterministic string matcher; piping its output into a bubble
-    // labelled "ai" dressed a canned reply up as model output. If the chain
-    // cannot answer we say so. The reply also no longer carries a
-    // provider/model or latency suffix - that belongs in the dev console.
+    // No local answer fallback and no provider attribution. A deterministic
+    // string matcher used to sit in this file returning fixed sentences about
+    // ADR, overdue tasks and a cot for Jonas Weber; piping that into a bubble
+    // labelled "ai" dressed a canned reply up as model output, so it is gone.
+    // If the chain cannot answer, we say so.
     if (!aiConfigOn || !isAiConfigured()) {
       setMsgs((m) => [...m, { role: "ai", text: "The AI copilot is switched off, so there is nothing behind me right now. Turn it back on from the dev console." }]);
       setTimeout(() => endRef.current?.scrollIntoView({ behavior: "smooth" }), 40);
       return;
     }
     try {
-      const sys = `You are the DERZEN operator copilot for a boutique villa portfolio. Answer concise, operational, in under 120 words. You can read live data: ${properties.filter((p) => !p.archived).length} active listings (${properties.filter((p) => !p.archived).slice(0, 6).map((p) => p.name).join(", ")}). Never invent prices you weren't given; if you lack data, say so and suggest where to look.`;
+      const sys = systemPrompt(
+        `You are the operator copilot inside ${WORKSPACE.name}, a property operation running on DERZEN. Answer from the workspace figures below. Where they do not cover the question, say so plainly and name the screen the answer lives on.`,
+        "chat",
+        {
+          Workspace: [
+            `Active units: ${active.map((p) => p.name).join(", ") || "none yet"}`,
+            `Reservations on file: ${reservations.length}`,
+            `Open action items: ${actionItems.filter((it) => it.status === "open").length}`,
+          ].join("\n"),
+        },
+      );
       const res = await aiChat(sys, question, { maxTokens: 280 });
-      setMsgs((m) => [...m, { role: "ai", text: res.text }]);
+      setMsgs((m) => [...m, { role: "ai", text: plainText(res.text) }]);
     } catch (err) {
       const why = err instanceof Error ? err.message : "the gateway did not answer";
       setMsgs((m) => [...m, { role: "ai", text: `I could not get a model to answer that: ${why}` }]);
@@ -402,19 +392,34 @@ function CopilotPanel() {
     setTimeout(() => endRef.current?.scrollIntoView({ behavior: "smooth" }), 40);
   };
 
+  // The task used to be pinned to p-purnama and assigned to m-wayan whatever
+  // the workspace held, so in any tenant but the seeded demo it attached
+  // itself to a property and a person that do not exist. It now uses the
+  // first active unit and the first member on the team, and it refuses
+  // rather than guessing when there is neither.
   const confirmWrite = (taskId: string) => {
+    const target = active[0];
+    const assignee = MEMBERS[0];
+    if (!target || !assignee) {
+      toast("err", "Nothing to attach the task to", "This workspace has no active property or no team member yet.");
+      return;
+    }
     addTask({
-      id: `t-${Date.now()}`, title: taskId, type: "custom", propertyId: "p-purnama", assigneeId: "m-wayan",
+      id: `t-${Date.now()}`, title: taskId, type: "custom", propertyId: target.id, assigneeId: assignee.id,
       due: Date.now() + 2 * 86_400_000, priority: "high", status: "open",
-      checklist: [{ id: `ci-${Date.now()}`, label: "Resolve & close", done: false, requiresPhoto: false }],
+      checklist: [{ id: `ci-${Date.now()}`, label: "Resolve and close", done: false, requiresPhoto: false }],
       createdAt: Date.now(),
     });
     audit(`Task created via copilot: ${taskId}`, "ai");
-    toast("ok", "Task created", "Logged to audit trail · source: ai");
-    setMsgs((m) => [...m, { role: "ai", text: "Done: task created and assigned to Wayan. It's in the Command Center under Active." }]);
+    toast("ok", "Task created", "Logged to the audit trail with source ai");
+    setMsgs((m) => [...m, { role: "ai", text: `Done, the task is on ${target.name} and assigned to ${assignee.name}. You will find it in the Command Center under Active.` }]);
   };
 
-  const pctUsed = creditsUsed / WORKSPACE.credits.limit;
+  // The meter used to divide a local click counter by a seeded credit limit.
+  // ai-proxy reports the account type, the allowance and the spend so far, so
+  // that is what the bar reads, and before the first call it shows nothing.
+  const tokens = lastAiTokens();
+  const pctUsed = tokens && tokens.quota > 0 ? Math.min(1, tokens.used / tokens.quota) : 0;
   return (
     <aside className={cx("fixed right-0 top-0 z-[75] flex h-full w-[380px] flex-col border-l border-line bg-paper shadow-2xl transition-transform duration-300", copilotOpen ? "translate-x-0" : "translate-x-full")} aria-hidden={!copilotOpen}>
       <header className="flex items-center gap-2 border-b border-line bg-pine-900 px-4 py-3">
@@ -427,8 +432,8 @@ function CopilotPanel() {
       </header>
       <div className="border-b border-line bg-card px-4 py-2">
         <div className="mb-1 flex items-center justify-between text-[10.5px] font-bold text-mute">
-          <span>AI credits · this period</span>
-          <span className="font-mono">{creditsUsed} / {WORKSPACE.credits.limit}</span>
+          <span>{tokens ? `AI tokens, ${tokens.plan} this month` : "AI tokens this month"}</span>
+          <span className="font-mono">{tokens ? `${tokens.used.toLocaleString()} / ${tokens.quota.toLocaleString()}` : "not measured yet"}</span>
         </div>
         <div className="h-1.5 overflow-hidden rounded-full bg-line">
           <div className={cx("h-full rounded-full transition-all duration-500", pctUsed > 0.85 ? "bg-danger" : "bg-brand")} style={{ width: `${pctUsed * 100}%` }} />

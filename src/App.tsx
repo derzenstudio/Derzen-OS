@@ -17,6 +17,7 @@ import { onPersistFailure } from "./lib/tenantPersist";
 const PublicSite = lazy(() => import("./modules/Public").then((m) => ({ default: m.PublicSite })));
 const LoginPage = lazy(() => import("./modules/Public").then((m) => ({ default: m.LoginPage })));
 const PaymentPage = lazy(() => import("./modules/ChatWidget").then((m) => ({ default: m.PaymentPage })));
+const EmbedHost = lazy(() => import("./modules/EmbedHost"));
 // The internal console is compiled out of the public build. VITE_SURFACE is
 // substituted at build time, so on the app surface the branch holding the
 // dynamic import is dead code and Rollup never emits a Backoffice or
@@ -235,6 +236,10 @@ function AppRoutes() {
     if (f.headingFamily) rootStyle.setProperty("--tenant-heading", f.headingFamily);
     if (f.bodyFamily) rootStyle.setProperty("--tenant-body", f.bodyFamily);
   }, [sessionState, tenantFonts]);
+
+  // ── guest-facing embed host (public — this is what a tenant iframes in) ──
+  if (route.path[0] === "embed")
+    return <Suspense fallback={<LoadingSurface />}><EmbedHost /></Suspense>;
 
   // ── guest-facing hosted payment page (public — reachable from the chatbot embed) ──
   if (route.path[0] === "pay")

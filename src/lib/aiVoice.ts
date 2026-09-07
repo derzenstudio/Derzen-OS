@@ -77,6 +77,13 @@ export function plainText(input: string): string {
     .replace(EMPHASIS, "$2")
     .replace(/[*_`]+/g, "")
     .replace(DASH, ", ")
+    // The substitutions above leave debris a person would never type. An emoji
+    // removed mid-sentence leaves a space in front of the full stop, and an em
+    // dash that already followed a comma becomes two commas. A guest reads
+    // "late checkout , I cannot confirm" as a machine talking, so tidy up
+    // after ourselves rather than shipping the seams.
+    .replace(/[ \t]+([,.;:!?])/g, "$1")
+    .replace(/,(?:[ \t]*,)+/g, ",")
     .replace(/[ \t]{2,}/g, " ")
     .replace(/\n{3,}/g, "\n\n");
   return out.split("\n").map((line) => line.trim()).join("\n").trim();

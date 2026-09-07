@@ -1345,10 +1345,13 @@ function MetricCard({ label, value, series, color = "#0E6B4E" }: { label: string
 
 // ── Embeddable widgets ────────────────────────────────────────────────────
 function Embeds() {
-  const { widgetStyle: st, setWidgetStyle, toast, navigate } = useApp();
+  const { widgetStyle: st, setWidgetStyle, toast, navigate, session } = useApp();
   const [copied, setCopied] = useState("");
   const [widget, setWidget] = useState<"search" | "calendar" | "chatbot">("search");
   const [propId, setPropId] = useState(PROPERTIES[0]?.id);
+  // The snippet has to name the workspace it speaks for, otherwise the embed
+  // has no knowledge base to hydrate and would have to guess. No default.
+  const tenantId = session?.kind === "tenant" ? session.tenantId : "";
   const copy = (key: string, text: string) => { copyText(text); setCopied(key); toast("ok", "Embed code copied", "Auto-resizing — the widget grows with its content, never clipped."); setTimeout(() => setCopied(""), 1500); };
 
   const ColorRow = ({ label, k }: { label: string; k: "bg" | "card" | "text" | "sub" | "accent" | "borderColor" }) => (
@@ -1430,13 +1433,13 @@ function Embeds() {
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
           <div>
             <p className="mb-1.5 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-mute"><Ic name="code" size={12} /> JavaScript embed <Badge tone="ok">recommended</Badge></p>
-            <pre className="overflow-x-auto rounded-sm bg-pine-950 p-3 font-mono text-[10px] leading-relaxed text-pine-100">{embedJsSnippet(st, widget, widget === "calendar" ? propId : undefined)}</pre>
-            <Btn size="sm" className="mt-2" icon={copied === "js" ? "check" : "copy"} onClick={() => copy("js", embedJsSnippet(st, widget, widget === "calendar" ? propId : undefined))}>{copied === "js" ? "Copied" : "Copy JS snippet"}</Btn>
+            <pre className="overflow-x-auto rounded-sm bg-pine-950 p-3 font-mono text-[10px] leading-relaxed text-pine-100">{embedJsSnippet(st, widget, tenantId, widget === "calendar" ? propId : undefined)}</pre>
+            <Btn size="sm" className="mt-2" icon={copied === "js" ? "check" : "copy"} onClick={() => copy("js", embedJsSnippet(st, widget, tenantId, widget === "calendar" ? propId : undefined))}>{copied === "js" ? "Copied" : "Copy JS snippet"}</Btn>
           </div>
           <div>
             <p className="mb-1.5 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-mute"><Ic name="kanban" size={12} /> iframe fallback <Badge tone="mute">restrictive builders</Badge></p>
-            <pre className="overflow-x-auto rounded-sm bg-pine-950 p-3 font-mono text-[10px] leading-relaxed text-pine-100">{embedIframeSnippet(st, widget, widget === "calendar" ? propId : undefined)}</pre>
-            <Btn size="sm" className="mt-2" icon={copied === "if" ? "check" : "copy"} onClick={() => copy("if", embedIframeSnippet(st, widget, widget === "calendar" ? propId : undefined))}>{copied === "if" ? "Copied" : "Copy iframe snippet"}</Btn>
+            <pre className="overflow-x-auto rounded-sm bg-pine-950 p-3 font-mono text-[10px] leading-relaxed text-pine-100">{embedIframeSnippet(st, widget, tenantId, widget === "calendar" ? propId : undefined)}</pre>
+            <Btn size="sm" className="mt-2" icon={copied === "if" ? "check" : "copy"} onClick={() => copy("if", embedIframeSnippet(st, widget, tenantId, widget === "calendar" ? propId : undefined))}>{copied === "if" ? "Copied" : "Copy iframe snippet"}</Btn>
           </div>
         </div>
 
@@ -1447,8 +1450,8 @@ function Embeds() {
               <div key={p.id} className="flex items-center gap-2 rounded-sm border border-line px-3 py-2">
                 <img src={p.image} alt="" className="h-8 w-11 rounded-sm object-cover" />
                 <span className="min-w-0 flex-1 truncate text-[11.5px] font-bold text-ink">{p.name}</span>
-                <Btn size="xs" icon="copy" onClick={() => copy(p.id, embedJsSnippet(st, "calendar", p.id))}>JS</Btn>
-                <Btn size="xs" variant="ghost" icon="copy" onClick={() => copy(p.id + "i", embedIframeSnippet(st, "calendar", p.id))}>iframe</Btn>
+                <Btn size="xs" icon="copy" onClick={() => copy(p.id, embedJsSnippet(st, "calendar", tenantId, p.id))}>JS</Btn>
+                <Btn size="xs" variant="ghost" icon="copy" onClick={() => copy(p.id + "i", embedIframeSnippet(st, "calendar", tenantId, p.id))}>iframe</Btn>
               </div>
             ))}
           </div>

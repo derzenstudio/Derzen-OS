@@ -165,21 +165,24 @@ jobs:
               mode=basic
               echo "Wall: HTTP basic auth against $DEV_HTPASSWD_PATH."
             elif [ -n "$DEV_ACCESS_TOKEN" ]; then
-              case "$DEV_ACCESS_TOKEN" in
-                *[!A-Za-z0-9]*)
-                  echo "::error::DEV_ACCESS_TOKEN must be letters and digits only, it is substituted into a rewrite condition."
-                  exit 1
-                  ;;
-              esac
+              if [ ${#DEV_ACCESS_TOKEN} -lt 8 ]; then
+                echo "::error::DEV_ACCESS_TOKEN is shorter than eight characters. That is not a wall, pick a longer phrase."
+                exit 1
+              fi
+              # The phrase is never substituted into this config and never
+              # travels in a cookie. What is compared is its SHA-256 digest,
+              # which is hex whatever the phrase looks like, so a phrase with
+              # punctuation in it is safe here and safe to carry to the server.
+              digest=$(printf '%s' "$DEV_ACCESS_TOKEN" | sha256sum | cut -d' ' -f1)
               printf '%s\n' \
                 '# Shared phrase wall. gate.html and gate.js are the only two' \
                 '# files served without the cookie, and neither one carries' \
                 '# the phrase.' \
                 'RewriteCond %{REQUEST_URI} !^/gate\.(html|js)$' \
-                "RewriteCond %{HTTP_COOKIE} !(^|;[ ]*)derzen_dev=$DEV_ACCESS_TOKEN([ ]*;|\$)" \
+                "RewriteCond %{HTTP_COOKIE} !(^|;[ ]*)derzen_dev=$digest([ ]*;|\$)" \
                 'RewriteRule ^ /gate.html [L]' > "$wall"
               mode=token
-              echo "Wall: shared phrase carried in the derzen_dev cookie."
+              echo "Wall: shared phrase, compared as a SHA-256 digest in the derzen_dev cookie."
             else
               printf '%s\n' \
                 '# Sealed. No wall secret was supplied, so no internal asset' \

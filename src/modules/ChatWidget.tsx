@@ -81,7 +81,7 @@ export function ChatbotPreview({ st, onBooked }: { st: WidgetStyle; onBooked: (r
           ].join("\n"),
         },
       );
-      const res = await aiChat(sys, question, { maxTokens: 160 });
+      const res = await aiChat(sys, question, { maxTokens: 260 });
       setTyping(false);
       setMsgs((m) => [...m, { from: "bot", text: plainText(res.text) }]);
     } catch {

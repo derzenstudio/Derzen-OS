@@ -3,11 +3,12 @@ import { cx, money, fmtDate, timeAgo, relDay } from "../lib/format";
 import { Ic } from "../components/icons";
 import { Avatar, Badge, Btn, Dot, Empty, SearchBox, Select, StatusChip, Textarea } from "../components/ui";
 import { useApp } from "../store";
-import { channelDef, guestById, propertyById, RESERVATIONS } from "../lib/data";
+import { KNOWLEDGE, WORKSPACE, channelDef, guestById, propertyById, RESERVATIONS } from "../lib/data";
 import { ChannelMark } from "../components/ota";
 import { Reveal, StaggerGroup } from "../components/animations";
 import type { Conversation } from "../lib/types";
 import { aiChat, isAiConfigured } from "../lib/aiGateway";
+import { plainText, systemPrompt } from "../lib/aiVoice";
 
 export default function Inbox() {
   const { route, navigate, markConvRead, addReply, setConvNote, logAutopilot, toast } = useApp();
@@ -72,11 +73,31 @@ export default function Inbox() {
     }
 
     const lastGuest = [...conv.messages].reverse().find((m) => m.from === "guest")?.body ?? "";
-    const sys = `You are the guest concierge for ${p.name}, a boutique villa. Write a short, warm, professional reply (2-4 sentences) to the guest's message. Never invent policies, prices or availability you weren't given. Sign off as Kadek.`;
+    // Grounded in this workspace and this property only. hydrateTenantData()
+    // refills KNOWLEDGE in place on sign-in, so the scopes read here are the
+    // ones the Knowledge base tab manages for this tenant. A draft can never
+    // quote another operator house rule, and the voice is the same one the
+    // guest chatbot and the concierge sandbox use.
+    const scopes = KNOWLEDGE.filter((k) => k.scope !== "property" || k.refId === conv.propertyId);
+    const linked = conv.reservationId ? reservations.find((r) => r.id === conv.reservationId) : undefined;
+    const sys = systemPrompt(
+      `You are the guest concierge for ${WORKSPACE.name}, drafting the reply the team at ${p.name} in ${p.city} would send. Answer only from the material below. When it does not cover the question, say you will check and come back rather than guessing.`,
+      conv.channel === "email" ? "email" : "chat",
+      {
+        Sources: scopes.flatMap((k) => k.sources.map((s) => `${k.name}: ${s.name}`)).join("\n"),
+        Rules: scopes.flatMap((k) => k.rules.map((r) => `${r.kind === "hard" ? "HARD RULE" : "tone"}: ${r.text}`)).join("\n"),
+        Facts: [
+          `Guest: ${g.name}`,
+          `Property: ${p.name}, ${p.city}`,
+          `Channel: ${channelDef(conv.channel as never).name}`,
+          linked ? `Their stay: ${fmtDate(linked.checkIn)} to ${fmtDate(linked.checkOut)}` : "No reservation is linked to this conversation",
+        ].join("\n"),
+      },
+    );
     try {
-      const res = await aiChat(sys, `Guest ${g.name} wrote: "${lastGuest}"\n\nWrite the reply.`, { maxTokens: 200 });
-      setDraft(res.text);
-      toast("ok", "Draft generated", "Review and edit it before sending.");
+      const out = await aiChat(sys, `The guest wrote: "${lastGuest}"\n\nWrite the reply.`, { maxTokens: 240 });
+      setDraft(plainText(out.text));
+      toast("ok", "Draft ready", "Read it before you send it.");
     } catch (e) {
       // Surfaces the gateway's own words: rate limited, quota reached, no
       // provider configured. The draft box is left exactly as it was.

@@ -203,10 +203,10 @@ export function Backoffice() {
               <div className="ml-auto flex items-center gap-2">
                 <span className={cx("flex items-center gap-1.5 rounded-full border px-2.5 py-1 font-mono text-[10px] font-bold", emergencyStop ? "border-danger/50 bg-danger/15 text-[#f08c8c]" : "border-white/15 text-white/50")}>
                   <span className={cx("h-1.5 w-1.5 rounded-full", emergencyStop ? "bg-danger dot-pulse" : "bg-[#4CC38A]")} />
-                  {emergencyStop ? "OUTBOUND HALTED" : "outbound live"}
+                  {emergencyStop ? "OUTBOUND HALTED" : "outbound not wired"}
                 </span>
                 <span className="flex items-center gap-1.5 rounded-full border border-white/15 px-2.5 py-1 font-mono text-[10px] text-white/50">
-                  <Ic name="shield" size={11} className="text-[#4CC38A]" /> audit on
+                  <Ic name="shield" size={11} className="text-[#4CC38A]" /> audit is local to this tab
                 </span>
               </div>
             </div>
@@ -219,6 +219,23 @@ export function Backoffice() {
               <button onClick={() => { setEmergencyStop(false); record("disengaged global emergency stop", "messaging", "destructive"); }} className="ml-auto rounded-md bg-white px-3 py-1 text-[11.5px] font-bold text-ink hover:bg-paper">Resume</button>
             </div>
           )}
+
+          {/* The platform console is a layout and review surface. This
+              deployment has no platform telemetry store, so most panels
+              below are a seeded reference set. Saying so once, here, is
+              better than letting a reader mistake a fixture for a
+              measurement. */}
+          <div className="flex items-start gap-3 border-b border-white/10 bg-white/[0.04] px-6 py-3">
+            <Ic name="alertTri" size={15} className="mt-0.5 shrink-0 text-white/40" />
+            <p className="text-[11.5px] leading-relaxed text-white/55">
+              Most figures on this console are a seeded reference set. There is no platform
+              telemetry store on this deployment, so tenant health, revenue movement, queue
+              depths and incident lists are fixtures kept for layout and review rather than
+              measurements. The panels that do read something real say so in place: the AI
+              gateway status, the AI token ledger, and the plan catalogue under Commercials,
+              which is derived from the single pricing source in src/lib/pricing.ts.
+            </p>
+          </div>
 
           <div className="p-5 md:p-7 xl:p-9">
             {section === "ops" && <OpsDashboard onEmergencyStop={() => { setEmergencyStop(true); record("engaged global emergency stop", "messaging", "destructive"); }} />}

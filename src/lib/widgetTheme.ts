@@ -50,36 +50,90 @@ export function widgetFonts(s: WidgetStyle, brandHeading: string, brandBody: str
   return { heading: f, body: f };
 }
 
-export function embedJsSnippet(s: WidgetStyle, widget: "search" | "calendar" | "chatbot", propId?: string): string {
-  const data = `data-widget="${widget}"${propId ? ` data-property="${propId}"` : ""}`;
-  const note = widget === "chatbot"
-    ? `The concierge answers from your knowledge base + guidebook, pops an inline
-  calendar picker inside the chat, and hands off to a hosted payment page.
-  Escalations land in your Inbox; every auto-reply is audited.`
-    : `The widget reports its own height via postMessage — the iframe resizes
-  with its content (calendars, pickers), so nothing is ever clipped.`;
-  return `<!-- DERZEN ${widget} widget · styled by you, sized by itself -->
-<link rel="stylesheet" href="${s.fontUrl || "https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap"}">
-<div class="derzen-embed" ${data} style="${widgetCssVars(s)}"></div>
-<script async src="https://cdn.derzen.site/embed.js"></script>
-<!--
-  ${note}
-  Style it any way you like: every --dw-* variable above is yours.
--->`;
+// ── Embed snippets ──────────────────────────────────────────────
+// Both snippets address the host that is actually serving this app, resolved
+// at the moment the operator copies them. The old ones named cdn.derzen.site
+// and <subdomain>.derzen.site, neither of which was ever registered, so every
+// snippet a tenant pasted onto their website was dead on arrival. The frame
+// carries the workspace id, so the concierge inside it answers from that one
+// tenant knowledge base and no other.
+function embedBase(): string {
+  if (typeof window === "undefined") return "";
+  return window.location.origin;
 }
 
-export function embedIframeSnippet(s: WidgetStyle, widget: "search" | "calendar" | "chatbot", propId?: string, subdomain = "sanggraha"): string {
-  const q = [
-    `widget=${widget}`, propId ? `property=${propId}` : "",
-    `bg=${encodeURIComponent(s.bg)}`, `card=${encodeURIComponent(s.card)}`, `text=${encodeURIComponent(s.text)}`,
-    `sub=${encodeURIComponent(s.sub)}`, `accent=${encodeURIComponent(s.accent)}`,
-    `bw=${s.borderW}`, `bc=${encodeURIComponent(s.borderColor)}`, `r=${s.radius}`, `gap=${s.gap}`,
-    `pad=${s.pad}`, `fs=${s.fontSize}`, `btn=${s.btn}`, `btnr=${s.btnRadius}`,
-    s.fontFamily ? `font=${encodeURIComponent(s.fontFamily)}` : "",
-  ].filter(Boolean).join("&");
-  return `<iframe src="https://${subdomain}.derzen.site/embed?${q}"
-  style="width:100%;border:0;display:block" title="DERZEN ${widget} widget"
-  scrolling="no"></iframe>
-<!-- height is driven by the widget via postMessage auto-resize —
-     no fixed height, no clipping, pickers grow the frame up or down -->`;
+function embedQuery(
+  s: WidgetStyle,
+  widget: "search" | "calendar" | "chatbot",
+  tenantId: string,
+  propId?: string,
+): string {
+  const e = encodeURIComponent;
+  return [
+    `widget=${widget}`,
+    `tenant=${e(tenantId)}`,
+    propId ? `property=${e(propId)}` : "",
+    `bg=${e(s.bg)}`, `card=${e(s.card)}`, `text=${e(s.text)}`,
+    `sub=${e(s.sub)}`, `accent=${e(s.accent)}`, `bc=${e(s.borderColor)}`,
+    `bw=${s.borderW}`, `r=${s.radius}`, `g=${s.gap}`, `p=${s.pad}`,
+    `fs=${s.fontSize}`, `br=${s.btnRadius}`, `fh=${s.fieldH}`, `bh=${s.btnH}`,
+    s.fontUrl ? `fu=${e(s.fontUrl)}` : "",
+    s.fontFamily ? `ff=${e(s.fontFamily)}` : "",
+  ]
+    .filter(Boolean)
+    .join("&");
+}
+
+export function embedUrl(
+  s: WidgetStyle,
+  widget: "search" | "calendar" | "chatbot",
+  tenantId: string,
+  propId?: string,
+): string {
+  return `${embedBase()}/#/embed?${embedQuery(s, widget, tenantId, propId)}`;
+}
+
+// The script form needs no file from us: it writes its own frame and listens
+// for the height the embed page reports, so the widget grows with the
+// conversation instead of being clipped. One tag, nothing for us to host and
+// nothing to go stale.
+export function embedJsSnippet(
+  s: WidgetStyle,
+  widget: "search" | "calendar" | "chatbot",
+  tenantId: string,
+  propId?: string,
+): string {
+  return `<!-- DERZEN ${widget} widget · styled by you, sized by itself -->
+<div id="derzen-embed"></div>
+<script>
+(function () {
+  var mount = document.getElementById("derzen-embed");
+  var frame = document.createElement("iframe");
+  frame.src = "${embedUrl(s, widget, tenantId, propId)}";
+  frame.title = "DERZEN ${widget}";
+  frame.loading = "lazy";
+  frame.style.cssText = "width:100%;border:0;height:560px;display:block";
+  mount.appendChild(frame);
+  window.addEventListener("message", function (ev) {
+    var d = ev.data;
+    if (!d || d.source !== "derzen-embed") return;
+    if (frame.contentWindow !== ev.source) return;
+    if (typeof d.height === "number" && d.height > 120) frame.style.height = d.height + "px";
+  });
+})();
+<\/script>`;
+}
+
+// The plain frame for anyone who will not run a script tag. Fixed height, so
+// a long conversation scrolls inside the frame instead of pushing the page.
+export function embedIframeSnippet(
+  s: WidgetStyle,
+  widget: "search" | "calendar" | "chatbot",
+  tenantId: string,
+  propId?: string,
+): string {
+  return `<!-- DERZEN ${widget} widget · no script, fixed height -->
+<iframe src="${embedUrl(s, widget, tenantId, propId)}"
+  title="DERZEN ${widget}" loading="lazy" referrerpolicy="no-referrer"
+  style="width:100%;height:560px;border:0;display:block"></iframe>`;
 }

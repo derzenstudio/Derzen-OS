@@ -17,8 +17,24 @@ import { onPersistFailure } from "./lib/tenantPersist";
 const PublicSite = lazy(() => import("./modules/Public").then((m) => ({ default: m.PublicSite })));
 const LoginPage = lazy(() => import("./modules/Public").then((m) => ({ default: m.LoginPage })));
 const PaymentPage = lazy(() => import("./modules/ChatWidget").then((m) => ({ default: m.PaymentPage })));
-const Backoffice = lazy(() => import("./components/Backoffice").then((m) => ({ default: m.Backoffice })));
-const DevConsole = lazy(() => import("./modules/DevConsole"));
+// The internal console is compiled out of the public build. VITE_SURFACE is
+// substituted at build time, so on the app surface the branch holding the
+// dynamic import is dead code and Rollup never emits a Backoffice or
+// DevConsole chunk at all. Route guards only hide a screen; this means there
+// is no internal asset on app.alvianpermana.art to download, guessed URL or
+// not. The dev surface still gets both chunks, behind the wall in
+// deploy/htaccess.dev.
+const withheldChunk = () => Promise.resolve({ default: (() => null) as ComponentType });
+const Backoffice = lazy(() =>
+  import.meta.env.VITE_SURFACE === "app"
+    ? withheldChunk()
+    : import("./components/Backoffice").then((m) => ({ default: m.Backoffice as ComponentType })),
+);
+const DevConsole = lazy(() =>
+  import.meta.env.VITE_SURFACE === "app"
+    ? withheldChunk()
+    : import("./modules/DevConsole").then((m) => ({ default: m.default as ComponentType })),
+);
 const Dashboard = lazy(() => import("./modules/Dashboard"));
 const Calendar = lazy(() => import("./modules/Calendar"));
 const Inbox = lazy(() => import("./modules/Inbox"));

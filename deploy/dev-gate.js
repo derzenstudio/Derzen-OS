@@ -26,19 +26,46 @@
       "To open it, set DEV_HTPASSWD_PATH for HTTP basic auth, or DEV_ACCESS_TOKEN for a shared phrase, in the repository Actions secrets, then run the deploy workflow again.";
   }
 
+  // The phrase never leaves this function in the clear. What is stored in
+  // the cookie, and what the web server compares, is the SHA-256 digest of
+  // the phrase, so a phrase with punctuation in it works and a stolen
+  // cookie does not hand anyone the phrase itself.
+  function digest(text) {
+    var bytes = new TextEncoder().encode(text);
+    return crypto.subtle.digest("SHA-256", bytes).then(function (buf) {
+      var out = "";
+      new Uint8Array(buf).forEach(function (b) {
+        out += (b < 16 ? "0" : "") + b.toString(16);
+      });
+      return out;
+    });
+  }
+
   form.addEventListener("submit", function (e) {
     e.preventDefault();
     var value = field.value.trim();
     if (!value) return;
-    var bits = [
-      "derzen_dev=" + encodeURIComponent(value),
-      "path=/",
-      "max-age=43200",
-      "samesite=Strict",
-    ];
-    if (location.protocol === "https:") bits.push("secure");
-    document.cookie = bits.join("; ");
+    if (!window.crypto || !window.crypto.subtle) {
+      note.textContent =
+        "This browser will not prepare the phrase the way the server expects it. Open this page over https in a current browser.";
+      return;
+    }
     note.textContent = "Checking that phrase with the server.";
-    location.replace("/");
+    digest(value).then(
+      function (hex) {
+        var bits = [
+          "derzen_dev=" + hex,
+          "path=/",
+          "max-age=43200",
+          "samesite=Strict",
+        ];
+        if (location.protocol === "https:") bits.push("secure");
+        document.cookie = bits.join("; ");
+        location.replace("/");
+      },
+      function () {
+        note.textContent = "That phrase could not be prepared. Try again.";
+      }
+    );
   });
 })();

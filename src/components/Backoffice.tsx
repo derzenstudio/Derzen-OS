@@ -120,15 +120,24 @@ const TITLES: Record<BoSection, { title: string; sub: string }> = {
 };
 
 export function Backoffice() {
-  const { logout, navigate } = useApp();
+  const { logout, navigate, session } = useApp();
   const [section, setSection] = useState<BoSection>("ops");
   const [navOpen, setNavOpen] = useState(false);
   const [events, setEvents] = useState<AuditEvent[]>(AUDIT_STREAM);
   const [emergencyStop, setEmergencyStop] = useState(false);
 
+  // The audit line used to be stamped "dev@derzen" whoever was looking at it,
+  // which makes the trail worthless the moment there is more than one person
+  // on the team. It carries the signed-in developer now, and says so plainly
+  // when there is somehow no session behind the screen.
+  const actor =
+    session?.kind === "developer"
+      ? (session.devEmail || session.devMemberId || "developer, unidentified")
+      : "developer, unidentified";
+
   const record = useCallback((action: string, target: string, severity: AuditEvent["severity"] = "info") => {
-    setEvents((e) => [{ id: `a${Date.now()}`, ts: Date.now(), actor: "dev@derzen", action, target, severity }, ...e]);
-  }, []);
+    setEvents((e) => [{ id: `a${Date.now()}`, ts: Date.now(), actor, action, target, severity }, ...e]);
+  }, [actor]);
 
   const ctx = useMemo(() => ({ events, record }), [events, record]);
 

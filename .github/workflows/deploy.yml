@@ -109,6 +109,19 @@ jobs:
           VITE_SUPABASE_ANON_KEY: ${{ secrets.VITE_SUPABASE_ANON_KEY }}
         run: npm run build
 
+      # npm run build also bundles server.ts to dist/server.cjs so the app can
+      # be run behind Node. These hosts are plain static Apache: the file is
+      # never executed there, it is only downloadable, and it was. Internal
+      # server source has no business on either surface, so it is dropped
+      # before anything is uploaded. The .map beside it goes with it.
+      - name: Drop the Node server bundle from the upload
+        run: |
+          rm -f dist/server.cjs dist/server.cjs.map
+          if ls dist/*.cjs >/dev/null 2>&1; then
+            echo "::error::A .cjs file is still in dist and would be published."
+            exit 1
+          fi
+
       # app: explicit allow (was shipping no robots.txt at all).
       # dev: keep the internal console out of search engines.
       - name: SPA fallback + robots.txt

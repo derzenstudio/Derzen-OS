@@ -6,7 +6,10 @@
 # a route inside the bundle.
 #
 # The wall is written in by .github/workflows/deploy.yml, which picks one of
-# three modes and substitutes it for the @@DEV_WALL@@ marker below:
+# three modes and substitutes it for the wall marker further down. That
+# marker is written out only once, on its own line, because sed inserts the
+# wall after every line that mentions it and a duplicated auth block is a
+# configuration error the host answers with 503.
 #
 #   DEV_HTPASSWD_PATH set   HTTP basic auth against that htpasswd file. Best.
 #                           Create it once over SSH, outside the web root:

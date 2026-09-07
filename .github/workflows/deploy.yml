@@ -156,7 +156,18 @@ jobs:
           # publishing the console the way the old CHANGEME placeholder did.
           if [ "${{ matrix.surface }}" = "dev" ]; then
             wall="${RUNNER_TEMP:-/tmp}/dev-wall.conf"
-            if [ -n "$DEV_HTPASSWD_PATH" ]; then
+            # An AuthUserFile that does not name a real file on the host takes
+            # the whole surface down with a 503, and a value that is not even an
+            # absolute path can never name one. Treat that as not configured.
+            basic=no
+            case "${DEV_HTPASSWD_PATH:-}" in
+              /*) basic=yes ;;
+              "") : ;;
+              *)
+                echo "::warning::DEV_HTPASSWD_PATH is set to something that is not an absolute path, so it cannot name an htpasswd file on the host. Ignoring it. If you meant to use HTTP basic auth, put the full path of the htpasswd file there, for example /home/USER/.htpasswd-derzen, and put the password in that file rather than in the secret."
+                ;;
+            esac
+            if [ "$basic" = yes ]; then
               printf '%s\n' \
                 'AuthType Basic' \
                 'AuthName "DERZEN internal"' \
@@ -264,3 +275,25 @@ jobs:
           local-dir: ./dist/
           server-dir: ${{ vars[matrix.server_dir_var] || './' }}
           timeout: 120000
+
+      # An FTP upload reports success whether or not the host can parse what
+      # was uploaded. A malformed wall answers every request with 503, which
+      # looked like a green deploy until someone opened the site. Ask the live
+      # host what it thinks before calling this run good.
+      - name: Check the live surface answers
+        run: |
+          url="https://${{ matrix.surface }}.alvianpermana.art/"
+          code=000
+          for attempt in 1 2 3 4 5; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 20 "$url" || echo 000)
+            case "$code" in
+              200|301|302|401)
+                echo "$url answered $code on attempt $attempt."
+                exit 0
+                ;;
+            esac
+            echo "$url answered $code on attempt $attempt, waiting."
+            sleep 15
+          done
+          echo "::error::$url is still answering $code after the deploy. A 5xx here is almost always a wall the host cannot parse: check that DEV_HTPASSWD_PATH is the absolute path of a real htpasswd file, or clear it and use DEV_ACCESS_TOKEN instead."
+          exit 1

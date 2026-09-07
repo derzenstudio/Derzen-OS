@@ -1,0 +1,25 @@
+# Build output
+dist/
+dist-ssr/
+
+# Dependencies
+node_modules/
+
+# Local environment files. These hold provider keys and must never be
+# committed again: a live Gemini key reached this public repository once
+# already and had to be rotated.
+.env
+.env.local
+.env.*.local
+
+# Editor and OS noise
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.log
+npm-debug.log*
+
+# Supabase CLI local state
+supabase/.temp/
+supabase/.branches/

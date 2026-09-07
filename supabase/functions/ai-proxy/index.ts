@@ -206,6 +206,35 @@ type Completion = { text: string; usage: Usage };
 // failure and falls through to the next model.
 const stripReasoning = (s: string): string =>
   s.replace(/<think>[\s\S]*?<\/think>/gi, "").replace(/<\/?think>/gi, "").trim();
+
+// House voice, enforced on this side of the wire.
+// Every surface already asks for plain text in its own system prompt, but a
+// prompt is a request and a free model can decline it. A guest reading an
+// embedded chat bubble should never be shown a literal asterisk, a bullet or
+// an emoji because a fallback model felt like formatting, so the rule is
+// appended to the prompt here as well and the completion is cleaned before
+// it leaves the function. Any surface that calls this endpoint, now or later,
+// gets the same treatment without having to remember to ask.
+const HOUSE_RULE =
+  " Write plain text only. No emoji, no asterisks, no underscores for emphasis, no markdown of any kind." +
+  " No bullet points, no numbered lists, no headings and no tables. When several things need saying, say them as sentences." +
+  " Never use an em dash or an en dash.";
+
+const EMOJI_RE = /[\u{1F000}-\u{1FAFF}\u{1F1E6}-\u{1F1FF}\u{2600}-\u{27BF}\u{2B00}-\u{2BFF}\u{FE00}-\u{FE0F}\u{200D}]/gu;
+
+const houseText = (s: string): string =>
+  s
+    .replace(/```[a-z]*\n?/gi, "")
+    .replace(/^[ \t]*#{1,6}[ \t]*/gm, "")
+    .replace(/^[ \t]*>[ \t]?/gm, "")
+    .replace(/^[ \t]*(?:[-*+]|\d{1,2}[.)])[ \t]+/gm, "")
+    .replace(/(\*{1,3}|_{2,3})(\S[\s\S]*?\S|\S)\1/g, "$2")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(EMOJI_RE, "")
+    .replace(/\u2014|\u2013/g, ", ")
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
 const tokNum = (n: unknown): number => (typeof n === "number" && n > 0 ? Math.round(n) : 0);
 const estUsage = (system: string, user: string, out: string): Usage => {
   const prompt = Math.ceil((system.length + user.length) / 4);
@@ -482,7 +511,7 @@ Deno.serve(async (req) => {
   }
 
   const caps = CAPS[tier];
-  const system = String(body.system ?? "").slice(0, caps.promptChars);
+  const system = (String(body.system ?? "").slice(0, caps.promptChars) + HOUSE_RULE).trim();
   const prompt = String(body.user ?? "").slice(0, caps.promptChars);
   const maxTokens = Math.min(Math.max(1, Number(body.maxTokens) || 600), caps.maxTokens);
   if (!prompt) return json({ error: "empty prompt" }, 400);
@@ -645,7 +674,7 @@ Deno.serve(async (req) => {
     for (const model of candidates.slice(0, MAX_CANDIDATES_PER_PROVIDER)) {
       try {
         const done = await callProvider(p, key, model, system, prompt, maxTokens);
-        const text = stripReasoning(done.text);
+        const text = houseText(stripReasoning(done.text));
         if (!text) throw new ProviderError(200, "reasoning-only completion");
         const ms = Math.round(performance.now() - t0);
         if (tier === "trusted" && userId) {

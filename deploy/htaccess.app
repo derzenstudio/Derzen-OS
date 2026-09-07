@@ -48,6 +48,19 @@ RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
 Options -Indexes
 ServerSignature Off
 
+
+# Hostinger LiteSpeed started answering 503 to every .js request on this
+# domain while the css, the html and robots.txt in the same directory were
+# served normally, and the same files are fine on the dev host. That is the
+# signature of an inherited handler claiming the extension rather than a
+# missing file. Strip the handler and declare the type, so JavaScript is
+# served as the static asset it is.
+<IfModule mod_mime.c>
+  RemoveHandler .js .mjs
+  AddType application/javascript .js
+  AddType application/javascript .mjs
+</IfModule>
+
 # SPA fallback: unknown paths render the app, real files are served as-is.
 RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d

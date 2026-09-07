@@ -1,25 +1,33 @@
-# ── dev.alvianpermana.art · internal surface ──────────────────────────────
+# ── dev.alvianpermana.art · internal surface ─────────────────
 # The single most valuable control on this stack. Everything in the dev bundle
 # is downloadable by anyone who can reach the host, so no in-app login can
-# protect it. Basic auth here means an unauthenticated visitor never receives
+# protect it. The wall below means an unauthenticated visitor never receives
 # the JavaScript at all, which is a different class of protection from hiding
-# a route inside it.
+# a route inside the bundle.
 #
-# Create the password file OUTSIDE the web root, once, over SSH:
+# The wall is written in by .github/workflows/deploy.yml, which picks one of
+# three modes and substitutes it for the @@DEV_WALL@@ marker below:
 #
-#   htpasswd -c /home/USER/.htpasswd-derzen derzen
+#   DEV_HTPASSWD_PATH set   HTTP basic auth against that htpasswd file. Best.
+#                           Create it once over SSH, outside the web root:
+#                             htpasswd -c /home/USER/.htpasswd-derzen derzen
+#                           Hostinger hPanel can also generate one under
+#                           "Password Protect Directories" and will report
+#                           the absolute path to put in the secret.
+#   DEV_ACCESS_TOKEN set    A shared phrase carried in the derzen_dev cookie.
+#                           No SSH needed. Weaker than basic auth but still
+#                           server enforced: no cookie, no bundle. Use only
+#                           letters and digits, it lands in a regex.
+#   neither set             Sealed. Every request is answered with gate.html,
+#                           so no internal asset is served to anyone at all.
 #
-# Hostinger hPanel can also generate this under "Password Protect Directories".
-# Then set AuthUserFile below to the path it reports.
-
-AuthType Basic
-AuthName "DERZEN internal"
-AuthUserFile /home/CHANGEME/.htpasswd-derzen
-Require valid-user
+# Never let this surface ship without one of those three in place.
 
 RewriteEngine On
 RewriteCond %{HTTPS} !=on
 RewriteRule ^ https://%{HTTP_HOST}%{REQUEST_URI} [L,R=301]
+
+# @@DEV_WALL@@
 
 <IfModule mod_headers.c>
   Header always set Strict-Transport-Security "max-age=63072000; includeSubDomains"

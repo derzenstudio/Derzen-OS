@@ -240,6 +240,22 @@ const houseText = (s: string): string =>
     .replace(/[ \t]{2,}/g, " ")
     .replace(/\n{3,}/g, "\n\n")
     .trim();
+
+// A free model that runs out of budget stops mid-sentence, and a guest who
+// reads "Please let me know if you" is reading a machine that broke. Drop a
+// trailing fragment when there is a finished sentence to fall back on. A short
+// tail is left alone: a tone rule that signs off with a first name produces
+// exactly that and it is not a fragment.
+const whole = (s: string): string => {
+  const text = s.trim();
+  if (!text || /[.!?"')\]]$/.test(text)) return text;
+  const finished = text.match(/^[\s\S]*[.!?](?=\s)/);
+  if (!finished) return text;
+  const tail = text.slice(finished[0].length).trim();
+  if (tail.split(/\s+/).filter(Boolean).length < 4) return text;
+  return finished[0].trim();
+};
+
 const tokNum = (n: unknown): number => (typeof n === "number" && n > 0 ? Math.round(n) : 0);
 const estUsage = (system: string, user: string, out: string): Usage => {
   const prompt = Math.ceil((system.length + user.length) / 4);
@@ -679,7 +695,7 @@ Deno.serve(async (req) => {
     for (const model of candidates.slice(0, MAX_CANDIDATES_PER_PROVIDER)) {
       try {
         const done = await callProvider(p, key, model, system, prompt, maxTokens);
-        const text = houseText(stripReasoning(done.text));
+        const text = whole(houseText(stripReasoning(done.text)));
         if (!text) throw new ProviderError(200, "reasoning-only completion");
         const ms = Math.round(performance.now() - t0);
         if (tier === "trusted" && userId) {

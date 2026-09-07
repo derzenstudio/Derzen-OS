@@ -216,6 +216,27 @@ export function buildTenantData(tenantId: string): TenantData {
   base.sync = base.sync.filter((s, i) => i < 4).map((s) => ({ ...s, state: "live" as const, errorRate24h: 0, queueDepth: 0, lastSuccessTs: Date.now() - 10 * 60_000 }));
   base.conflicts = [];
   base.members = base.members.map((m, i) => (i === 0 ? { ...m, name: "Dewi Ambara", email: "owner@ambara.co" } : m));
+
+  // Knowledge is the one thing that may never be shared. Ambara used to
+  // inherit this array untouched, so an Ambara embed on an Ambara website
+  // answered guests out of Sanggraha's brand guide and Sanggraha's
+  // cancellation page. Each scope is renamed from this tenant's own
+  // (already rebranded) property list, and every source and rule is rewritten
+  // onto this tenant's brand and domain, so the two workspaces cannot cite
+  // each other.
+  const ownName = new Map(base.properties.map((p) => [p.id, p.name]));
+  const rebrand = (s: string): string =>
+    s.split("sanggraha.co").join("ambara.co").split("Sanggraha").join("Ambara Island Co.");
+  base.knowledge = base.knowledge.map((k) => ({
+    ...k,
+    name:
+      k.scope === "property" && k.refId && ownName.has(k.refId)
+        ? (ownName.get(k.refId) as string)
+        : rebrand(k.name),
+    sources: k.sources.map((s) => ({ ...s, name: rebrand(s.name) })),
+    rules: k.rules.map((r) => ({ ...r, text: rebrand(r.text) })),
+  }));
+
   return base;
 }
 

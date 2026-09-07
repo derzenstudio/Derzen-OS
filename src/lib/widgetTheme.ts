@@ -57,6 +57,12 @@ export function widgetFonts(s: WidgetStyle, brandHeading: string, brandBody: str
 // snippet a tenant pasted onto their website was dead on arrival. The frame
 // carries the workspace id, so the concierge inside it answers from that one
 // tenant knowledge base and no other.
+function embedLocale(): string {
+  if (typeof window === "undefined") return "en";
+  const m = window.location.hash.match(/^#\/([a-z]{2})(\/|$)/i);
+  return m ? m[1].toLowerCase() : "en";
+}
+
 function embedBase(): string {
   if (typeof window === "undefined") return "";
   return window.location.origin;
@@ -71,6 +77,7 @@ function embedQuery(
   const e = encodeURIComponent;
   return [
     `widget=${widget}`,
+    `locale=${embedLocale()}`,
     `tenant=${e(tenantId)}`,
     propId ? `property=${e(propId)}` : "",
     `bg=${e(s.bg)}`, `card=${e(s.card)}`, `text=${e(s.text)}`,
@@ -90,7 +97,7 @@ export function embedUrl(
   tenantId: string,
   propId?: string,
 ): string {
-  return `${embedBase()}/#/embed?${embedQuery(s, widget, tenantId, propId)}`;
+  return `${embedBase()}/#/${embedLocale()}/embed?${embedQuery(s, widget, tenantId, propId)}`;
 }
 
 // The script form needs no file from us: it writes its own frame and listens

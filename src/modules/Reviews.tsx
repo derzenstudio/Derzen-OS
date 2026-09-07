@@ -3,8 +3,9 @@ import { cx, pct, timeAgo, hoursLeft, fmtShort } from "../lib/format";
 import { Ic } from "../components/icons";
 import { Badge, Btn, Dot, Empty, Hist, Select, Textarea } from "../components/ui";
 import { useApp } from "../store";
-import { propertyById } from "../lib/data";
+import { KNOWLEDGE, WORKSPACE, propertyById } from "../lib/data";
 import { aiChat, isAiConfigured } from "../lib/aiGateway";
+import { plainText, systemPrompt } from "../lib/aiVoice";
 
 const PLATFORMS = ["airbnb", "booking", "trip", "google", "direct"] as const;
 const P_COLOR: Record<string, string> = { airbnb: "#E8485F", booking: "#2557D6", trip: "#3E9BFF", google: "#9A6A0B", direct: "#0E6B4E" };
@@ -20,15 +21,27 @@ export default function Reviews() {
       // Opening an empty reply box is honest; prefilling it with the seeded
       // r.aiDraft string presented stored text as if a model wrote it.
       setReplyFor(r.id); setDraft("");
-      toast("warn", "No AI provider configured", "Set one up in Dev → AI providers, or write the reply manually.");
+      toast("warn", "The AI gateway is not ready", "No provider key is held on the server for this deployment, so write the reply yourself.");
       return;
     }
     setGenFor(r.id);
     const p = propertyById(r.propertyId);
-    const sys = `You reply to guest reviews for ${p.name}, a boutique villa. Be warm, specific, and brief (2-3 sentences). Thank them, acknowledge what they mentioned, invite them back. Never be generic or templated-sounding. Never mention discounts.`;
+    // The tone rules come from this workspace own knowledge base, and only the
+    // scopes that belong to this property, so a public reply sounds like the
+    // operator rather than like a model, and it cannot borrow a line written
+    // for somebody else house.
+    const scopes = KNOWLEDGE.filter((k) => k.scope !== "property" || k.refId === r.propertyId);
+    const sys = systemPrompt(
+      `You write the public reply to a guest review of ${p.name} in ${p.city}, on behalf of ${WORKSPACE.name}. Thank the guest, answer whatever they raised, and invite them back. Never offer a discount, and never claim anything the material below does not support.`,
+      "chat",
+      {
+        Rules: scopes.flatMap((k) => k.rules.map((rl) => `${rl.kind === "hard" ? "HARD RULE" : "tone"}: ${rl.text}`)).join("\n"),
+        Facts: [`Property: ${p.name}, ${p.city}`, `The guest scored the stay ${r.normalized} out of 10`].join("\n"),
+      },
+    );
     try {
-      const res = await aiChat(sys, `Review (${r.normalized}/10): "${r.body}"\n\nWrite the public reply.`, { maxTokens: 150 });
-      setReplyFor(r.id); setDraft(res.text);
+      const out = await aiChat(sys, `The review says: "${r.body}"\n\nWrite the public reply.`, { maxTokens: 180 });
+      setReplyFor(r.id); setDraft(plainText(out.text));
     } catch (err) {
       // No stored-draft fallback. r.aiDraft is a seeded sentence, and handing
       // it over labelled as a generated reply is a canned answer in disguise.

@@ -232,6 +232,11 @@ const houseText = (s: string): string =>
     .replace(/`([^`]+)`/g, "$1")
     .replace(EMOJI_RE, "")
     .replace(/\u2014|\u2013/g, ", ")
+    // Keep this in step with plainText() in src/lib/aiVoice.ts. Removing an
+    // emoji or swapping a dash leaves a space in front of the punctuation, and
+    // a guest reads "late checkout , I cannot confirm" as a machine talking.
+    .replace(/[ \t]+([,.;:!?])/g, "$1")
+    .replace(/,(?:[ \t]*,)+/g, ",")
     .replace(/[ \t]{2,}/g, " ")
     .replace(/\n{3,}/g, "\n\n")
     .trim();

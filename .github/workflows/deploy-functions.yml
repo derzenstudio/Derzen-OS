@@ -58,10 +58,36 @@ jobs:
           sudo install -m 0755 /tmp/supabase /usr/local/bin/supabase
           supabase --version
 
+      # Every directory under supabase/functions is a function. They used to
+      # be listed here one at a time, and only ai-proxy ever was: checkout and
+      # payment-webhook sat in the repository undeployed, so the pricing page
+      # called a function that did not exist and the buyer saw a transport
+      # error instead of an answer. The loop means adding a function is adding
+      # a directory, nothing else.
+      #
       # No --no-verify-jwt: the gateway keeps rejecting callers that present no
-      # Supabase key at all. ai-proxy itself decides what a bare anon key is
-      # allowed to do; that tiering is in the function, not in the gateway.
-      - name: Deploy ai-proxy
+      # Supabase key at all. Each function decides for itself what a bare anon
+      # key may do; that tiering belongs in the function, not in the gateway.
+      - name: Deploy every function
         env:
           SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-        run: supabase functions deploy ai-proxy --project-ref hlurxysjoteionimgwli
+        run: |
+          set -eu
+          shipped=0
+          for dir in supabase/functions/*/; do
+            name=$(basename "$dir")
+            case "$name" in _*) echo "skipping shared directory $name"; continue;; esac
+            if [ ! -f "$dir/index.ts" ]; then
+              echo "::warning::$name has no index.ts, skipping"
+              continue
+            fi
+            echo "::group::deploy $name"
+            supabase functions deploy "$name" --project-ref hlurxysjoteionimgwli
+            echo "::endgroup::"
+            shipped=$((shipped + 1))
+          done
+          echo "deployed $shipped function(s)"
+          if [ "$shipped" -eq 0 ]; then
+            echo "::error::No functions were deployed. That is never correct here."
+            exit 1
+          fi
